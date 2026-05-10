@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <declare-styleable name="PageStateView">
+        <!-- 三个状态布局 -->
+        <attr name="psvLoadingLayout" format="reference" />
+        <attr name="psvEmptyLayout" format="reference" />
+        <attr name="psvErrorLayout" format="reference" />
+
+        <!-- 文案兜底（PagingHelper 配了 emptyText / errorText 时优先用 helper 的）-->
+        <attr name="psvEmptyText" format="string" />
+        <attr name="psvErrorText" format="string" />
+
+        <!-- 自定义布局里文本 / 重试按钮的 view id（与默认布局结构不一致时配置）-->
+        <attr name="psvEmptyTextId" format="reference" />
+        <attr name="psvErrorTextId" format="reference" />
+        <attr name="psvRetryId" format="reference" />
+
+        <!-- 状态视图统一背景资源（color 或 drawable）；不写或 @null 即透明 -->
+        <attr name="psvStateBackground" format="reference|color" />
+
+        <!-- 状态视图统一 margin（让出 topbar / 装饰区） -->
+        <attr name="psvMarginStart" format="dimension" />
+        <attr name="psvMarginTop" format="dimension" />
+        <attr name="psvMarginEnd" format="dimension" />
+        <attr name="psvMarginBottom" format="dimension" />
+    </declare-styleable>
+
+</resources>
