@@ -6,6 +6,8 @@ import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 
 /**
+ * 使用例子
+ *
  * 直播间进场消息(301):FIFO 时间序列展示,队列满后合并到队尾。
  * 每条消息独立 inflate [view_room_enter_msg.xml] 加入 [container],动画结束后从容器移除。
  * 容器是空壳,可与其它浮屏消息类型共用。
@@ -33,14 +35,21 @@ class RoomEnterMsgDelegate(
         lifecycle = activity.lifecycle
     )
 
+    /**
+     * 调用入口
+     */
     fun enqueue(avatar: String, nick: String) {
         if (nick.isBlank()) return
         queue.enqueue(EnterMsg(avatar, nick))
     }
 
+    /**
+     * 释放试图
+     */
     fun release() = queue.release()
 
     private fun createPill(container: ViewGroup, msg: EnterMsg): View {
+        //获取试图并绑定数据
         /*val binding = ViewRoomEnterMsgBinding.inflate(inflater, container, false)
         binding.tvNickEnter.text = msg.nick
         binding.tvEnterText.text = if (msg.mergeCount > 0) {

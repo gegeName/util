@@ -277,9 +277,29 @@ fun CoroutineScope.launchApiWithLoading(
  * requireActivity().bindLoadingDialog(viewModel.loading, lifecycleScope)
  * ```
  */
+interface LoadingController {
+    fun show(activity: AppCompatActivity, cancelable: Boolean, onCancel: () -> Unit)
+    fun dismiss(activity: AppCompatActivity)
+
+    companion object {
+        var default: LoadingController = DefaultLoadingController
+    }
+}
+
+object DefaultLoadingController : LoadingController {
+    override fun show(activity: AppCompatActivity, cancelable: Boolean, onCancel: () -> Unit) {
+        LoadingDialog.showLoadingDialog(activity, cancelable, onCancel)
+    }
+
+    override fun dismiss(activity: AppCompatActivity) {
+        LoadingDialog.dismissLoading(activity)
+    }
+}
+
 fun AppCompatActivity.bindLoadingDialog(
     emitter: LoadingEmitter,
-    scope: CoroutineScope
+    scope: CoroutineScope,
+    controller: LoadingController = LoadingController.default,
 ): Job {
     return scope.launch {
         try {
@@ -287,22 +307,16 @@ fun AppCompatActivity.bindLoadingDialog(
                 when (event) {
                     is LoadingEvent.Show -> {
                         if (isDestroyed || isFinishing) return@collect
-                        if (!lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)) return@collect
-                        runCatching {
-                            LoadingDialog.showLoadingDialog(
-                                this@bindLoadingDialog,
-                                event.cancelable,
-                                event.onCancel
-                            )
-                        }
+                        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return@collect
+                        runCatching { controller.show(this@bindLoadingDialog, event.cancelable, event.onCancel) }
                     }
                     LoadingEvent.Hide -> {
-                        if (!isDestroyed) runCatching { LoadingDialog.dismissLoading(this@bindLoadingDialog) }
+                        if (!isDestroyed) runCatching { controller.dismiss(this@bindLoadingDialog) }
                     }
                 }
             }
         } finally {
-            runCatching { LoadingDialog.dismissLoading(this@bindLoadingDialog) }
+            runCatching { controller.dismiss(this@bindLoadingDialog) }
         }
     }
 }

@@ -1,6 +1,5 @@
 plugins {
     id("com.android.library")
-    `maven-publish`
 }
 
 android {
@@ -26,13 +25,6 @@ android {
         viewBinding = true
         dataBinding = true
     }
-
-    publishing {
-        singleVariant("release") {
-            withSourcesJar()
-            withJavadocJar()
-        }
-    }
 }
 
 dependencies {
@@ -55,42 +47,4 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
-// ─── JitPack 发布配置 ───────────────────────────────────────────────────────
-// JitPack 服务器执行： ./gradlew :app:mylibrary:publishToMavenLocal -PVERSION_NAME=<tag>
-// 本地验证： ./gradlew :app:mylibrary:publishToMavenLocal
-// 使用方坐标（多模块仓库注意点号）： com.github.<USER>.<REPO>:mylibrary:<TAG>
-afterEvaluate {
-    publishing {
-        publications {
-            register<MavenPublication>("release") {
-                from(components["release"])
-                groupId = "com.github.gegeName"
-                artifactId = "mylibrary"
-                version = (findProperty("VERSION_NAME") as? String) ?: "0.1.0-LOCAL"
-
-                pom {
-                    name.set("mylibrary")
-                    description.set("TODO: 一句话描述这个库做什么")
-                    url.set("https://github.com/gegeName/mylibrary")    // TODO
-
-                    licenses {
-                        license {
-                            name.set("The Apache Software License, Version 2.0")
-                            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-                            distribution.set("repo")
-                        }
-                    }
-                    developers {
-                        developer {
-                            id.set("gegeName")
-                            name.set("util")
-                        }
-                    }
-                    scm {
-                        url.set("https://github.com/gegeName/mylibrary")
-                    }
-                }
-            }
-        }
-    }
-}
+apply(from = "jitpack.gradle")

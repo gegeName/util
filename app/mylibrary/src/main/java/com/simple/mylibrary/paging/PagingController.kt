@@ -87,9 +87,7 @@ class PagingController<T : Any> internal constructor(
     fun clear() {
         val p = patcher
         if (p != null) {
-            // 1) 先清掉 patcher 自己插入的临时条目
             p.removeInsert { true }
-            // 2) 把当前 adapter 可见的所有 key 加入 _removed，combine 重新发 → adapter 立即变空
             adapter.snapshot().items.forEach { p.delete(p.keyOf(it)) }
         } else {
             owner.lifecycleScope.launch { adapter.submitData(PagingData.empty()) }

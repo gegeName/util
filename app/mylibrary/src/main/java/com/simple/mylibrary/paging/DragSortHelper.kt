@@ -47,16 +47,11 @@ class DragSortHelper<T : Any> internal constructor(
     private val onMoved: (fromKey: Any, toKey: Any, fromLocal: Int, toLocal: Int) -> Unit
 ) {
 
-    // bindingAdapterPosition 已经是相对绑定它的内部 adapter 的位置，
-    // 所以 paging item 的 bindingAdapterPosition == 在 pagingAdapter 内的 local position。
-    // 之前还去减 ConcatAdapter 的 header 偏移会把前几项算成负数，导致前 N 项拖不动。
     private fun localPos(holder: RecyclerView.ViewHolder): Int {
         if (holder.bindingAdapter !== pagingAdapter) return -1
         return holder.bindingAdapterPosition
     }
 
-    // 同时用于"能否被拖动"和"能否被拖到（成为目标）"，确保锁定项不会被别的项越过去交换。
-    // peek 拿到 null 说明位置越界或还是占位（placeholder），都不允许参与拖动。
     private fun isDraggable(local: Int): Boolean {
         if (local < 0 || local >= pagingAdapter.itemCount) return false
         val predicate = canDrag ?: return true

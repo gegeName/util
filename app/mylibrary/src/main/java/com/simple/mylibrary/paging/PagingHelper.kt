@@ -333,13 +333,11 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
         val pa = requireNotNull(pagingAdapter) { "pagingAdapter 不能为空" }
         val flow = requireNotNull(pagingFlow) { "pagingFlow 不能为空" }
 
-        // 内置 Patcher 与请求调度器：外部 patcher 优先；都没传就尝试用 keyOf 自建
         val patcher: PagingPatcher<Any, T>? = externalPatcher
             ?: keyOf?.let { PagingPatcher(it) }
         val wrappedFlow: Flow<PagingData<T>> = patcher?.wrap(flow) ?: flow
         val runner = KeyedRequestRunner(owner.lifecycleScope)
 
-        // 组装 ConcatAdapter（headers + paging + footers + loadState footer）
         val sections = mutableListOf<RecyclerView.Adapter<*>>()
         headers.forEach { sections.add(it.adapter) }
         sections.add(pa)
@@ -352,7 +350,6 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
             *sections.toTypedArray()
         )
 
-        // LayoutManager 与 span 适配
         val lm = layoutManager ?: LinearLayoutManager(rv.context)
         rv.layoutManager = lm
         when (lm) {
@@ -361,17 +358,14 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
         }
         rv.adapter = concat
 
-        // ItemAnimator：默认 PagingItemAnimator（关 change 动画）；调用过 .itemAnimator(null) 就置 null
         rv.itemAnimator = itemAnimator
 
-        // 拖动排序：自定义 factory 优先；否则走 enableDragSort 的内置 DragSortHelper
         var dragHelper: DragSortHelper<T>? = null
         val customFactory = customDragTouchHelperFactory
         val moved = dragSortOnMoved
         when {
             customFactory != null -> {
                 customFactory.invoke(pa).attachToRecyclerView(rv)
-                // dragHelper 保持 null：业务自己持有 ItemTouchHelper 引用
             }
             moved != null -> {
                 val key = patcher?.keyOf ?: keyOf
@@ -388,12 +382,9 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
             }
         }
 
-        // 刷新框架联动（双源刷新协调）
         val ra = refreshAdapter
         ra?.setLoadMoreEnabled(false)
         val coordinator = RefreshCoordinator(ra)
-        // 标记本轮 refresh 是否由用户下拉触发；用户下拉时 spinner 已经在反馈，
-        // 不再额外叠 PageState 的全屏 loading（避免顶部转圈 + 全屏 loading 同框）。
         var userPullingRefresh = false
         ra?.setOnRefreshListener {
             userPullingRefresh = true
@@ -411,24 +402,20 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
                         }
                     }
                     result.onFailure { onLoadError?.invoke(it) }
-                    // 头部失败也要把失败状态传给 coordinator，否则 finishRefresh 会以 success=true 收尾
                     coordinator.headerDone(success = result.isSuccess)
                 }
             }
             pa.refresh()
         }
 
-        // 收集 PagingData + LoadState
         owner.lifecycleScope.launch {
             owner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { wrappedFlow.collectLatest { pa.submitData(it) } }
                 launch {
                     var lastErrorKey = 0
-                    // 把 retry 回调注入 PageStateHandler（点击错误页"点击重试"按钮触发）
                     pageStateHandler?.bindRetry { pa.retry() }
 
                     pa.loadStateFlow.collectLatest { state ->
-                        // 下拉刷新临时关 / 恢复 ItemAnimator
                         if (disableAnimatorOnRefresh) {
                             when (state.refresh) {
                                 is LoadState.Loading -> if (rv.itemAnimator != null) rv.itemAnimator = null
@@ -436,7 +423,6 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
                             }
                         }
 
-                        // 互斥 1：refresh 进行时把尾部 LoadState footer 全部隐藏，避免顶部转圈 + 底部"加载中…"同框
                         val effectiveAppend = if (state.refresh is LoadState.Loading) {
                             LoadState.NotLoading(endOfPaginationReached = false)
                         } else {
@@ -444,13 +430,10 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
                         }
                         loadStateFooter?.loadState = effectiveAppend
 
-                        // 互斥 2：append 加载中禁用下拉刷新（refresh 自己进行时不动它，spinner 还得继续显示）
                         if (state.refresh !is LoadState.Loading) {
                             ra?.setRefreshEnabled(state.append !is LoadState.Loading)
                         }
 
-                        // PageState 全屏占位：仅在列表为空时介入；
-                        // 若本轮 refresh 来自用户下拉，spinner 已经在反馈，不再叠全屏 loading。
                         pageStateHandler?.let { sv ->
                             val empty = pa.itemCount == 0
                             val refresh = state.refresh
@@ -565,7 +548,6 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
     }
     /**
      * GridLayoutManager 模式下让 spanFull 的 header / footer 与 LoadStateAdapter 跨整行。
-     *
      * 兼容外部自定义 SpanSize：进来前先抓住调用方在 LayoutManager 上预设的 spanSizeLookup，
      * 只对 spanFull 的 header / footer / LoadStateAdapter 强制跨整行；其余位置（尤其是
      * pagingAdapter 本身的 item）转成 adapter 内的本地 position 后委托回外部 lookup，
@@ -581,11 +563,9 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
         pagingAdapter: PagingDataAdapter<T, *>
     ) {
         val spanCount = lm.spanCount
-        // 调用方预设的 lookup（没设就是 GridLayoutManager 自己的 DefaultSpanSizeLookup）
         val userLookup = lm.spanSizeLookup
         lm.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
-                // 找到承载 position 的内部 adapter，并算出它在该 adapter 内的本地 position
                 var offset = 0
                 var inner: RecyclerView.Adapter<out RecyclerView.ViewHolder>? = null
                 var localPos = position
@@ -605,10 +585,7 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
                     || inner === loadStateFooter
                 if (isFullSpan) return spanCount
 
-                // paging item 把控制权交回外部 lookup，按本地 position 取值
                 if (inner === pagingAdapter) return userLookup.getSpanSize(localPos)
-
-                // 非 spanFull 的 header / footer 默认占 1 格（业务想要别的可设 spanFull=true）
                 return 1
             }
         }

@@ -25,7 +25,6 @@ class PagingItemAnimator : DefaultItemAnimator() {
         preLayoutInfo: ItemHolderInfo,
         postLayoutInfo: ItemHolderInfo
     ): Boolean {
-        // 不播变化动画，但必须分发 "finished" 事件，否则 RecyclerView 会认为动画还在跑而拒绝 rebind
         if (oldHolder === newHolder) {
             dispatchChangeFinished(oldHolder, /*oldItem=*/ true)
         } else {

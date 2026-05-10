@@ -7,7 +7,7 @@ import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 
 /**
- * 让悬浮在内容前缘的Header卡片跟随滚动收起
+ * 让悬浮在内容前缘的Header卡片跟随滚动
  *
  * - 内容不足以滚动时：Header常驻显示
  * - 内容可滚动时：按滚动偏移把Header向滚动反方向平移收起
@@ -121,7 +121,6 @@ class HeaderScrollSync private constructor(
             }
         }
         attachInternalScrollListener()
-        //处理attach晚于header首次布局的场景：layout listener不会再触发，主动同步一次
         if (headerView.isLaidOut) {
             applyContainerPadding(headerExtent() + extraPadding)
             syncHeaderTranslation()
@@ -238,7 +237,6 @@ class HeaderScrollSync private constructor(
         oldScrollX: Int,
         oldScrollY: Int,
     ) {
-        //复制一份避免回调中修改listener集合时抛ConcurrentModificationException
         val snapshot = externalScrollListeners.toList()
         snapshot.forEach { it.onScrollChange(scrollX, scrollY, oldScrollX, oldScrollY) }
     }

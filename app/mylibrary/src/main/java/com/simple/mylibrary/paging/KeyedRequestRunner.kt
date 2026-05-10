@@ -19,9 +19,6 @@ internal class KeyedRequestRunner(private val scope: CoroutineScope) {
     private val lastTs = mutableMapOf<Any, Long>()
     private val mutexes = mutableMapOf<Any, Mutex>()
 
-    /**
-     * @return null = 被策略丢弃；非空 Job = 已启动
-     */
     fun run(key: Any, policy: RequestPolicy, block: suspend () -> Unit): Job? {
         return when (policy) {
             RequestPolicy.None -> launchAndTrack(key, block)
