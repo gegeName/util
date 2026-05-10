@@ -1,0 +1,14 @@
+# JitPack 服务器构建配置（https://jitpack.io/docs/BUILDING/）
+# 放在仓库根目录，JitPack 会读取它来选择 JDK 版本、构建命令等。
+
+jdk:
+  - openjdk17
+
+# 默认 install 命令是 ./gradlew clean install，但 Android Library 没有 install 任务。
+# 这里显式指定发布到 mavenLocal，并只发布需要的子模块。
+install:
+  - ./gradlew :app:mylibrary:clean :app:mylibrary:publishToMavenLocal -PVERSION_NAME=$VERSION
+
+# 多模块仓库的依赖坐标会变成：
+#   com.github.<USER>.<REPO>:mylibrary:<TAG>
+# （注意是点号，不是冒号）
