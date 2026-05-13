@@ -243,11 +243,10 @@
 
                 <com.simple.mylibrary.weiget.ShapeTextView
                     android:id="@+id/btnServerUpdate"
-                    style="?attr/buttonBarButtonStyle"
                     android:layout_width="wrap_content"
-                    app:shape_shadowMaxElevation_L="10dp"
-                    app:shape_shadowElevation_L="5dp"
                     android:layout_height="wrap_content"
+                    app:shape_shadowElevation_L="4dp"
+                    app:shape_shadowContentPadding_L="15dp"
                     android:text="服务端改" />
 
                 <Button
@@ -263,6 +262,13 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="服务端插入" />
+
+                <Button
+                    android:id="@+id/btnJumpViewActivity"
+                    style="?attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="跳转到ViewActivity" />
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>

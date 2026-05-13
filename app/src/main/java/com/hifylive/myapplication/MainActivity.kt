@@ -1,5 +1,6 @@
 package com.hifylive.myapplication
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -51,6 +52,9 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        binding.btnJumpViewActivity.setOnClickListener {
+            startActivity(Intent(this@MainActivity, ViewActivity::class.java))
+        }
         val bannerAdapter = BannerHeaderAdapter().apply {
             submit(BannerData("头部 Banner（addHeader）", "下拉刷新会触发 onHeaderRefresh 更新"))
             setOnItemClickListener(throttleMs = 600) { _, data ->
