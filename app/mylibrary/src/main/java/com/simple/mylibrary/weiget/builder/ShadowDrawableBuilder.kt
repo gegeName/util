@@ -1,6 +1,7 @@
 package com.simple.mylibrary.weiget.builder
 
 import android.content.res.TypedArray
+import android.graphics.Color
 import android.graphics.Outline
 import android.os.Build
 import android.view.View
@@ -226,32 +227,30 @@ class ShadowDrawableBuilder(
              * spot / ambient 颜色互补规则：
              *
              * - 都给了：各自生效
-             * - 只给了 spot：ambient 用 spot 颜色，alpha 再降 10%（更柔）
-             * - 只给了 ambient：spot 用 ambient 颜色，alpha 再降 10%
-             * - 都没给：不动系统默认
-             *
-             * 目的：调用方只配一个属性也能整体改变阴影观感，
-             * 同时让 ambient 比 spot 更弱一些，避免「只染一边、另一边仍是系统默认黑」
-             * 在边缘叠出硬边的情况。
+             * - 只给了 spot：ambient 用 spot 颜色按 COMPANION_ALPHA_FACTOR 衰减后的值
+             * - 只给了 ambient：spot 用 ambient 颜色按 COMPANION_ALPHA_FACTOR 衰减后的值
+             * - 都没给：spot 保留系统默认（方向性投影、视觉自然），
+             *          只把 ambient 强制设为完全透明 —— 因为造成「阴影外硬边」
+             *          的恰恰是环境光那一层均匀的硬光晕，去掉它就柔和了
              */
-            val resolvedSpot = when {
-                spotColor != 0 -> spotColor
-                ambientColor != 0 -> fadeAlpha(ambientColor, COMPANION_ALPHA_FACTOR)
-                else -> 0
-            }
-
-            val resolvedAmbient = when {
-                ambientColor != 0 -> ambientColor
-                spotColor != 0 -> fadeAlpha(spotColor, COMPANION_ALPHA_FACTOR)
-                else -> 0
-            }
-
-            if (resolvedSpot != 0) {
-                view.outlineSpotShadowColor = resolvedSpot
-            }
-
-            if (resolvedAmbient != 0) {
-                view.outlineAmbientShadowColor = resolvedAmbient
+            when {
+                spotColor != 0 && ambientColor != 0 -> {
+                    view.outlineSpotShadowColor = spotColor
+                    view.outlineAmbientShadowColor = ambientColor
+                }
+                spotColor != 0 -> {
+                    view.outlineSpotShadowColor = spotColor
+                    view.outlineAmbientShadowColor =
+                        fadeAlpha(spotColor, COMPANION_ALPHA_FACTOR)
+                }
+                ambientColor != 0 -> {
+                    view.outlineSpotShadowColor =
+                        fadeAlpha(ambientColor, COMPANION_ALPHA_FACTOR)
+                    view.outlineAmbientShadowColor = ambientColor
+                }
+                else -> {
+                    view.outlineAmbientShadowColor = Color.TRANSPARENT
+                }
             }
         }
 
