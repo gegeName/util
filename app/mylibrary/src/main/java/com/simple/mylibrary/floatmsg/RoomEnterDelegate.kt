@@ -14,7 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
  *
  * @param animator 自定义入/出场动画,不传则用 [SlideInLeftAnimator] 默认左飞入/出
  */
-class RoomEnterMsgDelegate(
+class RoomEnterDelegate(
     private val activity: AppCompatActivity,
     container: ViewGroup,
     animator: FloatMessageAnimator = SlideInLeftAnimator()
