@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.AttributeSet
 import androidx.constraintlayout.widget.ConstraintLayout
 import com.simple.mylibrary.R
+import com.simple.mylibrary.weiget.builder.ShadowDrawableBuilder
 import com.simple.mylibrary.weiget.builder.ShapeDrawableBuilder
 
 class ShapeConstraintLayout @JvmOverloads constructor(
@@ -13,11 +14,20 @@ class ShapeConstraintLayout @JvmOverloads constructor(
 ) : ConstraintLayout(context, attrs, defStyleAttr) {
 
     val shapeDrawableBuilder: ShapeDrawableBuilder
+    val shadowDrawableBuilder: ShadowDrawableBuilder
 
     init {
-        val ta = context.obtainStyledAttributes(attrs, R.styleable.ShapeWidget)
-        shapeDrawableBuilder = ShapeDrawableBuilder(this, ta, R.styleable.ShapeWidget)
-        ta.recycle()
+        val shapeTa = context.obtainStyledAttributes(attrs, R.styleable.ShapeWidget)
+        shapeDrawableBuilder = ShapeDrawableBuilder(this, shapeTa, R.styleable.ShapeWidget)
+        shapeTa.recycle()
+
+        val shadowTa = context.obtainStyledAttributes(attrs, R.styleable.ShadowWidget)
+        shadowDrawableBuilder = ShadowDrawableBuilder(
+            this, shadowTa, R.styleable.ShadowWidget
+        ) { shapeDrawableBuilder.radius }
+        shadowTa.recycle()
+
         shapeDrawableBuilder.intoBackground()
+        shadowDrawableBuilder.intoShadow()
     }
 }

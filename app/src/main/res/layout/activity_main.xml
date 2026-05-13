@@ -241,10 +241,12 @@
                 android:paddingStart="8dp"
                 android:paddingEnd="8dp">
 
-                <Button
+                <com.simple.mylibrary.weiget.ShapeTextView
                     android:id="@+id/btnServerUpdate"
                     style="?attr/buttonBarButtonStyle"
                     android:layout_width="wrap_content"
+                    app:shape_shadowMaxElevation_L="10dp"
+                    app:shape_shadowElevation_L="5dp"
                     android:layout_height="wrap_content"
                     android:text="服务端改" />
 
