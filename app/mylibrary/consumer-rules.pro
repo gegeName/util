@@ -110,7 +110,17 @@
 -keep class **.DataBinderMapperImpl { *; }
 -keep class androidx.databinding.DataBinderMapper { *; }
 
-# 业务继承本库的 Adapter，必须保住其 VB 泛型签名（R8 在子类上也可能擦签名）
+# 业务继承本库的 Adapter，必须保住其 VB 泛型签名（R8 在子类上也可能擦签名
 -keepclassmembers class * extends com.simple.mylibrary.paging.BasePagingAdapter { *; }
 -keepclassmembers class * extends com.simple.mylibrary.paging.BaseMultiPagingAdapter { *; }
 -keepclassmembers class * extends com.simple.mylibrary.paging.SingleItemBindingAdapter { *; }
+#// ShapeDrawableBuilder 反射设置 Ring 属性所需字段
+-keepclassmembers class android.graphics.drawable.GradientDrawable$GradientState {
+    int mInnerRadius;
+    float mInnerRadiusRatio;
+    int mThickness;
+    float mThicknessRatio;
+}
+-keep class android.graphics.drawable.GradientDrawable {
+    private android.graphics.drawable.GradientDrawable$GradientState mGradientState;
+}
