@@ -1,0 +1,498 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    tools:context=".ViewActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+
+        <!-- ============================================================ -->
+        <!-- 1. ShapeDrawableBuilder 属性示例                              -->
+        <!-- ============================================================ -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.1  shape_solidColor_L + shape_radius_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="实心 + 圆角"
+            android:textColor="#FFFFFF"
+            app:shape_radius_L="8dp"
+            app:shape_solidColor_L="#3F51B5" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.2  四角不同圆角 shape_topLeftRadius_L / topRightRadius_L / bottomLeftRadius_L / bottomRightRadius_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="左上 16dp / 右下 16dp"
+            android:textColor="#FFFFFF"
+            app:shape_bottomRightRadius_L="16dp"
+            app:shape_solidColor_L="#009688"
+            app:shape_topLeftRadius_L="16dp" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.3  shape_strokeColor_L + shape_strokeSize_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="描边 2dp + 半透明红"
+            android:textColor="#E91E63"
+            app:shape_radius_L="6dp"
+            app:shape_solidColor_L="#FFF0F4"
+            app:shape_strokeColor_L="#E91E63"
+            app:shape_strokeSize_L="2dp" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.4  虚线描边 shape_strokeDashSize_L / shape_strokeDashGap_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="12dp"
+            android:text="虚线 6dp 间距 4dp"
+            android:textColor="#FF9800"
+            app:shape_radius_L="6dp"
+            app:shape_solidColor_L="#FFFFFF"
+            app:shape_strokeColor_L="#FF9800"
+            app:shape_strokeDashGap_L="4dp"
+            app:shape_strokeDashSize_L="6dp"
+            app:shape_strokeSize_L="2dp" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.5  线性渐变 shape_solidGradient*"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="左→中→右 三段渐变 (LEFT_RIGHT)"
+            android:textColor="#FFFFFF"
+            app:shape_radius_L="8dp"
+            app:shape_solidGradientCenterColor_L="#9C27B0"
+            app:shape_solidGradientEndColor_L="#03A9F4"
+            app:shape_solidGradientOrientation_L="leftToRight"
+            app:shape_solidGradientStartColor_L="#F44336"
+            app:shape_solidGradientType_L="linear" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.6  径向渐变 (gradientType=1)"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeView
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            app:shape_radius_L="60dp"
+            app:shape_solidGradientCenterX_L="0.5"
+            app:shape_solidGradientCenterY_L="0.5"
+            app:shape_solidGradientEndColor_L="#1A237E"
+            app:shape_solidGradientRadius_L="60dp"
+            app:shape_solidGradientStartColor_L="#FFEB3B"
+            app:shape_solidGradientType_L="radial" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.7  按压/选中态颜色 shape_solidPressedColor_L 等"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeButton
+            android:id="@+id/btn_color"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="按一下试试"
+            android:textColor="#FFFFFF"
+            app:shape_radius_L="24dp"
+            app:shape_solidColor_L="#2196F3"
+            app:shape_solidDisabledColor_L="#1F1E1E"
+            app:shape_solidPressedColor_L="#FFC107"
+            app:shape_solidSelectedColor_L="#3ABF3F" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.8  椭圆 shape_L=1"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeView
+            android:layout_width="120dp"
+            android:layout_height="60dp"
+            app:shape_L="none"
+            app:shape_solidColor_L="#4CAF50"
+            app:shape_strokeColor_L="#1B5E20"
+            app:shape_strokeSize_L="2dp" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:textColor="@color/black"
+            android:text="Shape 1.9  圆环 shape_L=3 + shape_innerRadiusRatio_L / shape_thicknessRatio_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeView
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            app:shape_L="ring"
+            app:shape_innerRadiusRatio_L="3"
+            app:shape_solidColor_L="#FF5722"
+            app:shape_thicknessRatio_L="9"
+            app:shape_useLevel_L="false" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:textColor="@color/black"
+            android:text="Shape 1.10  线条 shape_L=2 + shape_lineGravity_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeView
+            android:layout_width="match_parent"
+            android:layout_height="20dp"
+            app:shape_L="line"
+            app:shape_lineGravity_L="center"
+            app:shape_strokeColor_L="#607D8B"
+            app:shape_strokeDashGap_L="4dp"
+            app:shape_strokeDashSize_L="8dp"
+            app:shape_strokeSize_L="2dp" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shape 1.11  显式 shape_width_L / shape_height_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:shape_height_L="48dp"
+            app:shape_radius_L="24dp"
+            app:shape_solidColor_L="#795548"
+            app:shape_width_L="160dp" />
+
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="24dp"
+            android:background="#DDDDDD" />
+
+
+        <!-- ============================================================ -->
+        <!-- 2. ShadowDrawableBuilder 属性示例                             -->
+        <!-- ============================================================ -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.1  仅 shape_shadowElevation_L (系统默认黑色阴影，无 ambient 硬边)"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="只设 elevation = 6dp"
+            android:textColor="#212121"
+            app:shape_radius_L="8dp"
+            app:shape_shadowElevation_L="6dp"
+            app:shape_solidColor_L="#FFFFFF" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.2  shape_shadowSpotColor_L (主光彩色，ambient 自动透明)"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="spotColor = #FF4081"
+            android:textColor="#212121"
+            app:shape_radius_L="8dp"
+            app:shape_shadowElevation_L="8dp"
+            app:shape_shadowSpotColor_L="#FF4081"
+            app:shape_solidColor_L="#FFFFFF" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.3  shape_shadowAmbientColor_L (环境光彩色，spot 自动透明)"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="ambientColor = #00BCD4"
+            android:textColor="#212121"
+            app:shape_radius_L="8dp"
+            app:shape_shadowAmbientColor_L="#00BCD4"
+            app:shape_shadowElevation_L="8dp"
+            app:shape_solidColor_L="#FFFFFF" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.4  spot + ambient 同时设(各自原值，互不影响)"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="spot=#7C4DFF / ambient=#1A7C4DFF"
+            android:textColor="#212121"
+            app:shape_radius_L="8dp"
+            app:shape_shadowAmbientColor_L="#1A7C4DFF"
+            app:shape_shadowElevation_L="10dp"
+            app:shape_shadowSpotColor_L="#7C4DFF"
+            app:shape_solidColor_L="#FFFFFF" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.5  shape_shadowContentSize_L 显式锁定白色内容矩形尺寸"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="50dp×50dp"
+            android:textColor="#FFFFFF"
+            app:shape_radius_L="8dp"
+            app:shape_shadowContentSize_L="50dp"
+            app:shape_shadowElevation_L="6dp"
+            app:shape_shadowSpotColor_L="#33000000"
+            app:shape_solidColor_L="#3F51B5" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.6  shape_shadowContentWidth_L + shape_shadowContentHeight_L 单独设"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="120 × 40"
+            android:textColor="#FFFFFF"
+            app:shape_radius_L="20dp"
+            app:shape_shadowContentHeight_L="40dp"
+            app:shape_shadowContentWidth_L="120dp"
+            app:shape_shadowElevation_L="6dp"
+            app:shape_shadowSpotColor_L="#5500BCD4"
+            app:shape_solidColor_L="#00838F" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.7  shape_shadowContentPadding_L (统一内边距)"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="contentPadding = 12dp"
+            android:textColor="#212121"
+            app:shape_radius_L="8dp"
+            app:shape_shadowContentPadding_L="12dp"
+            app:shape_shadowElevation_L="6dp"
+            app:shape_shadowSpotColor_L="#33000000"
+            app:shape_solidColor_L="#FFFFFF" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.8  四向内边距独立 shape_shadowContentPaddingLeft_L / Top_L / Right_L / Bottom_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="L=24 T=8 R=24 B=8"
+            android:textColor="#212121"
+            app:shape_radius_L="8dp"
+            app:shape_shadowContentPaddingBottom_L="8dp"
+            app:shape_shadowContentPaddingLeft_L="24dp"
+            app:shape_shadowContentPaddingRight_L="24dp"
+            app:shape_shadowContentPaddingTop_L="8dp"
+            app:shape_shadowElevation_L="6dp"
+            app:shape_shadowSpotColor_L="#33000000"
+            app:shape_solidColor_L="#FFFFFF" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.9  shape_shadowMaxElevation_L (兼容计算用的最大阴影高度)"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="elevation=4dp / max=12dp"
+            android:textColor="#212121"
+            app:shape_radius_L="8dp"
+            app:shape_shadowElevation_L="4dp"
+            app:shape_shadowMaxElevation_L="12dp"
+            app:shape_shadowSpotColor_L="#33000000"
+            app:shape_solidColor_L="#FFFFFF" />
+
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Shadow 2.10  shape_shadowUseCompatPadding_L / shape_shadowPreventCornerOverlap_L"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeTextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp"
+            android:text="compat=true / preventOverlap=true"
+            android:textColor="#212121"
+            app:shape_radius_L="12dp"
+            app:shape_shadowElevation_L="6dp"
+            app:shape_shadowPreventCornerOverlap_L="true"
+            app:shape_shadowSpotColor_L="#33000000"
+            app:shape_shadowUseCompatPadding_L="true"
+            app:shape_solidColor_L="#FFFFFF" />
+
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="24dp"
+            android:background="#DDDDDD" />
+
+
+        <!-- ============================================================ -->
+        <!-- 3. Shape + Shadow 组合：标准 Material 卡片                     -->
+        <!-- ============================================================ -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingVertical="12dp"
+            android:text="Combo  Shape 渐变 + Shadow 彩色阴影 + 圆角同步到 outline"
+            android:textStyle="bold" />
+
+        <com.simple.mylibrary.weiget.ShapeLinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:orientation="vertical"
+            app:shape_radius_L="12dp"
+            app:shape_shadowContentPadding_L="16dp"
+            app:shape_shadowElevation_L="8dp"
+            app:shape_shadowSpotColor_L="#406200EE"
+            app:shape_solidGradientEndColor_L="#311B92"
+            app:shape_solidGradientOrientation_L="topLeftToBottomRight"
+            app:shape_solidGradientStartColor_L="#6200EE">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="标题"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:text="渐变背景 + 紫色阴影 + 12dp 圆角，shadow padding 自动留出"
+                android:textColor="#E1BEE7"
+                android:textSize="13sp" />
+        </com.simple.mylibrary.weiget.ShapeLinearLayout>
+
+    </LinearLayout>
+</ScrollView>
