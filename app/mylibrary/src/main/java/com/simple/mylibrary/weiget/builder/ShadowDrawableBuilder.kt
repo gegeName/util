@@ -2,9 +2,6 @@ package com.simple.mylibrary.weiget.builder
 
 import android.content.res.TypedArray
 import android.graphics.Outline
-import android.graphics.drawable.Drawable
-import android.graphics.drawable.InsetDrawable
-import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
@@ -64,6 +61,22 @@ class ShadowDrawableBuilder(
     private var contentPaddingTop: Int = 0
     private var contentPaddingRight: Int = 0
     private var contentPaddingBottom: Int = 0
+
+    /**
+     * 用户期望的「白色内容矩形」尺寸。-1 表示未设置。
+     * 自绘阴影路径下 layoutParams 会被自动调整为 contentSize + 2 × shadowPadding，
+     * 系统阴影路径下直接使用 contentSize（阴影本来就向 View 外扩散）。
+     */
+    private var contentWidth: Int = -1
+    private var contentHeight: Int = -1
+
+    /**
+     * 首次调整 layoutParams 之前缓存用户原始 width / height，
+     * 之后任何重新调整都基于这两个原始值算偏移，避免反复累加。
+     * 哨兵值 LP_UNCAPTURED 表示尚未捕获。
+     */
+    private var originalLpWidth: Int = LP_UNCAPTURED
+    private var originalLpHeight: Int = LP_UNCAPTURED
 
     /** 是否走自绘阴影 */
     private var selfDrawShadow: Boolean = false
@@ -125,6 +138,20 @@ class ShadowDrawableBuilder(
             contentPaddingBottom = ta.getDimensionPixelSize(it, defaultPadding)
         }
 
+        readAttr(ta, R.attr.shape_shadowContentSize_L) {
+            val size = ta.getDimensionPixelSize(it, -1)
+            contentWidth = size
+            contentHeight = size
+        }
+
+        readAttr(ta, R.attr.shape_shadowContentWidth_L) {
+            contentWidth = ta.getDimensionPixelSize(it, contentWidth)
+        }
+
+        readAttr(ta, R.attr.shape_shadowContentHeight_L) {
+            contentHeight = ta.getDimensionPixelSize(it, contentHeight)
+        }
+
         selfDrawShadow =
             (spotColor != 0 || ambientColor != 0) &&
                     Build.VERSION.SDK_INT < 28
@@ -158,6 +185,7 @@ class ShadowDrawableBuilder(
 
         if (elevation <= 0f) {
             applyContentPadding(0)
+            registerLayoutSizeAdjustment()
             return
         }
 
@@ -168,6 +196,7 @@ class ShadowDrawableBuilder(
         }
 
         registerParentClipDisable()
+        registerLayoutSizeAdjustment()
     }
 
     /**
@@ -193,18 +222,45 @@ class ShadowDrawableBuilder(
 
         if (Build.VERSION.SDK_INT >= 28) {
 
-            if (spotColor != 0) {
-                view.outlineSpotShadowColor = spotColor
+            /**
+             * spot / ambient 颜色互补规则：
+             *
+             * - 都给了：各自生效
+             * - 只给了 spot：ambient 用 spot 颜色，alpha 再降 10%（更柔）
+             * - 只给了 ambient：spot 用 ambient 颜色，alpha 再降 10%
+             * - 都没给：不动系统默认
+             *
+             * 目的：调用方只配一个属性也能整体改变阴影观感，
+             * 同时让 ambient 比 spot 更弱一些，避免「只染一边、另一边仍是系统默认黑」
+             * 在边缘叠出硬边的情况。
+             */
+            val resolvedSpot = when {
+                spotColor != 0 -> spotColor
+                ambientColor != 0 -> fadeAlpha(ambientColor, COMPANION_ALPHA_FACTOR)
+                else -> 0
             }
 
-            if (ambientColor != 0) {
-                view.outlineAmbientShadowColor = ambientColor
+            val resolvedAmbient = when {
+                ambientColor != 0 -> ambientColor
+                spotColor != 0 -> fadeAlpha(spotColor, COMPANION_ALPHA_FACTOR)
+                else -> 0
+            }
+
+            if (resolvedSpot != 0) {
+                view.outlineSpotShadowColor = resolvedSpot
+            }
+
+            if (resolvedAmbient != 0) {
+                view.outlineAmbientShadowColor = resolvedAmbient
             }
         }
 
-        val shadowPadding = calculateShadowPadding()
-
-        applyContentPadding(shadowPadding)
+        /**
+         * 系统 elevation 阴影绘制在 View bounds 之外，
+         * 由父布局 clipChildren=false 露出，不需要 View 内部预留空间。
+         * 这里只应用用户配置的 contentPadding。
+         */
+        applyContentPadding(0)
     }
 
     /**
@@ -220,31 +276,19 @@ class ShadowDrawableBuilder(
             if (spotColor != 0) spotColor
             else ambientColor
 
+        /**
+         * contentInset = shadowPadding：内容矩形距 View 边缘的距离。
+         * 阴影从内容矩形边缘向外扩散，到 View 边缘时自然衰减到透明。
+         * 不再套 InsetDrawable，避免裁切边界形成硬边（矩形"边框"感）。
+         */
         val shadowDrawable = SelfDrawnShadowDrawable(
             radius = radiusProvider(),
             shadowSize = elevation,
-            shadowColor = color
+            shadowColor = color,
+            contentInset = shadowPadding.toFloat()
         )
 
-        /**
-         * 关键：
-         *
-         * 不再缩小 background
-         *
-         * 而是：
-         * 给整个 drawable 留出外围阴影区域
-         *
-         * 类似 CardView
-         */
-        val insetDrawable = InsetDrawable(
-            shadowDrawable,
-            shadowPadding,
-            shadowPadding,
-            shadowPadding,
-            shadowPadding
-        )
-
-        view.background = insetDrawable
+        view.background = shadowDrawable
 
         /**
          * setShadowLayer 需要软件渲染
@@ -316,11 +360,14 @@ class ShadowDrawableBuilder(
 
     private fun disableParentClip(start: View) {
 
+        /**
+         * 一路向上关闭所有祖先的 clipChildren / clipToPadding，
+         * 否则系统 elevation 阴影会在某一层祖先的矩形边界被裁剪，
+         * 留下一条硬边（看起来像「阴影外面包了一层边框」）。
+         */
         var parent = start.parent as? ViewGroup
 
-        var depth = MAX_CLIP_DISABLE_DEPTH
-
-        while (parent != null && depth > 0) {
+        while (parent != null) {
 
             if (parent.clipChildren) {
                 parent.clipChildren = false
@@ -331,8 +378,96 @@ class ShadowDrawableBuilder(
             }
 
             parent = parent.parent as? ViewGroup
+        }
+    }
 
-            depth--
+    /**
+     * 注册 layoutParams 自动调整：
+     *
+     * - 自绘阴影路径下，阴影是画在 View 自身 bitmap 内的，
+     *   如果 layout_width / layout_height 是固定 dp 值，
+     *   直接渲染会让白色内容矩形被 shadowPadding 侵占而缩小。
+     *   这里把 layoutParams 自动加上 2 × shadowPadding，
+     *   让用户写多大、白色内容矩形就有多大。
+     *
+     * - 系统阴影路径下，阴影本来就向 View 外扩散，无需扩张 layoutParams；
+     *   仅当用户显式指定 shape_shadowContentSize_L / Width / Height 时，
+     *   才用这些值覆盖 layoutParams（语义：白色内容矩形 == 这个尺寸）。
+     */
+    private fun registerLayoutSizeAdjustment() {
+
+        view.post {
+            applyLayoutSizeAdjustment()
+        }
+
+        if (view.isAttachedToWindow) {
+            applyLayoutSizeAdjustment()
+        }
+    }
+
+    private fun applyLayoutSizeAdjustment() {
+
+        val lp = view.layoutParams ?: return
+
+        if (originalLpWidth == LP_UNCAPTURED) {
+            originalLpWidth = lp.width
+        }
+
+        if (originalLpHeight == LP_UNCAPTURED) {
+            originalLpHeight = lp.height
+        }
+
+        val shadowPadding =
+            if (selfDrawShadow && elevation > 0f) calculateShadowPadding() else 0
+
+        val targetWidth = resolveTargetSize(
+            explicitContent = contentWidth,
+            originalLp = originalLpWidth,
+            shadowPadding = shadowPadding
+        )
+
+        val targetHeight = resolveTargetSize(
+            explicitContent = contentHeight,
+            originalLp = originalLpHeight,
+            shadowPadding = shadowPadding
+        )
+
+        var changed = false
+
+        if (lp.width != targetWidth) {
+            lp.width = targetWidth
+            changed = true
+        }
+
+        if (lp.height != targetHeight) {
+            lp.height = targetHeight
+            changed = true
+        }
+
+        if (changed) {
+            view.layoutParams = lp
+        }
+    }
+
+    /**
+     * 单一维度的尺寸推导：
+     *
+     * 1. 显式给了 contentSize：以它为「内容矩形」尺寸；
+     *    自绘阴影要再加 2 × shadowPadding，系统阴影直接用。
+     * 2. 没显式给但用户写了固定 dp 值（>0）且走自绘阴影：
+     *    把原始 dp 视为「内容矩形」尺寸，自动加 2 × shadowPadding。
+     * 3. 其它情况（WRAP_CONTENT / MATCH_PARENT / 系统阴影 + 用户没给 content size）：
+     *    保持原值，不动。
+     */
+    private fun resolveTargetSize(
+        explicitContent: Int,
+        originalLp: Int,
+        shadowPadding: Int
+    ): Int {
+        return when {
+            explicitContent > 0 -> explicitContent + 2 * shadowPadding
+            selfDrawShadow && originalLp > 0 -> originalLp + 2 * shadowPadding
+            else -> originalLp
         }
     }
 
@@ -381,7 +516,25 @@ class ShadowDrawableBuilder(
         contentPaddingRight = right
         contentPaddingBottom = bottom
 
-        applyContentPadding(calculateShadowPadding())
+        val shadowPadding = if (selfDrawShadow) calculateShadowPadding() else 0
+
+        applyContentPadding(shadowPadding)
+    }
+
+    fun setContentSize(size: Int) = apply {
+        contentWidth = size
+        contentHeight = size
+        applyLayoutSizeAdjustment()
+    }
+
+    fun setContentWidth(width: Int) = apply {
+        contentWidth = width
+        applyLayoutSizeAdjustment()
+    }
+
+    fun setContentHeight(height: Int) = apply {
+        contentHeight = height
+        applyLayoutSizeAdjustment()
     }
 
     fun getShadowElevation(): Float = elevation
@@ -390,11 +543,27 @@ class ShadowDrawableBuilder(
 
     fun getPreventCornerOverlap(): Boolean = preventCornerOverlap
 
+    /**
+     * 把颜色的 alpha 通道按比例缩放，RGB 保持不变。
+     *
+     * 例如 fadeAlpha(0xFF000000.toInt(), 0.9f) 得到 0xE6000000。
+     */
+    private fun fadeAlpha(color: Int, factor: Float): Int {
+        val a = (((color ushr 24) and 0xFF) * factor)
+            .toInt()
+            .coerceIn(0, 255)
+        return (a shl 24) or (color and 0x00FFFFFF)
+    }
+
     companion object {
+        /** layoutParams 原始 width / height 尚未捕获的哨兵值 */
+        private const val LP_UNCAPTURED = Int.MIN_VALUE
 
         /**
-         * 最多向上关闭 3 层父布局裁剪
+         * spot / ambient 缺失时用对方颜色补齐时,对 alpha 应用的衰减系数。
+         * 0f = 完全透明,即另一边不再贡献阴影,
+         * 阴影只由用户显式配置的那一侧产生,避免系统默认黑色叠出硬边。
          */
-        private const val MAX_CLIP_DISABLE_DEPTH = 3
+        private const val COMPANION_ALPHA_FACTOR = 0f
     }
 }

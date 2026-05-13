@@ -179,43 +179,78 @@
     <attr name="shape_shadowContentPaddingRight_L" format="dimension" />
     <!-- 内容下 padding -->
     <attr name="shape_shadowContentPaddingBottom_L" format="dimension" />
+    <!-- 期望的"白色内容矩形"尺寸（同时设置宽高）：
+         自绘阴影路径下，控件会自动把 layoutParams 加上 2 × shadowPadding，
+         以保证内容矩形最终视觉大小等于该尺寸，阴影向外扩散且不侵占内容。 -->
+    <attr name="shape_shadowContentSize_L" format="dimension" />
+    <!-- 期望的内容矩形宽度（仅覆盖宽度） -->
+    <attr name="shape_shadowContentWidth_L" format="dimension" />
+    <!-- 期望的内容矩形高度（仅覆盖高度） -->
+    <attr name="shape_shadowContentHeight_L" format="dimension" />
 
 
     <!-- ==================== 2. 共享 styleable（Builder 通用，运行时使用） ==================== -->
 
     <declare-styleable name="ShapeWidget">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
     </declare-styleable>
 
     <declare-styleable name="ShadowWidget">
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
 
@@ -227,380 +262,653 @@
 
     <declare-styleable name="ShapeView">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeTextView">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeImageView">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeButton">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeLinearLayout">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeFrameLayout">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeConstraintLayout">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <!-- ===== Shadow 系列（4 个，shape + shadow 全套属性） ===== -->
 
     <declare-styleable name="ShadowTextView">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShadowLinearLayout">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShadowFrameLayout">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
     <declare-styleable name="ShadowConstraintLayout">
         <attr name="shape_L" />
-        <attr name="shape_width_L" /> <attr name="shape_height_L" />
-        <attr name="shape_solidColor_L" /> <attr name="shape_solidPressedColor_L" />
-        <attr name="shape_solidCheckedColor_L" /> <attr name="shape_solidDisabledColor_L" />
-        <attr name="shape_solidFocusedColor_L" /> <attr name="shape_solidSelectedColor_L" />
-        <attr name="shape_solidGradientStartColor_L" /> <attr name="shape_solidGradientCenterColor_L" />
-        <attr name="shape_solidGradientEndColor_L" /> <attr name="shape_solidGradientOrientation_L" />
-        <attr name="shape_solidGradientType_L" /> <attr name="shape_solidGradientRadius_L" />
-        <attr name="shape_solidGradientCenterX_L" /> <attr name="shape_solidGradientCenterY_L" />
+        <attr name="shape_width_L" />
+        <attr name="shape_height_L" />
+        <attr name="shape_solidColor_L" />
+        <attr name="shape_solidPressedColor_L" />
+        <attr name="shape_solidCheckedColor_L" />
+        <attr name="shape_solidDisabledColor_L" />
+        <attr name="shape_solidFocusedColor_L" />
+        <attr name="shape_solidSelectedColor_L" />
+        <attr name="shape_solidGradientStartColor_L" />
+        <attr name="shape_solidGradientCenterColor_L" />
+        <attr name="shape_solidGradientEndColor_L" />
+        <attr name="shape_solidGradientOrientation_L" />
+        <attr name="shape_solidGradientType_L" />
+        <attr name="shape_solidGradientRadius_L" />
+        <attr name="shape_solidGradientCenterX_L" />
+        <attr name="shape_solidGradientCenterY_L" />
         <attr name="shape_solidGradientUseLevel_L" />
-        <attr name="shape_radius_L" /> <attr name="shape_topLeftRadius_L" />
-        <attr name="shape_topRightRadius_L" /> <attr name="shape_bottomLeftRadius_L" />
+        <attr name="shape_radius_L" />
+        <attr name="shape_topLeftRadius_L" />
+        <attr name="shape_topRightRadius_L" />
+        <attr name="shape_bottomLeftRadius_L" />
         <attr name="shape_bottomRightRadius_L" />
-        <attr name="shape_strokeColor_L" /> <attr name="shape_strokePressedColor_L" />
-        <attr name="shape_strokeCheckedColor_L" /> <attr name="shape_strokeDisabledColor_L" />
-        <attr name="shape_strokeFocusedColor_L" /> <attr name="shape_strokeSelectedColor_L" />
-        <attr name="shape_strokeSize_L" /> <attr name="shape_strokeDashSize_L" />
+        <attr name="shape_strokeColor_L" />
+        <attr name="shape_strokePressedColor_L" />
+        <attr name="shape_strokeCheckedColor_L" />
+        <attr name="shape_strokeDisabledColor_L" />
+        <attr name="shape_strokeFocusedColor_L" />
+        <attr name="shape_strokeSelectedColor_L" />
+        <attr name="shape_strokeSize_L" />
+        <attr name="shape_strokeDashSize_L" />
         <attr name="shape_strokeDashGap_L" />
-        <attr name="shape_strokeGradientStartColor_L" /> <attr name="shape_strokeGradientCenterColor_L" />
-        <attr name="shape_strokeGradientEndColor_L" /> <attr name="shape_strokeGradientOrientation_L" />
-        <attr name="shape_innerRadius_L" /> <attr name="shape_innerRadiusRatio_L" />
-        <attr name="shape_thickness_L" /> <attr name="shape_thicknessRatio_L" />
-        <attr name="shape_useLevel_L" /> <attr name="shape_lineGravity_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
+        <attr name="shape_strokeGradientStartColor_L" />
+        <attr name="shape_strokeGradientCenterColor_L" />
+        <attr name="shape_strokeGradientEndColor_L" />
+        <attr name="shape_strokeGradientOrientation_L" />
+        <attr name="shape_innerRadius_L" />
+        <attr name="shape_innerRadiusRatio_L" />
+        <attr name="shape_thickness_L" />
+        <attr name="shape_thicknessRatio_L" />
+        <attr name="shape_useLevel_L" />
+        <attr name="shape_lineGravity_L" />
+        <attr name="shape_shadowElevation_L" />
+        <attr name="shape_shadowMaxElevation_L" />
+        <attr name="shape_shadowUseCompatPadding_L" />
+        <attr name="shape_shadowPreventCornerOverlap_L" />
+        <attr name="shape_shadowSpotColor_L" />
+        <attr name="shape_shadowAmbientColor_L" />
+        <attr name="shape_shadowContentPadding_L" />
+        <attr name="shape_shadowContentPaddingLeft_L" />
+        <attr name="shape_shadowContentPaddingTop_L" />
+        <attr name="shape_shadowContentPaddingRight_L" />
         <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowElevation_L" /> <attr name="shape_shadowMaxElevation_L" />
-        <attr name="shape_shadowUseCompatPadding_L" /> <attr name="shape_shadowPreventCornerOverlap_L" />
-        <attr name="shape_shadowSpotColor_L" /> <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" /> <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" /> <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
+        <attr name="shape_shadowContentSize_L" />
+        <attr name="shape_shadowContentWidth_L" />
+        <attr name="shape_shadowContentHeight_L" />
     </declare-styleable>
 
 </resources>

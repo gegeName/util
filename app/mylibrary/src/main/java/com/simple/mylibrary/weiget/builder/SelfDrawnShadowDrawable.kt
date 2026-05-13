@@ -22,6 +22,12 @@ class SelfDrawnShadowDrawable(
     private val radius: Float,
     private val shadowSize: Float,
     private val shadowColor: Int,
+    /**
+     * 内容矩形距 drawable bounds 边缘的距离（即 shadowPadding）。
+     * 阴影从内容矩形边缘向外扩散，到 bounds 边缘时自然衰减到透明，
+     * 不再借助 InsetDrawable 裁切，从而消除阴影外侧的硬边。
+     */
+    private val contentInset: Float = shadowSize,
     private val offsetX: Float = 0f,
     private val offsetY: Float = 0f
 ) : Drawable() {
@@ -37,10 +43,10 @@ class SelfDrawnShadowDrawable(
     override fun draw(canvas: Canvas) {
         val b = bounds
         rectF.set(
-            b.left + shadowSize,
-            b.top + shadowSize,
-            b.right - shadowSize,
-            b.bottom - shadowSize
+            b.left + contentInset,
+            b.top + contentInset,
+            b.right - contentInset,
+            b.bottom - contentInset
         )
         canvas.drawRoundRect(rectF, radius, radius, paint)
     }
