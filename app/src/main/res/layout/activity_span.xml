@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    tools:context=".SpanActivity">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -10,12 +13,282 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+
+        <!-- ========================================================== -->
+        <!-- 1. append + color + bold + italic + boldItalic + underline -->
+        <!--    + strikethrough                                          -->
+        <!-- ========================================================== -->
         <TextView
-            android:id="@+id/tvContent"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:lineSpacingExtra="4dp" />
+            style="@style/Section"
+            android:text="1. append + color/bold/italic/boldItalic/underline/strikethrough" />
+
+        <TextView
+            android:id="@+id/tv_demo_append_styles"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 2. appendLine + sizePx + backgroundColor                    -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="2. appendLine + sizePx + backgroundColor" />
+
+        <TextView
+            android:id="@+id/tv_demo_append_line"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 3. image(resId, w, h) 本地资源                              -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="3. image(resId, w, h) 本地资源 + CenterAlignImageSpan 居中" />
+
+        <TextView
+            android:id="@+id/tv_demo_image_res"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 4. image(drawable) Drawable 对象                            -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="4. image(drawable, w, h) 直接传 Drawable" />
+
+        <TextView
+            android:id="@+id/tv_demo_image_drawable"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 5. image(bitmap) Bitmap                                     -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="5. image(bitmap, w, h) 传入 Bitmap" />
+
+        <TextView
+            android:id="@+id/tv_demo_image_bitmap"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 6. image(url) 远程 URL 图(Glide 异步加载)                 -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="6. image(url, w, h, circle) 远程 URL,Glide 异步加载" />
+
+        <TextView
+            android:id="@+id/tv_demo_image_url"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 7. setText + find + color/bold                              -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="7. setText + find(keyword) 命中首个匹配再上色加粗" />
+
+        <TextView
+            android:id="@+id/tv_demo_find"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 8. setText + findAll(ignoreCase = true)                     -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="8. setText + findAll(keyword, ignoreCase) 命中全部" />
+
+        <TextView
+            android:id="@+id/tv_demo_find_all"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 9. setText + findRegex                                      -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="9. setText + findRegex(正则)" />
+
+        <TextView
+            android:id="@+id/tv_demo_find_regex"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 10. setText + range(start, end)                             -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="10. setText + range(s, e) 显式下标范围" />
+
+        <TextView
+            android:id="@+id/tv_demo_range"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 11. setText + all()                                         -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="11. setText + all() 整段统一上样式" />
+
+        <TextView
+            android:id="@+id/tv_demo_all"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 12. replaceWithImage(placeholder, resId)                    -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="12. replaceWithImage(placeholder, resId) 占位符 → 本地图" />
+
+        <TextView
+            android:id="@+id/tv_demo_replace_res"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 13. replaceWithImage 多占位符(测试位移修复)               -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="13. replaceWithImage 多个占位符 + 后续 find 上色(验证位移)" />
+
+        <TextView
+            android:id="@+id/tv_demo_replace_multi"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 14. replaceWithImage(placeholder, drawable)                 -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="14. replaceWithImage(placeholder, drawable)" />
+
+        <TextView
+            android:id="@+id/tv_demo_replace_drawable"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 15. replaceWithImage(placeholder, url)                      -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="15. replaceWithImage(placeholder, url, w, h, circle)" />
+
+        <TextView
+            android:id="@+id/tv_demo_replace_url"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 16. maxLength                                               -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="16. maxLength(maxChars, ellipsis) 超出截断 + 样式延展到省略号" />
+
+        <TextView
+            android:id="@+id/tv_demo_max_length"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 17. marginPx 文字片段:左右插占位 + 上下 baselineShift     -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="17. marginPx 文字片段:左右距离 + 上下平移(baselineShift)" />
+
+        <TextView
+            android:id="@+id/tv_demo_margin_text"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 18. marginPx 图片片段:InsetDrawable 包裹                  -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="18. marginPx 图片片段:InsetDrawable 四方向间距" />
+
+        <TextView
+            android:id="@+id/tv_demo_margin_image"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 19. textVerticalMarginPx 全文字上下统一平移               -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="19. textVerticalMarginPx 全文字上下统一平移(配合图片视觉居中)" />
+
+        <TextView
+            android:id="@+id/tv_demo_text_vertical_margin"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 20. onClick (默认沿用 color,不加下划线)                   -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="20. onClick(默认无下划线,保留 color 设的颜色)" />
+
+        <TextView
+            android:id="@+id/tv_demo_click_simple"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 21. onClick(underline = true, overrideColor)                -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="21. onClick(underline=true, overrideColor) 强制下划线/颜色" />
+
+        <TextView
+            android:id="@+id/tv_demo_click_styled"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 22. build() 直接拿 CharSequence,自己 setText               -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="22. build() 直接拿 CharSequence(不会触发 URL 加载)" />
+
+        <TextView
+            android:id="@+id/tv_demo_build"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 23. 综合:服务端文案模式典型用法                            -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="23. 综合演示:服务端整段文案 + 多种 find/replace 链式" />
+
+        <TextView
+            android:id="@+id/tv_demo_combo"
+            style="@style/Demo" />
 
     </LinearLayout>
 

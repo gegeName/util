@@ -6,12 +6,20 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.simple.mylibrary.utils.SpanBuilder
 
+/**
+ * SpanBuilder 全方法演示。
+ *
+ * 每个 demo 对应 activity_span.xml 里一个 TextView,
+ * 标题与方法的对应关系直接看 XML 的 <!-- N. xxx --> 注释。
+ */
 class SpanActivity : AppCompatActivity() {
-    private lateinit var tvContent: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -21,210 +29,269 @@ class SpanActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        tvContent = findViewById(R.id.tvContent)
 
-        demoAll()
+        demo1AppendStyles()
+        demo2AppendLine()
+        demo3ImageRes()
+        demo4ImageDrawable()
+        demo5ImageBitmap()
+        demo6ImageUrl()
+        demo7Find()
+        demo8FindAll()
+        demo9FindRegex()
+        demo10Range()
+        demo11All()
+        demo12ReplaceRes()
+        demo13ReplaceMulti()
+        demo14ReplaceDrawable()
+        demo15ReplaceUrl()
+        demo16MaxLength()
+        demo17MarginText()
+        demo18MarginImage()
+        demo19TextVerticalMargin()
+        demo20OnClickSimple()
+        demo21OnClickStyled()
+        demo22Build()
+        demo23Combo()
     }
 
-    private fun demoAll() {
+    // ============== 小工具 ==============
 
-        val builder = SpanBuilder.with(this)
+    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
+    private fun Int.sp(): Int = (this * resources.displayMetrics.scaledDensity).toInt()
 
-        // ==========================
-        // append 基础文本
-        // ==========================
+    private fun tv(id: Int): TextView = findViewById(id)
 
-        builder
-            .appendLine("===== append 基础文本 =====")
-            .append("普通文本")
-            .appendLine()
+    // 公网可访问的小尺寸图,Glide 会缓存,后续启动几乎无开销
+    private val sampleAvatarUrl = "https://avatars.githubusercontent.com/u/1?s=96"
 
-        // ==========================
-        // color / bold / italic
-        // ==========================
+    // ============== Demos ==============
 
-        builder
-            .appendLine()
-            .appendLine("===== 字体样式 =====")
+    /** 1. append + 多种文字样式 */
+    private fun demo1AppendStyles() {
+        SpanBuilder.with(this)
+            .append("红色").color(Color.RED)
+            .append(" 加粗").bold()
+            .append(" 斜体").italic()
+            .append(" 粗斜").boldItalic()
+            .append(" 下划线").underline()
+            .append(" 删除线").strikethrough()
+            .into(tv(R.id.tv_demo_append_styles))
+    }
 
-            .append("红色文字 ")
-            .color(Color.RED)
-            .append("加粗文字 ")
-            .bold()
+    /** 2. appendLine + sizePx + backgroundColor */
+    private fun demo2AppendLine() {
+        SpanBuilder.with(this)
+            .appendLine("第一行 大号字").sizePx(22.sp())
+            .appendLine("第二行 黄色背景").backgroundColor(0xFFFFEB3B.toInt())
+            .append("第三行 默认样式")
+            .into(tv(R.id.tv_demo_append_line))
+    }
 
-            .append("斜体文字 ")
-            .italic()
+    /** 3. image(resId, w, h) 本地资源 */
+    private fun demo3ImageRes() {
+        SpanBuilder.with(this)
+            .append("Launcher 图标 ")
+            .image(R.drawable.ic_launcher_foreground, 28.dp(), 28.dp())
+            .append(" 嵌在文字中间")
+            .into(tv(R.id.tv_demo_image_res))
+    }
 
-            .append("粗斜体 ")
-            .boldItalic()
+    /** 4. image(drawable, w, h) 直接传 Drawable 对象 */
+    private fun demo4ImageDrawable() {
+        val drawable = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground) ?: return
+        SpanBuilder.with(this)
+            .append("Drawable 对象 → ")
+            .image(drawable, 36.dp(), 36.dp())
+            .append(" ← 显示")
+            .into(tv(R.id.tv_demo_image_drawable))
+    }
 
-            .append("下划线 ")
-            .underline()
+    /** 5. image(bitmap, w, h) 传入 Bitmap */
+    private fun demo5ImageBitmap() {
+        // R.mipmap.ic_launcher 在 Android Studio 模板里是 <adaptive-icon> XML drawable,
+        // 不是栅格图,BitmapFactory.decodeResource 会返回 null。
+        // 用 Drawable.toBitmap(w, h) 把它(以及 vector / adaptive-icon)栅格化成 Bitmap。
+        val drawable = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground) ?: return
+        val bmp = drawable.toBitmap(width = 64.dp(), height = 64.dp())
+        SpanBuilder.with(this)
+            .append("Bitmap 直接进 Span ")
+            .image(bmp, 32.dp(), 32.dp())
+            .append(" 完成")
+            .into(tv(R.id.tv_demo_image_bitmap))
+    }
 
-            .append("删除线 ")
-            .strikethrough()
+    /** 6. image(url) URL 图,Glide 异步加载 */
+    private fun demo6ImageUrl() {
+        SpanBuilder.with(this)
+            .append("加载中: ")
+            .image(sampleAvatarUrl, 40.dp(), 40.dp(), circle = true)
+            .append(" ← 圆形头像")
+            .into(tv(R.id.tv_demo_image_url))
+    }
 
-            .append("背景色 ")
-            .backgroundColor(Color.YELLOW)
+    /** 7. setText + find + color + bold */
+    private fun demo7Find() {
+        SpanBuilder.with(this)
+            .setText("张三 刚刚向 LiveRoom 发送了一份礼物")
+            .find("张三").color(Color.RED).bold()
+            .find("LiveRoom").color(0xFF00BCD4.toInt()).italic()
+            .into(tv(R.id.tv_demo_find))
+    }
 
-            .append("大字号 ")
-            .sizePx(60)
+    /** 8. setText + findAll(ignoreCase) */
+    private fun demo8FindAll() {
+        SpanBuilder.with(this)
+            .setText("Foo foo FOO bar Foo baz foo")
+            .findAll("foo", ignoreCase = true).color(0xFFE91E63.toInt()).underline()
+            .into(tv(R.id.tv_demo_find_all))
+    }
 
-        // ==========================
-        // onClick
-        // ==========================
+    /** 9. setText + findRegex */
+    private fun demo9FindRegex() {
+        SpanBuilder.with(this)
+            .setText("数量 x10、x99、x200 全部按正则上色加粗")
+            .findRegex(Regex("x\\d+")).color(0xFFFF9800.toInt()).bold()
+            .into(tv(R.id.tv_demo_find_regex))
+    }
 
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== 点击事件 =====")
+    /** 10. setText + range */
+    private fun demo10Range() {
+        SpanBuilder.with(this)
+            .setText("0123456789ABCDEF")
+            .range(2, 6).backgroundColor(0xFFFFEB3B.toInt())
+            .range(10, 14).backgroundColor(0xFFB2DFDB.toInt())
+            .into(tv(R.id.tv_demo_range))
+    }
 
-            .append("点击我")
-            .color(Color.BLUE)
-            .underline()
-            .onClick {
-                Toast.makeText(this, "点击了", Toast.LENGTH_SHORT).show()
-            }
+    /** 11. setText + all() 整段统一上色 */
+    private fun demo11All() {
+        SpanBuilder.with(this)
+            .setText("整段统一加粗并改色")
+            .all().bold().color(0xFF3F51B5.toInt())
+            .into(tv(R.id.tv_demo_all))
+    }
 
-        // ==========================
-        // image 本地图片
-        // ==========================
+    /** 12. replaceWithImage(placeholder, resId, w, h) */
+    private fun demo12ReplaceRes() {
+        SpanBuilder.with(this)
+            .setText("收到礼物 [gift] x10")
+            .replaceWithImage("[gift]", R.drawable.ic_launcher_foreground, 28.dp(), 28.dp())
+            .find("x10").color(0xFFFFC107.toInt()).bold()
+            .into(tv(R.id.tv_demo_replace_res))
+    }
 
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== 本地图片 =====")
+    /** 13. 多 placeholder + 后续 find:验证 segments 位移正确 */
+    private fun demo13ReplaceMulti() {
+        SpanBuilder.with(this)
+            .setText("起点 [icon] 中间 [icon] 结尾 [icon] 完")
+            .replaceWithImage("[icon]", R.drawable.ic_launcher_foreground, 22.dp(), 22.dp())
+            .find("完").color(Color.RED).bold()
+            .into(tv(R.id.tv_demo_replace_multi))
+    }
 
-            .append("前面 ")
-            .image(R.mipmap.ic_launcher, 100, 100)
-            .append(" 后面")
+    /** 14. replaceWithImage(placeholder, drawable, w, h) */
+    private fun demo14ReplaceDrawable() {
+        val drawable = ContextCompat.getDrawable(this, R.drawable.ic_launcher_foreground) ?: return
+        SpanBuilder.with(this)
+            .setText("一张 {img} 一张 {img}")
+            .replaceWithImage("{img}", drawable, 26.dp(), 26.dp())
+            .into(tv(R.id.tv_demo_replace_drawable))
+    }
 
-        // ==========================
-        // 网络图片
-        // ==========================
+    /** 15. replaceWithImage(placeholder, url, w, h, circle) */
+    private fun demo15ReplaceUrl() {
+        SpanBuilder.with(this)
+            .setText("玩家 {avatar} 与 {avatar} 在房间相遇")
+            .replaceWithImage("{avatar}", sampleAvatarUrl, 36.dp(), 36.dp(), circle = true)
+            .find("相遇").color(0xFF9C27B0.toInt()).bold()
+            .into(tv(R.id.tv_demo_replace_url))
+    }
 
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== 网络图片 =====")
+    /** 16. maxLength(maxChars, ellipsis):截断 + 样式延展 */
+    private fun demo16MaxLength() {
+        SpanBuilder.with(this)
+            .setText("这是一段会被截断的很长的文本超出 12 个字会变成省略号")
+            .all().color(0xFF607D8B.toInt()).bold()
+            .all().maxLength(12, ellipsis = "…")
+            .into(tv(R.id.tv_demo_max_length))
+    }
 
-            .append("头像 ")
-            .image(
-                "https://picsum.photos/200",
-                120,
-                120,
-                true
-            )
-            .append(" 用户")
+    /** 17. marginPx 文字片段:左右距离 + 上下平移 */
+    private fun demo17MarginText() {
+        SpanBuilder.with(this)
+            .append("左")
+            .append("中间被撑开").backgroundColor(0xFFFFEB3B.toInt())
+            .marginPx(left = 16.dp(), right = 16.dp(), top = 2.dp())
+            .append("右")
+            .into(tv(R.id.tv_demo_margin_text))
+    }
 
-        // ==========================
-        // marginPx
-        // ==========================
+    /** 18. marginPx 图片片段:InsetDrawable 四方向间距 */
+    private fun demo18MarginImage() {
+        SpanBuilder.with(this)
+            .append("图1")
+            .image(R.drawable.ic_launcher_foreground, 28.dp(), 28.dp())
+            .marginPx(left = 8.dp(), top = 4.dp(), right = 8.dp(), bottom = 4.dp())
+            .append("图2")
+            .image(R.drawable.ic_launcher_foreground, 28.dp(), 28.dp())
+            .marginPx(left = 4.dp(), right = 4.dp())
+            .append("结束")
+            .into(tv(R.id.tv_demo_margin_image))
+    }
 
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== margin =====")
-
-            .append("左右margin")
-            .backgroundColor(Color.LTGRAY)
-            .marginPx(left = 40, right = 40)
-
-        // ==========================
-        // maxLength
-        // ==========================
-
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== 最大长度 =====")
-
-            .append("这是一段非常非常非常非常长的文本")
-            .color(Color.RED)
-            .maxLength(6)
-
-        // ==========================
-        // 服务端整段文案模式
-        // ==========================
-
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== 服务端文案模式 =====")
-
-        builder
-            .setText("张三 送给 李四 [gift] x10")
-
-            .find("张三")
-            .color(Color.RED)
-            .bold()
-
-            .find("李四")
-            .color(Color.BLUE)
-            .bold()
-
-            .findRegex(Regex("x\\d+"))
-            .color(Color.YELLOW)
-            .bold()
-
-            .replaceWithImage(
-                "[gift]",
-                R.mipmap.ic_launcher,
-                80,
-                80
-            )
-
-        // ==========================
-        // findAll
-        // ==========================
-
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== findAll =====")
-
-        builder
-            .setText("hello hello hello")
-
-            .findAll("hello")
-            .color(Color.MAGENTA)
-            .bold()
-
-        // ==========================
-        // range
-        // ==========================
-
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== range =====")
-
-        builder
-            .setText("ABCDEFGHIJKLMN")
-
-            .range(2, 8)
-            .color(Color.GREEN)
-            .bold()
-
-        // ==========================
-        // textVerticalMarginPx
-        // ==========================
-
-        builder
-            .appendLine()
-            .appendLine()
-            .appendLine("===== textVerticalMarginPx =====")
-
+    /** 19. textVerticalMarginPx:整行所有文字段统一上下平移 */
+    private fun demo19TextVerticalMargin() {
+        SpanBuilder.with(this)
             .append("文字 ")
-            .image(R.mipmap.ic_launcher, 100, 100)
-            .append(" 对齐")
+            .image(R.drawable.ic_launcher_foreground, 36.dp(), 36.dp())
+            .append(" 与图片视觉居中")
+            .textVerticalMarginPx(bottom = 4.dp())
+            .into(tv(R.id.tv_demo_text_vertical_margin))
+    }
 
-            .textVerticalMarginPx(top = 10)
+    /** 20. onClick 默认参数:不加下划线、保留 color 颜色 */
+    private fun demo20OnClickSimple() {
+        SpanBuilder.with(this)
+            .append("点 ")
+            .append("这里").color(0xFF2196F3.toInt()).bold()
+            .onClick { Toast.makeText(this, "Demo 20 clicked", Toast.LENGTH_SHORT).show() }
+            .append(" 查看 Toast")
+            .into(tv(R.id.tv_demo_click_simple))
+    }
 
-        // ==========================
-        // 最终 into
-        // ==========================
+    /** 21. onClick(underline = true, overrideColor) */
+    private fun demo21OnClickStyled() {
+        SpanBuilder.with(this)
+            .setText("访问 [link] 了解更多")
+            .find("[link]").color(0xFF9C27B0.toInt())
+            .onClick(underline = true, overrideColor = 0xFF9C27B0.toInt()) {
+                Toast.makeText(this, "Demo 21 link tapped", Toast.LENGTH_SHORT).show()
+            }
+            .into(tv(R.id.tv_demo_click_styled))
+    }
 
-        builder.into(tvContent)
+    /** 22. build() 直接拿 CharSequence,自己赋值给 TextView */
+    private fun demo22Build() {
+        val cs = SpanBuilder.with(this)
+            .append("通过 build() 直接拿 ").color(0xFF009688.toInt())
+            .append("CharSequence").bold().underline()
+            .build()
+        tv(R.id.tv_demo_build).text = cs
+    }
+
+    /** 23. 综合:服务端整段文案 + URL avatar + 多种 find/replace 链式 */
+    private fun demo23Combo() {
+        SpanBuilder.with(this)
+            .setText("[avatar] 张三 在 LiveRoom 发出 [gift] x99,获得积分 +1000")
+            .replaceWithImage("[avatar]", sampleAvatarUrl, 36.dp(), 36.dp(), circle = true)
+            .replaceWithImage("[gift]", R.drawable.ic_launcher_foreground, 28.dp(), 28.dp())
+            .find("张三").color(Color.RED).bold()
+            .onClick { Toast.makeText(this, "张三 profile", Toast.LENGTH_SHORT).show() }
+            .find("LiveRoom").color(0xFF00BCD4.toInt()).italic()
+            .findRegex(Regex("x\\d+")).color(0xFFFFC107.toInt()).bold()
+            .findRegex(Regex("\\+\\d+")).color(0xFF4CAF50.toInt()).bold()
+            .textVerticalMarginPx(bottom = 4.dp())
+            .into(tv(R.id.tv_demo_combo))
     }
 }
