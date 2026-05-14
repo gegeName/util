@@ -48,4 +48,4 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
-//apply(from = "jitpack.gradle")
+apply(from = "jitpack.gradle")
