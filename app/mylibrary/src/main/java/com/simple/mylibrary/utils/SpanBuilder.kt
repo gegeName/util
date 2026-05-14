@@ -127,8 +127,19 @@ class SpanBuilder private constructor(private val context: Context) {
     /**
      * 追加文本并在末尾补一个换行。
      * @param text 要追加的文本，默认空串（仅插入换行）。
+     *
+     * 注意：调用后"当前片段"只覆盖刚追加的文本本身、不含换行符，
+     * 这样链式 `.color()` / `.backgroundColor()` 等才能作用在文字上,
+     * 否则会被换行符吃掉(视觉上没反应)。
      */
-    fun appendLine(text: CharSequence = ""): SpanBuilder = append(text).append("\n")
+    fun appendLine(text: CharSequence = ""): SpanBuilder {
+        val start = ssb.length
+        ssb.append(text)
+        val end = ssb.length
+        ssb.append("\n")
+        segments = if (start < end) listOf(start to end) else emptyList()
+        return this
+    }
 
     /**
      * 添加本地 Drawable 资源图片。
@@ -201,6 +212,8 @@ class SpanBuilder private constructor(private val context: Context) {
      */
     fun setText(text: CharSequence): SpanBuilder {
         ssb.clear()
+        // 旧文本作废，之前注册的 URL 异步加载也全部失效。
+        pendingImageLoads.clear()
         ssb.append(text)
         segments = listOf(0 to ssb.length)
         return this
@@ -345,26 +358,50 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 内部辅助：从后往前查找并替换 placeholder 为单字符占位（避免下标位移），
-     * 替换处调用 onPlaced 写入 ImageSpan / 记录加载任务，返回新片段（始终 pos..pos+1）。
+     * 同步维护 pendingImageLoads，并对每个 placeholder 最终落点调用 onPlaced
+     * 写入 ImageSpan / 记录加载任务。
+     *
+     * 关键点：原实现返回的是「替换前」的原始下标，多次匹配时较早的下标在
+     * 后续 replace 中已经被左移,直接把它当成 segments 会让链式的 color /
+     * onClick 等调用 setSpan 时落到不存在的位置上(甚至越界)。
+     * 这里改成返回「替换后」的最终下标。
      */
     private fun replacePlaceholderWith(
         placeholder: String,
         onPlaced: (pos: Int) -> Unit,
     ): List<Pair<Int, Int>> {
+        if (placeholder.isEmpty()) return emptyList()
         val src = ssb.toString()
-        val positions = mutableListOf<Int>()
+        val originalPositions = mutableListOf<Int>()
         var from = 0
         while (true) {
             val idx = src.indexOf(placeholder, from)
             if (idx < 0) break
-            positions.add(idx)
+            originalPositions.add(idx)
             from = idx + placeholder.length
         }
-        positions.asReversed().forEach { pos ->
+        if (originalPositions.isEmpty()) return emptyList()
+
+        // 从尾向头替换,避免被前一个替换扰动下标。
+        // 每次替换后同步 pendingImageLoads,防止异步回调越界。
+        originalPositions.asReversed().forEach { pos ->
             ssb.replace(pos, pos + placeholder.length, " ")
-            onPlaced(pos)
+            shiftPendingLoadsForReplace(pos, pos + placeholder.length, 1)
         }
-        return positions.map { it to it + 1 }
+
+        // 计算每个 placeholder 在最终 ssb 中的下标:
+        // 第 i 个 (按原始顺序) 前面有 i 个 placeholder 各缩短了 (len - 1) 个字符。
+        val perReplacementDelta = placeholder.length - 1
+        val finalPositions = originalPositions.mapIndexed { i, p ->
+            p - i * perReplacementDelta
+        }
+
+        // 替换全部完成后再统一挂 span / 注册 URL 加载,
+        // 这样 onPlaced 收到的就是最终下标,后续 segments / pendingImageLoads
+        // 都不会再被位移影响。
+        finalPositions.forEach { onPlaced(it) }
+
+        return finalPositions.map { it to it + 1 }
     }
 
     // ============================== 样式（对当前片段集合生效） ==============================
@@ -444,6 +481,7 @@ class SpanBuilder private constructor(private val context: Context) {
                 if (se >= e) Triple(sp, ss, ssb.getSpanFlags(sp)) else null
             }
             ssb.replace(s + maxChars, e, ellipsis)
+            shiftPendingLoadsForReplace(s + maxChars, e, ellipsis.length)
             val newE = s + maxChars + ellipsis.length
             covering.forEach { (sp, ss, flags) ->
                 ssb.removeSpan(sp)
@@ -507,6 +545,7 @@ class SpanBuilder private constructor(private val context: Context) {
                 var curE = e
                 if (right > 0) {
                     ssb.insert(curE, " ")
+                    shiftPendingLoadsForReplace(curE, curE, 1)
                     ssb.setSpan(
                         BlankWidthSpan(right),
                         curE, curE + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -516,6 +555,7 @@ class SpanBuilder private constructor(private val context: Context) {
                 }
                 if (left > 0) {
                     ssb.insert(curS, " ")
+                    shiftPendingLoadsForReplace(curS, curS, 1)
                     ssb.setSpan(
                         BlankWidthSpan(left),
                         curS, curS + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -598,6 +638,43 @@ class SpanBuilder private constructor(private val context: Context) {
     }
 
     /**
+     * 当 ssb 在 [replaceStart, replaceEnd) 区间被替换成长度为 newLength 的新内容时，
+     * 同步维护 pendingImageLoads:
+     *
+     * - 完全在替换区前 → 不动
+     * - 完全在替换区后 → start 增加 delta = newLength - (replaceEnd - replaceStart)
+     * - 与替换区有重叠（占位符所在位置被冲掉） → 直接丢弃,
+     *   避免回调时 setSpan 落到已经不存在的下标上引发 IndexOutOfBoundsException
+     *
+     * 用反向遍历以便安全地从 MutableList 中移除元素。
+     */
+    private fun shiftPendingLoadsForReplace(
+        replaceStart: Int,
+        replaceEnd: Int,
+        newLength: Int,
+    ) {
+        if (pendingImageLoads.isEmpty()) return
+        val delta = newLength - (replaceEnd - replaceStart)
+        for (i in pendingImageLoads.indices.reversed()) {
+            val load = pendingImageLoads[i]
+            val loadEnd = load.start + 1
+            when {
+                loadEnd <= replaceStart -> {
+                    // entirely before — no change
+                }
+                load.start >= replaceEnd -> {
+                    if (delta != 0) {
+                        pendingImageLoads[i] = load.copy(start = load.start + delta)
+                    }
+                }
+                else -> {
+                    pendingImageLoads.removeAt(i)
+                }
+            }
+        }
+    }
+
+    /**
      * 给当前片段集合添加点击事件。每段会得到独立的 ClickableSpan 实例（位置稳定）。
      *
      * 注意：`into(textView)` 会自动挂 LinkMovementMethod，无需调用方再设置。
@@ -656,8 +733,23 @@ class SpanBuilder private constructor(private val context: Context) {
         if (pendingImageLoads.isEmpty()) return
 
         val tagKey = textView.id.takeIf { it != View.NO_ID } ?: hashCode()
+
+        /**
+         * 用一个 Set 而不是单一 url 作为 tag：
+         *
+         * 原写法在循环里每次 setTag(tagKey, load.url)，多张 URL 图共存时
+         * 后写的 url 会盖掉前面的，结果只有最后一张能通过 tag 校验，
+         * 前面的图都被 onResourceReady 里那条 `!=` 误判为「视图已复用」而静默丢弃。
+         *
+         * 改成"本次 into 期待的所有 url 集合"做引用相等检查：
+         *   - RecyclerView 复用：下一次 into 会写入一个新的 Set 实例，
+         *     旧回调里捕获的 expectedUrls 与当前 tag !==，判定失效。
+         *   - 多张 URL：同一个 Set 实例覆盖整轮回调，依次成功。
+         */
+        val expectedUrls = pendingImageLoads.mapTo(HashSet()) { it.url }
+        textView.setTag(tagKey, expectedUrls)
+
         pendingImageLoads.forEach { load ->
-            textView.setTag(tagKey, load.url)
             var options = RequestOptions().override(load.width, load.height)
             if (load.circle) options = options.circleCrop()
             Glide.with(textView).asDrawable().load(load.url).apply(options)
@@ -666,14 +758,25 @@ class SpanBuilder private constructor(private val context: Context) {
                         resource: Drawable,
                         transition: Transition<in Drawable>?,
                     ) {
-                        if (textView.getTag(tagKey) != load.url) return
+                        // 视图已被复用 / 同一 TextView 再次 into 过：tag 已被新一轮覆盖。
+                        if (textView.getTag(tagKey) !== expectedUrls) return
+
+                        /**
+                         * 注册 URL 加载之后，ssb 可能被 maxLength / setText /
+                         * replaceWithImage 等截断或重排，load.start 不再有效。
+                         * 这里做边界校验，越界就丢弃这次替换，避免
+                         * IndexOutOfBoundsException: setSpan ends beyond length。
+                         */
+                        val end = load.start + 1
+                        if (load.start < 0 || end > ssb.length) return
+
                         resource.setBounds(0, 0, load.width, load.height)
-                        ssb.getSpans(load.start, load.start + 1, CenterAlignImageSpan::class.java)
+                        ssb.getSpans(load.start, end, CenterAlignImageSpan::class.java)
                             .forEach { ssb.removeSpan(it) }
                         ssb.setSpan(
                             CenterAlignImageSpan(resource),
                             load.start,
-                            load.start + 1,
+                            end,
                             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                         )
                         textView.text = ssb
