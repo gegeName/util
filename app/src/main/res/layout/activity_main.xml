@@ -269,6 +269,13 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="跳转到ViewActivity" />
+
+                <Button
+                    android:id="@+id/btnSpanActivity"
+                    style="?attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="跳转到SpanActivity" />
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>

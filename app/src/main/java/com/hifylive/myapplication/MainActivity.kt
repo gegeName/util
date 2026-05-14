@@ -19,7 +19,6 @@ import com.hifylive.myapplication.sample.FakeItem
 import com.hifylive.myapplication.sample.FakeListViewModel
 import com.hifylive.myapplication.sample.FooterData
 import com.hifylive.myapplication.sample.RecommendFooterAdapter
-import com.simple.mylibrary.http.HttpResult
 import com.simple.mylibrary.paging.CommonLoadStateAdapter
 import com.simple.mylibrary.paging.PagingController
 import com.simple.mylibrary.paging.PagingHelper
@@ -55,6 +54,10 @@ class MainActivity : AppCompatActivity() {
         binding.btnJumpViewActivity.setOnClickListener {
             startActivity(Intent(this@MainActivity, ViewActivity::class.java))
         }
+
+        binding.btnSpanActivity.setOnClickListener {
+            startActivity(Intent(this@MainActivity, SpanActivity::class.java))
+        }
         val bannerAdapter = BannerHeaderAdapter().apply {
             submit(BannerData("头部 Banner（addHeader）", "下拉刷新会触发 onHeaderRefresh 更新"))
             setOnItemClickListener(throttleMs = 600) { _, data ->
@@ -88,7 +91,7 @@ class MainActivity : AppCompatActivity() {
                 toast("点击 #$pos  → ${item.title}")
             }
 
-            setOnItemChildClickListener{view, item, position ->
+            setOnItemChildClickListener { view, item, position ->
                 toast("点击子View #$position  → ${item.title}")
             }
         }
@@ -144,9 +147,12 @@ class MainActivity : AppCompatActivity() {
             }
             .clearPatchesOnRefresh(true)
             // 长按拖动 → 上传服务端
-            .enableDragSort(longPressEnabled = true,vibrateOnDragStart = true, canDrag = {item,pos->
-                pos!=1
-            }) { fromKey, toKey, fromLocal, toLocal ->
+            .enableDragSort(
+                longPressEnabled = true,
+                vibrateOnDragStart = true,
+                canDrag = { item, pos ->
+                    pos != 1
+                }) { fromKey, toKey, fromLocal, toLocal ->
                 // 拖动后，pagingAdapter.snapshot() 是"原始顺序"，但视图层已经 notifyItemMoved 过；
                 // 我们要的是拖完后的最终顺序，自己根据 fromLocal/toLocal 在快照上模拟一次 move 即可。
                 val before = pagingAdapter.snapshot().items.toMutableList()
@@ -274,7 +280,8 @@ class MainActivity : AppCompatActivity() {
         // replace：整条替换
         btnReplace.setOnClickListener {
             firstItem()?.let { item ->
-                val replaced = item.copy(title = "已被 replace 整条替换", subtitle = "id=${item.id}")
+                val replaced =
+                    item.copy(title = "已被 replace 整条替换", subtitle = "id=${item.id}")
                 controller.replace(item.id, replaced)
                 toast("replace id=${item.id}")
             }
@@ -403,7 +410,8 @@ class MainActivity : AppCompatActivity() {
         // optimisticInsertHead（用 Latest 策略 + 长延迟方便 cancelKey 验证）
         btnOptInsertHead.setOnClickListener {
             val now = System.currentTimeMillis()
-            val item = FakeItem(id = -now, title = "🆕 opt 插入（5s 内可取消）", subtitle = "optInsertHead")
+            val item =
+                FakeItem(id = -now, title = "🆕 opt 插入（5s 内可取消）", subtitle = "optInsertHead")
             pendingOptKey = item.id
             controller.optimisticInsertHead(
                 item = item,
