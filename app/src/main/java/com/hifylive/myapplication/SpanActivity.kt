@@ -57,6 +57,9 @@ class SpanActivity : AppCompatActivity() {
         demo25GradientVertical()
         demo26MaxLengthMiddle()
         demo27AppendLineEmpty()
+        demo28Stroke()
+        demo29Glow()
+        demo30DecorationCombo()
     }
 
     // ============== 小工具 ==============
@@ -346,5 +349,38 @@ class SpanActivity : AppCompatActivity() {
             .appendLine()
             .append("第三行 蓝色斜体").color(0xFF1976D2.toInt()).italic()
             .into(tv(R.id.tv_demo_append_line_empty))
+    }
+
+    /** 28. stroke 文字描边 */
+    private fun demo28Stroke() {
+        SpanBuilder.with(this)
+            .append("普通文字  ")
+            .append("白色描边").color(Color.BLACK).bold().sizePx(22.sp())
+            .stroke(Color.WHITE, 4f)
+            .append("  ")
+            .append("彩色描边").color(Color.WHITE).bold().sizePx(22.sp())
+            .stroke(0xFFE91E63.toInt(), 3f)
+            .into(tv(R.id.tv_demo_stroke))
+    }
+
+    /** 29. glow 文字发光 */
+    private fun demo29Glow() {
+        SpanBuilder.with(this)
+            .append("蓝色发光").color(0xFF42A5F5.toInt()).bold().sizePx(22.sp())
+            .glow(0xFF1565C0.toInt(), 18f)
+            .append("  ")
+            .append("金色发光").color(0xFFFFC107.toInt()).bold().sizePx(22.sp())
+            .glow(0xFFFF6F00.toInt(), 14f)
+            .into(tv(R.id.tv_demo_glow))
+    }
+
+    /** 30. 渐变 + 描边 + 发光 三合一 */
+    private fun demo30DecorationCombo() {
+        SpanBuilder.with(this)
+            .append("渐变+描边+发光").bold().sizePx(26.sp())
+            .gradientColor(0xFFFF1744.toInt(), 0xFFFF9100.toInt())
+            .stroke(Color.WHITE, 3f)
+            .glow(0xFFFF1744.toInt(), 16f)
+            .into(tv(R.id.tv_demo_decoration_combo))
     }
 }
