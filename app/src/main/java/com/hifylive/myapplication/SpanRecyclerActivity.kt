@@ -1,10 +1,12 @@
 package com.hifylive.myapplication
 
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.graphics.createBitmap
@@ -282,34 +284,40 @@ private class SpanAdapter(
                                 tp.setShadowLayer(6f, 3f, 3f, 0x992196F3.toInt())
                             }
                         }
+                    }.onClick {
+                        Toast.makeText(activity, "toast", Toast.LENGTH_SHORT).show()
                     }
                     .into(tv)
             }
 
             is SpanItem.CustomImageTransform -> {
-                // customImageTransform 内联版：圆角裁剪，验证变换后 bounds 不丢失，图片正确显示
                 SpanBuilder.with(activity)
                     .append("原图 ")
                     .image(R.drawable.ic_launcher_foreground, 36.dp(), 36.dp())
                     .append("  圆角 ")
                     .image(R.drawable.ic_launcher_foreground, 36.dp(), 36.dp())
                     .customImageTransform { drawable, w, h ->
-                        val bmp = createBitmap(w, h)
-                        val canvas = android.graphics.Canvas(bmp)
-                        val path = android.graphics.Path().apply {
-                            addRoundRect(
-                                android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()),
-                                12f.dp(), 12f.dp(), android.graphics.Path.Direction.CW
-                            )
-                        }
-                        canvas.clipPath(path)
-                        drawable.setBounds(0, 0, w, h)
-                        drawable.draw(canvas)
-                        bmp.toDrawable(activity.resources)
+                        roundCorner(drawable, w, h, 12f.dp())
                     }
                     .append(" #${item.index}")
                     .into(tv)
             }
         }
+    }
+
+    /** PorterDuff SRC_IN 圆角裁剪，比 clipPath 反锯齿更可靠 */
+    private fun roundCorner(drawable: Drawable, w: Int, h: Int, radius: Float): Drawable {
+        val bmp = createBitmap(w, h)
+        val canvas = android.graphics.Canvas(bmp)
+        val rect = android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat())
+        canvas.saveLayer(rect, null)
+        drawable.setBounds(0, 0, w, h)
+        drawable.draw(canvas)
+        val maskPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+        }
+        canvas.drawRoundRect(rect, radius, radius, maskPaint)
+        canvas.restore()
+        return bmp.toDrawable(activity.resources)
     }
 }

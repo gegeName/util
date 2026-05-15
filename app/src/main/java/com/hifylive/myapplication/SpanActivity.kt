@@ -2,6 +2,7 @@ package com.hifylive.myapplication
 
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.text.TextPaint
 import android.widget.TextView
@@ -479,37 +480,41 @@ class SpanActivity : AppCompatActivity() {
             .append("  圆角变换 ")
             .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
             .customImageTransform { drawable, w, h ->
-                // 用 Canvas 把原 Drawable 画到带圆角裁剪的 Bitmap 上
-                val bmp = createBitmap(w, h)
-                val canvas = Canvas(bmp)
-                val path = android.graphics.Path().apply {
-                    addRoundRect(
-                        android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()),
-                        16f.dp(), 16f.dp(), android.graphics.Path.Direction.CW
-                    )
-                }
-                canvas.clipPath(path)
-                drawable.setBounds(0, 0, w, h)
-                drawable.draw(canvas)
-                bmp.toDrawable(resources)
+                roundCornerDrawable(drawable, w, h, 16f.dp())
             }
-            .append("  URL 圆角 ")
+            .append("  URL 全圆 ")
             .image(sampleAvatarUrl, 44.dp(), 44.dp())
             .customImageTransform { drawable, w, h ->
-                val bmp = createBitmap(w, h)
-                val canvas = Canvas(bmp)
-                val path = android.graphics.Path().apply {
-                    addRoundRect(
-                        android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()),
-                        (w / 2).toFloat(), (h / 2).toFloat(), android.graphics.Path.Direction.CW
-                    )
-                }
-                canvas.clipPath(path)
-                drawable.setBounds(0, 0, w, h)
-                drawable.draw(canvas)
-                bmp.toDrawable(resources)
+                roundCornerDrawable(drawable, w, h, (w / 2).toFloat())
+            }
+            .onClick {
+                Toast.makeText(this@SpanActivity, "toast", Toast.LENGTH_SHORT).show()
             }
             .into(tv(R.id.tv_demo_custom_image_transform))
+    }
+
+    /**
+     * 把 drawable 裁剪成圆角 Bitmap，用 PorterDuff SRC_IN 方式确保反锯齿圆角正确。
+     * clipPath 方式在硬件加速 Canvas 上对反锯齿支持不稳定，此方法更可靠。
+     */
+    private fun roundCornerDrawable(
+        drawable: Drawable,
+        w: Int,
+        h: Int,
+        radius: Float,
+    ): Drawable {
+        val bmp = createBitmap(w, h)
+        val canvas = Canvas(bmp)
+        val rect = android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat())
+        canvas.saveLayer(rect, null)
+        drawable.setBounds(0, 0, w, h)
+        drawable.draw(canvas)
+        val maskPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+        }
+        canvas.drawRoundRect(rect, radius, radius, maskPaint)
+        canvas.restore()
+        return bmp.toDrawable(resources)
     }
 
 }
