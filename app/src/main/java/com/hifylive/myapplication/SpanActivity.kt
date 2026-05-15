@@ -425,7 +425,7 @@ class SpanActivity : AppCompatActivity() {
         SpanBuilder.with(this)
             .append("URL 纯色边框 ")
             .image(sampleAvatarUrl, 44.dp(), 44.dp(), circle = true)
-            .imageBorder(Color.WHITE, 3f, 22f.dp())
+            .imageBorder(Color.RED, 3f, 22f.dp())
             .append("  URL 渐变边框 ")
             .image(sampleAvatarUrl, 44.dp(), 44.dp(), circle = true)
             .imageBorderGradient(0xFFFF1744.toInt(), 0xFFFF9100.toInt(), 4f, 22f.dp())

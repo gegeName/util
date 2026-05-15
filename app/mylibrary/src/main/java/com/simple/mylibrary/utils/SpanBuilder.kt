@@ -110,7 +110,31 @@ class SpanBuilder private constructor(private val context: Context) {
         val cornerRadius: Float,
         val gradientColors: IntArray? = null,
         val gradientVertical: Boolean = false,
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as ImageBorderConfig
+
+            if (borderWidth != other.borderWidth) return false
+            if (borderColor != other.borderColor) return false
+            if (cornerRadius != other.cornerRadius) return false
+            if (gradientVertical != other.gradientVertical) return false
+            if (!gradientColors.contentEquals(other.gradientColors)) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = borderWidth.hashCode()
+            result = 31 * result + borderColor
+            result = 31 * result + cornerRadius.hashCode()
+            result = 31 * result + gradientVertical.hashCode()
+            result = 31 * result + (gradientColors?.contentHashCode() ?: 0)
+            return result
+        }
+    }
 
     companion object {
         @JvmStatic
