@@ -60,6 +60,9 @@ class SpanActivity : AppCompatActivity() {
         demo28Stroke()
         demo29Glow()
         demo30DecorationCombo()
+        demo31ImageBorderSolid()
+        demo32ImageBorderGradient()
+        demo33ImageBorderUrl()
     }
 
     // ============== 小工具 ==============
@@ -383,4 +386,51 @@ class SpanActivity : AppCompatActivity() {
             .glow(0xFFFF1744.toInt(), 16f)
             .into(tv(R.id.tv_demo_decoration_combo))
     }
+
+    /** 31. imageBorder 本地图 + 纯色边框 */
+    private fun demo31ImageBorderSolid() {
+        SpanBuilder.with(this)
+            .append("白色直角边框 ")
+            .image(R.drawable.ic_launcher_foreground, 40.dp(), 40.dp())
+            .imageBorder(Color.WHITE, 3f)
+            .append("  红色圆角边框 ")
+            .image(R.drawable.ic_launcher_foreground, 40.dp(), 40.dp())
+            .imageBorder(0xFFE91E63.toInt(), 4f, 8f.dp())
+            .append("  蓝色大圆角 ")
+            .image(R.drawable.ic_launcher_foreground, 40.dp(), 40.dp())
+            .imageBorder(0xFF1976D2.toInt(), 3f, 20f.dp())
+            .into(tv(R.id.tv_demo_image_border_solid))
+    }
+
+    /** 32. imageBorderGradient 本地图 + 渐变边框 */
+    private fun demo32ImageBorderGradient() {
+        SpanBuilder.with(this)
+            .append("横向渐变边框 ")
+            .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
+            .imageBorderGradient(0xFFFF1744.toInt(), 0xFFFF9100.toInt(), 4f, 12f.dp())
+            .append("  纵向渐变边框 ")
+            .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
+            .imageBorderGradient(0xFF6200EE.toInt(), 0xFF03DAC5.toInt(), 4f, 12f.dp(), vertical = true)
+            .append("  多色渐变边框 ")
+            .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
+            .imageBorderGradient(
+                intArrayOf(0xFFE91E63.toInt(), 0xFFFFC107.toInt(), 0xFF4CAF50.toInt()),
+                4f, 22f.dp()
+            )
+            .into(tv(R.id.tv_demo_image_border_gradient))
+    }
+
+    /** 33. imageBorder URL 图异步加载 + 边框 */
+    private fun demo33ImageBorderUrl() {
+        SpanBuilder.with(this)
+            .append("URL 纯色边框 ")
+            .image(sampleAvatarUrl, 44.dp(), 44.dp(), circle = true)
+            .imageBorder(Color.WHITE, 3f, 22f.dp())
+            .append("  URL 渐变边框 ")
+            .image(sampleAvatarUrl, 44.dp(), 44.dp(), circle = true)
+            .imageBorderGradient(0xFFFF1744.toInt(), 0xFFFF9100.toInt(), 4f, 22f.dp())
+            .into(tv(R.id.tv_demo_image_border_url))
+    }
+
+    private fun Float.dp(): Float = this * resources.displayMetrics.density
 }

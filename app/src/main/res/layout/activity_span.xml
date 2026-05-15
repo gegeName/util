@@ -374,6 +374,42 @@
             android:id="@+id/tv_demo_decoration_combo"
             style="@style/Demo" />
 
+
+        <!-- ========================================================== -->
+        <!-- 31. imageBorder 本地图 纯色边框                             -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="31. imageBorder(color, width, cornerRadius) 本地图纯色边框" />
+
+        <TextView
+            android:id="@+id/tv_demo_image_border_solid"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 32. imageBorderGradient 本地图 渐变边框                     -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="32. imageBorderGradient 本地图渐变边框(横向+纵向)" />
+
+        <TextView
+            android:id="@+id/tv_demo_image_border_gradient"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 33. imageBorder URL 图 异步加载 + 边框                      -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="33. imageBorder URL 图 异步加载完成后附加边框" />
+
+        <TextView
+            android:id="@+id/tv_demo_image_border_url"
+            style="@style/Demo" />
+
     </LinearLayout>
 
 </ScrollView>

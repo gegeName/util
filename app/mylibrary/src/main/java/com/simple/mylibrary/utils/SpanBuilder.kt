@@ -5,9 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorFilter
 import android.graphics.LinearGradient
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.PixelFormat
+import android.graphics.Rect
+import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
@@ -79,6 +83,9 @@ class SpanBuilder private constructor(private val context: Context) {
     private var segments: List<Pair<Int, Int>> = emptyList()
     private val pendingImageLoads = mutableListOf<PendingImageLoad>()
 
+    /** 等待 Glide 加载完成后再包边框的配置，key = placeholder span 实例 */
+    private val pendingImageBorders = mutableMapOf<CenterAlignImageSpan, ImageBorderConfig>()
+
     /** glow() 使用了 BlurMaskFilter，需要关闭硬件加速；into() 时自动设置 LAYER_TYPE_SOFTWARE。 */
     private var needsSoftwareLayer = false
 
@@ -94,6 +101,15 @@ class SpanBuilder private constructor(private val context: Context) {
         val width: Int,
         val height: Int,
         val circle: Boolean,
+    )
+
+    /** 图片边框配置。gradientColors 非空时使用渐变边框，否则使用纯色边框。 */
+    private data class ImageBorderConfig(
+        val borderWidth: Float,
+        val borderColor: Int,
+        val cornerRadius: Float,
+        val gradientColors: IntArray? = null,
+        val gradientVertical: Boolean = false,
     )
 
     companion object {
@@ -420,6 +436,74 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 给当前图片片段添加纯色边框。必须在 [image] 之后调用。
+     *
+     * @param color        边框颜色
+     * @param borderWidth  边框宽度 px
+     * @param cornerRadius 边框圆角半径 px，0 = 直角
+     */
+    fun imageBorder(
+        @ColorInt color: Int,
+        @Px borderWidth: Float,
+        @Px cornerRadius: Float = 0f,
+    ): SpanBuilder = applyImageBorder(
+        ImageBorderConfig(borderWidth, color, cornerRadius)
+    )
+
+    /**
+     * 给当前图片片段添加渐变边框（二色）。必须在 [image] 之后调用。
+     *
+     * @param startColor   渐变起始色
+     * @param endColor     渐变结束色
+     * @param borderWidth  边框宽度 px
+     * @param cornerRadius 边框圆角半径 px，0 = 直角
+     * @param vertical     true=自上而下；false=自左到右（默认）
+     */
+    fun imageBorderGradient(
+        @ColorInt startColor: Int,
+        @ColorInt endColor: Int,
+        @Px borderWidth: Float,
+        @Px cornerRadius: Float = 0f,
+        vertical: Boolean = false,
+    ): SpanBuilder = applyImageBorder(
+        ImageBorderConfig(borderWidth, startColor, cornerRadius, intArrayOf(startColor, endColor), vertical)
+    )
+
+    /**
+     * 给当前图片片段添加渐变边框（多色）。必须在 [image] 之后调用。
+     */
+    fun imageBorderGradient(
+        colors: IntArray,
+        @Px borderWidth: Float,
+        @Px cornerRadius: Float = 0f,
+        vertical: Boolean = false,
+    ): SpanBuilder {
+        require(colors.size >= 2) { "imageBorderGradient needs at least 2 colors" }
+        return applyImageBorder(
+            ImageBorderConfig(borderWidth, colors[0], cornerRadius, colors, vertical)
+        )
+    }
+
+    private fun applyImageBorder(config: ImageBorderConfig): SpanBuilder = applyEach { s, e ->
+        val imageSpans = ssb.getSpans(s, e, CenterAlignImageSpan::class.java)
+        if (imageSpans.isEmpty()) return@applyEach
+        imageSpans.forEach { span ->
+            // URL 图还在加载中（placeholder），记录配置等加载完成后包装
+            if (pendingImageLoads.any { it.placeholder === span }) {
+                pendingImageBorders[span] = config
+                return@forEach
+            }
+            // 本地图片立即包装
+            val orig = span.drawable
+            val wrapped = BorderedImageDrawable(orig, config)
+            wrapped.setBounds(orig.bounds)  // 继承原始图片的 bounds，否则尺寸为 0
+            val newSpan = CenterAlignImageSpan(wrapped)
+            ssb.removeSpan(span)
+            ssb.setSpan(newSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+    }
+
     fun marginPx(
         @Px left: Int = 0,
         @Px top: Int = 0,
@@ -548,7 +632,15 @@ class SpanBuilder private constructor(private val context: Context) {
                         if (curStart !in 0 until curEnd || curEnd > ssb.length) return
                         resource.setBounds(0, 0, load.width, load.height)
                         ssb.removeSpan(load.placeholder)
-                        ssb.setSpan(CenterAlignImageSpan(resource), curStart, curEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        val borderConfig = pendingImageBorders.remove(load.placeholder)
+                        val finalDrawable = if (borderConfig != null) {
+                            BorderedImageDrawable(resource, borderConfig).also {
+                                it.setBounds(0, 0, load.width, load.height)
+                            }
+                        } else {
+                            resource
+                        }
+                        ssb.setSpan(CenterAlignImageSpan(finalDrawable), curStart, curEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                         if (initialTextSet) textView.text = ssb
                     }
                     override fun onLoadCleared(placeholder: Drawable?) {}
@@ -747,5 +839,70 @@ class SpanBuilder private constructor(private val context: Context) {
     private class BlankWidthSpan(@Px private val width: Int) : ReplacementSpan() {
         override fun getSize(paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int = width
         override fun draw(canvas: Canvas, text: CharSequence?, start: Int, end: Int, x: Float, top: Int, y: Int, bottom: Int, paint: Paint) {}
+    }
+
+    /**
+     * 在原始 Drawable 外围绘制边框的包装 Drawable。
+     * bounds = 原图 bounds（不扩大尺寸），边框向内绘制，不侵占外部布局空间。
+     *
+     * Paint / RectF 放在 companion object（静态）：
+     * draw() 在主线程单线程执行，多个实例不会并发，共享同一组对象，
+     * 避免每次 onBindViewHolder 创建新实例时反复 new Paint/RectF 导致内存抖动。
+     */
+    private class BorderedImageDrawable(
+        private val inner: Drawable,
+        private val config: ImageBorderConfig,
+    ) : Drawable() {
+
+        private var cachedShader: LinearGradient? = null
+        private var cachedW = 0
+        private var cachedH = 0
+
+        override fun draw(canvas: Canvas) {
+            val b = bounds
+            inner.bounds = b
+            inner.draw(canvas)
+
+            val half = config.borderWidth / 2f
+            sBorderRectF.set(b.left + half, b.top + half, b.right - half, b.bottom - half)
+
+            sBorderPaint.strokeWidth = config.borderWidth
+
+            if (config.gradientColors != null) {
+                val w = b.width(); val h = b.height()
+                if (cachedShader == null || cachedW != w || cachedH != h) {
+                    cachedShader = if (config.gradientVertical) {
+                        LinearGradient(0f, 0f, 0f, h.toFloat(), config.gradientColors, null, Shader.TileMode.CLAMP)
+                    } else {
+                        LinearGradient(0f, 0f, w.toFloat(), 0f, config.gradientColors, null, Shader.TileMode.CLAMP)
+                    }
+                    cachedW = w; cachedH = h
+                }
+                sBorderPaint.shader = cachedShader
+            } else {
+                sBorderPaint.shader = null
+                sBorderPaint.color = config.borderColor
+            }
+
+            if (config.cornerRadius > 0f) {
+                canvas.drawRoundRect(sBorderRectF, config.cornerRadius, config.cornerRadius, sBorderPaint)
+            } else {
+                canvas.drawRect(sBorderRectF, sBorderPaint)
+            }
+        }
+
+        override fun getIntrinsicWidth(): Int = inner.intrinsicWidth
+        override fun getIntrinsicHeight(): Int = inner.intrinsicHeight
+        override fun setAlpha(alpha: Int) { inner.alpha = alpha }
+        override fun setColorFilter(cf: ColorFilter?) { inner.colorFilter = cf }
+        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
+        override fun onBoundsChange(bounds: Rect) { cachedShader = null }
+
+        companion object {
+            private val sBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                style = Paint.Style.STROKE
+            }
+            private val sBorderRectF = RectF()
+        }
     }
 }
