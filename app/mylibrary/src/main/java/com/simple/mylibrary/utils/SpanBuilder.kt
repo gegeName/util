@@ -86,6 +86,10 @@ class SpanBuilder private constructor(private val context: Context) {
     /** 等待 SpanImageLoader 加载完成后再包边框的配置，key = placeholder span 实例 */
     private val pendingImageBorders = mutableMapOf<CenterAlignImageSpan, ImageBorderConfig>()
 
+    /** 等待 SpanImageLoader 加载完成后再执行的图片变换器，key = placeholder span 实例 */
+    private val pendingImageTransforms =
+        mutableMapOf<CenterAlignImageSpan, (Drawable, Int, Int) -> Drawable>()
+
     /** glow() 使用了 BlurMaskFilter，需要关闭硬件加速；into() 时自动设置 LAYER_TYPE_SOFTWARE。 */
     private var needsSoftwareLayer = false
 
@@ -947,6 +951,11 @@ class SpanBuilder private constructor(private val context: Context) {
     ) {
         val spans = ssb.getSpans(s, e, CenterAlignImageSpan::class.java)
         spans.forEach { span ->
+            // URL 图还在加载中（placeholder），记录变换器等加载完成后执行
+            if (pendingImageLoads.any { it.placeholder === span }) {
+                pendingImageTransforms[span] = transformer
+                return@forEach
+            }
             val orig = span.drawable
             val b = orig.bounds
             val w = b.width().coerceAtLeast(1)
@@ -1024,12 +1033,18 @@ class SpanBuilder private constructor(private val context: Context) {
                 resource.setBounds(0, 0, load.width, load.height)
                 ssb.removeSpan(load.placeholder)
                 val borderConfig = pendingImageBorders.remove(load.placeholder)
-                val finalDrawable = if (borderConfig != null) {
+                val transformer = pendingImageTransforms.remove(load.placeholder)
+                var finalDrawable: Drawable = if (borderConfig != null) {
                     BorderedImageDrawable(resource, borderConfig).also {
                         it.setBounds(0, 0, load.width, load.height)
                     }
                 } else {
                     resource
+                }
+                if (transformer != null) {
+                    val transformed = transformer(finalDrawable, load.width, load.height)
+                    transformed.setBounds(0, 0, load.width, load.height)
+                    finalDrawable = transformed
                 }
                 ssb.setSpan(
                     CenterAlignImageSpan(finalDrawable),

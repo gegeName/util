@@ -410,6 +410,30 @@
             android:id="@+id/tv_demo_image_border_url"
             style="@style/Demo" />
 
+
+        <!-- ========================================================== -->
+        <!-- 34. customTextSpan 内联版：文字阴影                         -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="34. customTextSpan(factory) 内联自定义 Span（文字阴影）" />
+
+        <TextView
+            android:id="@+id/tv_demo_custom_text_span"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 35. customImageTransform 内联版：图片圆角裁剪               -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="35. customImageTransform(transformer) 内联图片变换（圆角裁剪）" />
+
+        <TextView
+            android:id="@+id/tv_demo_custom_image_transform"
+            style="@style/Demo" />
+
     </LinearLayout>
 
 </ScrollView>

@@ -1,13 +1,17 @@
 package com.hifylive.myapplication
 
+import android.graphics.Canvas
 import android.graphics.Color
 import android.os.Bundle
+import android.text.TextPaint
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.simple.mylibrary.utils.SpanBuilder
@@ -63,6 +67,8 @@ class SpanActivity : AppCompatActivity() {
         demo31ImageBorderSolid()
         demo32ImageBorderGradient()
         demo33ImageBorderUrl()
+        demo34CustomTextSpan()
+        demo35CustomImageTransform()
     }
 
     // ============== 小工具 ==============
@@ -410,7 +416,13 @@ class SpanActivity : AppCompatActivity() {
             .imageBorderGradient(0xFFFF1744.toInt(), 0xFFFF9100.toInt(), 4f, 12f.dp())
             .append("  纵向渐变边框 ")
             .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
-            .imageBorderGradient(0xFF6200EE.toInt(), 0xFF03DAC5.toInt(), 4f, 12f.dp(), vertical = true)
+            .imageBorderGradient(
+                0xFF6200EE.toInt(),
+                0xFF03DAC5.toInt(),
+                4f,
+                12f.dp(),
+                vertical = true
+            )
             .append("  多色渐变边框 ")
             .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
             .imageBorderGradient(
@@ -433,4 +445,72 @@ class SpanActivity : AppCompatActivity() {
     }
 
     private fun Float.dp(): Float = this * resources.displayMetrics.density
+
+    /** 34. customTextSpan 内联版：用自定义 Span 实现文字阴影效果 */
+    private fun demo34CustomTextSpan() {
+        SpanBuilder.with(this)
+            .append("内联自定义 Span  ")
+            .append("文字阴影").bold().sizePx(22.sp())
+            .customTextSpan { _, _, _ ->
+                // 利用 TextPaint.shadowLayer 实现阴影，不依赖 BlurMaskFilter
+                object : android.text.style.CharacterStyle() {
+                    override fun updateDrawState(tp: TextPaint) {
+                        tp.setShadowLayer(8f, 4f, 4f, 0xBB000000.toInt())
+                    }
+                }
+            }
+            .append("  ")
+            .append("彩色阴影").color(0xFF1565C0.toInt()).bold().sizePx(22.sp())
+            .customTextSpan { _, _, _ ->
+                object : android.text.style.CharacterStyle() {
+                    override fun updateDrawState(tp: TextPaint) {
+                        tp.setShadowLayer(10f, 3f, 3f, 0x992196F3.toInt())
+                    }
+                }
+            }
+            .into(tv(R.id.tv_demo_custom_text_span))
+    }
+
+    /** 35. customImageTransform 内联版：给图片加圆角遮罩 */
+    private fun demo35CustomImageTransform() {
+        SpanBuilder.with(this)
+            .append("原图 ")
+            .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
+            .append("  圆角变换 ")
+            .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
+            .customImageTransform { drawable, w, h ->
+                // 用 Canvas 把原 Drawable 画到带圆角裁剪的 Bitmap 上
+                val bmp = createBitmap(w, h)
+                val canvas = Canvas(bmp)
+                val path = android.graphics.Path().apply {
+                    addRoundRect(
+                        android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()),
+                        16f.dp(), 16f.dp(), android.graphics.Path.Direction.CW
+                    )
+                }
+                canvas.clipPath(path)
+                drawable.setBounds(0, 0, w, h)
+                drawable.draw(canvas)
+                bmp.toDrawable(resources)
+            }
+            .append("  URL 圆角 ")
+            .image(sampleAvatarUrl, 44.dp(), 44.dp())
+            .customImageTransform { drawable, w, h ->
+                val bmp = createBitmap(w, h)
+                val canvas = Canvas(bmp)
+                val path = android.graphics.Path().apply {
+                    addRoundRect(
+                        android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()),
+                        (w / 2).toFloat(), (h / 2).toFloat(), android.graphics.Path.Direction.CW
+                    )
+                }
+                canvas.clipPath(path)
+                drawable.setBounds(0, 0, w, h)
+                drawable.draw(canvas)
+                bmp.toDrawable(resources)
+            }
+            .into(tv(R.id.tv_demo_custom_image_transform))
+    }
+
 }
+

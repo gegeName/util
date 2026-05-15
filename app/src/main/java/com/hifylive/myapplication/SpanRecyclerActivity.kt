@@ -7,6 +7,8 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.drawable.toDrawable
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.simple.mylibrary.utils.SpanBuilder
@@ -39,34 +41,40 @@ class SpanRecyclerActivity : AppCompatActivity() {
 
     private fun buildSampleData(): List<SpanItem> {
         val out = mutableListOf<SpanItem>()
-        repeat(91) { i ->
-            out += when (i % 13) {
-                0  -> SpanItem.Plain(i, "用户 $i 发送了一条普通消息")
-                1  -> SpanItem.HighlightAt(i, "@主播$i 你好,欢迎来到直播间~")
-                2  -> SpanItem.Gift(i, "用户 $i 送出 [gift] x${(i + 1) * 10}")
-                3  -> SpanItem.RegexNumber(i, "用户 $i 收到 +${i * 5}金币 x${i + 2}经验")
-                4  -> SpanItem.LongTextEllipsis(
+        repeat(90) { i ->
+            out += when (i % 15) {
+                0 -> SpanItem.Plain(i, "用户 $i 发送了一条普通消息")
+                1 -> SpanItem.HighlightAt(i, "@主播$i 你好,欢迎来到直播间~")
+                2 -> SpanItem.Gift(i, "用户 $i 送出 [gift] x${(i + 1) * 10}")
+                3 -> SpanItem.RegexNumber(i, "用户 $i 收到 +${i * 5}金币 x${i + 2}经验")
+                4 -> SpanItem.LongTextEllipsis(
                     i,
                     "这是第 $i 条非常非常非常长的内容,需要被截断显示,验证 maxLength 在复用时是否仍然是同一个截断结果",
                 )
-                5  -> SpanItem.GradientTitle(i, "渐变标题 $i")
-                6  -> SpanItem.AvatarUrl(
+
+                5 -> SpanItem.GradientTitle(i, "渐变标题 $i")
+                6 -> SpanItem.AvatarUrl(
                     i,
                     "https://avatars.githubusercontent.com/u/${i + 1}?s=96",
                     "URL 头像 #$i 异步加载,滚动时不能错位",
                 )
-                7  -> SpanItem.WithTextVerticalMargin(
+
+                7 -> SpanItem.WithTextVerticalMargin(
                     i,
                     "第 $i 条 textVerticalMarginPx 行高扩张,反复 bind 不应继续累加",
                 )
-                8  -> SpanItem.GradientStrokeGlow(i, "渐变+描边+发光 #$i", "普通文字跟在后面")
-                9  -> SpanItem.StrokeOnly(i, "仅描边 #$i", "其余文字正常")
+
+                8 -> SpanItem.GradientStrokeGlow(i, "渐变+描边+发光 #$i", "普通文字跟在后面")
+                9 -> SpanItem.StrokeOnly(i, "仅描边 #$i", "其余文字正常")
                 10 -> SpanItem.ImageBorderSolid(i)
                 11 -> SpanItem.ImageBorderGradient(i)
-                else -> SpanItem.ImageBorderUrl(
+                12 -> SpanItem.ImageBorderUrl(
                     i,
                     "https://avatars.githubusercontent.com/u/${i + 1}?s=96",
                 )
+
+                13 -> SpanItem.CustomTextSpan(i, "自定义Span阴影 #$i 文字效果")
+                else -> SpanItem.CustomImageTransform(i)
             }
         }
         return out
@@ -82,16 +90,27 @@ sealed class SpanItem(val index: Int) {
     class GradientTitle(idx: Int, val text: String) : SpanItem(idx)
     class AvatarUrl(idx: Int, val url: String, val text: String) : SpanItem(idx)
     class WithTextVerticalMargin(idx: Int, val text: String) : SpanItem(idx)
+
     /** 渐变 + 描边 + 发光 三合一，验证 TextDecorationSpan 复用时不产生额外对象 */
     class GradientStrokeGlow(idx: Int, val decorated: String, val plain: String) : SpanItem(idx)
+
     /** 仅描边，验证单独使用描边时复用正常 */
     class StrokeOnly(idx: Int, val decorated: String, val plain: String) : SpanItem(idx)
+
     /** 本地图 + 纯色边框，验证 BorderedImageDrawable 静态 Paint 复用无抖动 */
     class ImageBorderSolid(idx: Int) : SpanItem(idx)
+
     /** 本地图 + 渐变边框 */
     class ImageBorderGradient(idx: Int) : SpanItem(idx)
+
     /** URL 图 + 边框，验证异步加载完成后边框正确附加 */
     class ImageBorderUrl(idx: Int, val url: String) : SpanItem(idx)
+
+    /** customTextSpan 内联：文字阴影，验证每次 bind 生成新 CharacterStyle 不抖动 */
+    class CustomTextSpan(idx: Int, val text: String) : SpanItem(idx)
+
+    /** customImageTransform 内联：圆角裁剪，验证变换后 bounds 正确同步 */
+    class CustomImageTransform(idx: Int) : SpanItem(idx)
 }
 
 private class SpanAdapter(
@@ -128,12 +147,14 @@ private class SpanAdapter(
                     .append(item.text)
                     .into(tv)
             }
+
             is SpanItem.HighlightAt -> {
                 SpanBuilder.with(activity)
                     .setText(item.text)
                     .findRegex(Regex("@\\S+")).color(0xFF1976D2.toInt()).bold()
                     .into(tv)
             }
+
             is SpanItem.Gift -> {
                 SpanBuilder.with(activity)
                     .setText(item.text)
@@ -144,6 +165,7 @@ private class SpanAdapter(
                     .findRegex(Regex("x\\d+")).color(0xFFFF9800.toInt()).bold()
                     .into(tv)
             }
+
             is SpanItem.RegexNumber -> {
                 SpanBuilder.with(activity)
                     .setText(item.text)
@@ -151,6 +173,7 @@ private class SpanAdapter(
                     .findRegex(Regex("x\\d+")).color(0xFFE91E63.toInt()).bold()
                     .into(tv)
             }
+
             is SpanItem.LongTextEllipsis -> {
                 SpanBuilder.with(activity)
                     .setText(item.text)
@@ -158,6 +181,7 @@ private class SpanAdapter(
                     .all().maxLength(20, ellipsis = "…")
                     .into(tv)
             }
+
             is SpanItem.GradientTitle -> {
                 SpanBuilder.with(activity)
                     .append(item.text)
@@ -166,6 +190,7 @@ private class SpanAdapter(
                     .sizePx(18.sp())
                     .into(tv)
             }
+
             is SpanItem.AvatarUrl -> {
                 SpanBuilder.with(activity)
                     .image(item.url, 28.dp(), 28.dp(), circle = true)
@@ -173,12 +198,14 @@ private class SpanAdapter(
                     .append(item.text).color(Color.DKGRAY)
                     .into(tv)
             }
+
             is SpanItem.WithTextVerticalMargin -> {
                 SpanBuilder.with(activity)
                     .append(item.text).color(0xFF673AB7.toInt())
                     .textVerticalMarginPx(top = 6.dp(), bottom = 6.dp())
                     .into(tv)
             }
+
             is SpanItem.GradientStrokeGlow -> {
                 // 三合一：渐变 + 描边 + 发光，反复 bind 时 TextDecorationSpan 就地复用，不产生中间对象
                 SpanBuilder.with(activity)
@@ -189,6 +216,7 @@ private class SpanAdapter(
                     .append("  ${item.plain}").color(0xFF212121.toInt())
                     .into(tv)
             }
+
             is SpanItem.StrokeOnly -> {
                 // 单独描边，验证没有渐变/发光时 TextDecorationSpan 同样正常
                 SpanBuilder.with(activity)
@@ -197,6 +225,7 @@ private class SpanAdapter(
                     .append("  ${item.plain}").color(0xFF212121.toInt())
                     .into(tv)
             }
+
             is SpanItem.ImageBorderSolid -> {
                 // 纯色边框：验证静态 Paint 复用，反复 bind 不产生新 Paint/RectF 对象
                 SpanBuilder.with(activity)
@@ -209,6 +238,7 @@ private class SpanAdapter(
                     .append(" #${item.index}")
                     .into(tv)
             }
+
             is SpanItem.ImageBorderGradient -> {
                 // 渐变边框：w/h 不变时 shader 缓存复用，不重建 LinearGradient
                 SpanBuilder.with(activity)
@@ -217,10 +247,17 @@ private class SpanAdapter(
                     .imageBorderGradient(0xFFFF1744.toInt(), 0xFFFF9100.toInt(), 3f, 18f.dp())
                     .append(" 纵向 ")
                     .image(R.drawable.ic_launcher_foreground, 36.dp(), 36.dp())
-                    .imageBorderGradient(0xFF6200EE.toInt(), 0xFF03DAC5.toInt(), 3f, 18f.dp(), vertical = true)
+                    .imageBorderGradient(
+                        0xFF6200EE.toInt(),
+                        0xFF03DAC5.toInt(),
+                        3f,
+                        18f.dp(),
+                        vertical = true
+                    )
                     .append(" #${item.index}")
                     .into(tv)
             }
+
             is SpanItem.ImageBorderUrl -> {
                 // URL 图 + 边框：验证 Glide 回调后边框正确包装，滚动时不错位
                 SpanBuilder.with(activity)
@@ -230,6 +267,46 @@ private class SpanAdapter(
                     .append(" 渐变 ")
                     .image(item.url, 36.dp(), 36.dp(), circle = true)
                     .imageBorderGradient(0xFFFF1744.toInt(), 0xFFFF9100.toInt(), 3f, 18f.dp())
+                    .append(" #${item.index}")
+                    .into(tv)
+            }
+
+            is SpanItem.CustomTextSpan -> {
+                // customTextSpan 内联版：每次 bind 创建新 CharacterStyle，但对象极小，不影响性能
+                SpanBuilder.with(activity)
+                    .append("阴影效果: ")
+                    .append(item.text).color(0xFF1565C0.toInt()).bold().sizePx(17.sp())
+                    .customTextSpan { _, _, _ ->
+                        object : android.text.style.CharacterStyle() {
+                            override fun updateDrawState(tp: android.text.TextPaint) {
+                                tp.setShadowLayer(6f, 3f, 3f, 0x992196F3.toInt())
+                            }
+                        }
+                    }
+                    .into(tv)
+            }
+
+            is SpanItem.CustomImageTransform -> {
+                // customImageTransform 内联版：圆角裁剪，验证变换后 bounds 不丢失，图片正确显示
+                SpanBuilder.with(activity)
+                    .append("原图 ")
+                    .image(R.drawable.ic_launcher_foreground, 36.dp(), 36.dp())
+                    .append("  圆角 ")
+                    .image(R.drawable.ic_launcher_foreground, 36.dp(), 36.dp())
+                    .customImageTransform { drawable, w, h ->
+                        val bmp = createBitmap(w, h)
+                        val canvas = android.graphics.Canvas(bmp)
+                        val path = android.graphics.Path().apply {
+                            addRoundRect(
+                                android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat()),
+                                12f.dp(), 12f.dp(), android.graphics.Path.Direction.CW
+                            )
+                        }
+                        canvas.clipPath(path)
+                        drawable.setBounds(0, 0, w, h)
+                        drawable.draw(canvas)
+                        bmp.toDrawable(activity.resources)
+                    }
                     .append(" #${item.index}")
                     .into(tv)
             }
