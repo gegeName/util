@@ -356,7 +356,6 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
-    /** 查找当前片段上已有的 TextDecorationSpan 就地更新；没有则新建并挂上。 */
     private fun applyOrMergeDecoration(
         update: (TextDecorationSpan?) -> TextDecorationSpan,
     ): SpanBuilder = applyEach { s, e ->
@@ -489,15 +488,13 @@ class SpanBuilder private constructor(private val context: Context) {
         val imageSpans = ssb.getSpans(s, e, CenterAlignImageSpan::class.java)
         if (imageSpans.isEmpty()) return@applyEach
         imageSpans.forEach { span ->
-            // URL 图还在加载中（placeholder），记录配置等加载完成后包装
             if (pendingImageLoads.any { it.placeholder === span }) {
                 pendingImageBorders[span] = config
                 return@forEach
             }
-            // 本地图片立即包装
             val orig = span.drawable
             val wrapped = BorderedImageDrawable(orig, config)
-            wrapped.setBounds(orig.bounds)  // 继承原始图片的 bounds，否则尺寸为 0
+            wrapped.bounds = orig.bounds
             val newSpan = CenterAlignImageSpan(wrapped)
             ssb.removeSpan(span)
             ssb.setSpan(newSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
@@ -663,7 +660,6 @@ class SpanBuilder private constructor(private val context: Context) {
         textView.setTag(tagKey, extraVerticalPaddingPx.takeIf { it != 0 })
     }
 
-    // ============================== 内部 Span 类 ==============================
 
     private class VerticalShiftSpan(@Px private val shiftDown: Int) : MetricAffectingSpan() {
         override fun updateDrawState(tp: TextPaint) { tp.baselineShift += shiftDown }
