@@ -3,11 +3,12 @@ package com.simple.mylibrary.weiget.builder
 import android.content.res.TypedArray
 import android.graphics.Color
 import android.graphics.Outline
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
-import android.graphics.drawable.LayerDrawable
 import com.simple.mylibrary.R
 import kotlin.math.ceil
 
@@ -82,6 +83,16 @@ class ShadowDrawableBuilder(
 
     /** 是否走自绘阴影 */
     private var selfDrawShadow: Boolean = false
+
+    /**
+     * View 在 init 时(intoShadow 调用前)的原始 padding。
+     * 用户通过 android:padding / android:paddingXxx 在 XML 上设的值,
+     * 应作为基线保留,shadow content padding 只在它之上叠加。
+     */
+    private val basePaddingLeft: Int = view.paddingLeft
+    private val basePaddingTop: Int = view.paddingTop
+    private val basePaddingRight: Int = view.paddingRight
+    private val basePaddingBottom: Int = view.paddingBottom
 
     init {
 
@@ -186,6 +197,7 @@ class ShadowDrawableBuilder(
     fun intoShadow() {
 
         if (elevation <= 0f) {
+            unwrapShadowLayerIfNeeded()
             applyContentPadding(0)
             registerLayoutSizeAdjustment()
             return
@@ -201,38 +213,42 @@ class ShadowDrawableBuilder(
         registerLayoutSizeAdjustment()
     }
 
+    /**
+     * 如果当前 background 是我们之前合成的 ShadowLayerDrawable,
+     * 把里面真正的"内容背景"(渐变/纯色 shape)取出来还给 view,
+     * 避免反复调用 intoShadow() 或在自绘/系统两条路径之间切换时,
+     * 多层 LayerDrawable 叠加导致 inset 翻倍或残留旧阴影。
+     */
+    private fun unwrapShadowLayerIfNeeded() {
+        val bg = view.background
+        when (bg) {
+            is ShadowLayerDrawable -> view.background = bg.contentDrawable
+            is SystemShadowBgWrapper -> view.background = bg.contentDrawable
+        }
+    }
+
+    /**
+     * 系统阴影
+     */
     private fun applySystemShadow() {
+
+        /**
+         * 如果之前走过自绘阴影并把 background 包成了 ShadowLayerDrawable,
+         * 系统阴影不再需要这层 wrap,把原始内容背景还原回来。
+         */
+        unwrapShadowLayerIfNeeded()
 
         view.elevation = elevation
 
-        val padLeft = contentPaddingLeft
-        val padTop = contentPaddingTop
-        val padRight = contentPaddingRight
-        val padBottom = contentPaddingBottom
-        val hasContentPad = padLeft > 0 || padTop > 0 || padRight > 0 || padBottom > 0
-
-        if (hasContentPad) {
-            val bg = view.background
-            if (bg != null && bg !is LayerDrawable) {
-                val layered = LayerDrawable(arrayOf(bg))
-                layered.setLayerInset(0, padLeft, padTop, padRight, padBottom)
-                view.background = layered
-            }
-        }
-
         view.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(v: View, outline: Outline) {
-                if (v.width <= padLeft + padRight || v.height <= padTop + padBottom) {
-                    return
-                }
                 outline.setRoundRect(
-                    padLeft,
-                    padTop,
-                    v.width - padRight,
-                    v.height - padBottom,
+                    0,
+                    0,
+                    v.width,
+                    v.height,
                     radiusProvider()
                 )
-                outline.alpha = 1.0f
             }
         }
 
@@ -240,6 +256,16 @@ class ShadowDrawableBuilder(
 
         if (Build.VERSION.SDK_INT >= 28) {
 
+            /**
+             * spot / ambient 颜色互补规则：
+             *
+             * - 都给了：各自生效
+             * - 只给了 spot：ambient 用 spot 颜色按 COMPANION_ALPHA_FACTOR 衰减后的值
+             * - 只给了 ambient：spot 用 ambient 颜色按 COMPANION_ALPHA_FACTOR 衰减后的值
+             * - 都没给：spot 保留系统默认（方向性投影、视觉自然），
+             *          只把 ambient 强制设为完全透明 —— 因为造成「阴影外硬边」
+             *          的恰恰是环境光那一层均匀的硬光晕，去掉它就柔和了
+             */
             when {
                 spotColor != 0 && ambientColor != 0 -> {
                     view.outlineSpotShadowColor = spotColor
@@ -261,7 +287,33 @@ class ShadowDrawableBuilder(
             }
         }
 
-        view.setPadding(padLeft, padTop, padRight, padBottom)
+        /**
+         * 系统 elevation 阴影绘制在 View bounds 之外，
+         * 由父布局 clipChildren=false 露出，不需要 View 内部预留空间。
+         * 这里只应用用户配置的 contentPadding。
+         */
+        applyContentPadding(0)
+
+        /**
+         * API ≥ 28 framework 实测 quirk:
+         *
+         * 当 view.background 直接是一个走 colors[] 渐变的 GradientDrawable 时,
+         * RenderNode 的 elevation 阴影会被跳过(纯色 setColor 路径不受影响).
+         * 跟 outlineProvider / outline.alpha / 父 clipChildren 都无关 ——
+         * framework 在判定是否绘制阴影时对"带 Shader 的 GradientDrawable
+         * 作为直接 background"这一具体形态有特殊优化路径.
+         *
+         * 解法:外面套一层不可见的 LayerDrawable, 让 view.getBackground()
+         * 不再是 GradientDrawable 实例, framework 走回标准阴影绘制路径.
+         * 用独立子类 SystemShadowBgWrapper 是为了在 unwrap 时能识别和拆掉.
+         */
+        wrapBackgroundForSystemShadowIfNeeded()
+    }
+
+    private fun wrapBackgroundForSystemShadowIfNeeded() {
+        val bg = view.background ?: return
+        if (bg is LayerDrawable) return
+        view.background = SystemShadowBgWrapper(bg)
     }
 
     /**
@@ -277,6 +329,11 @@ class ShadowDrawableBuilder(
             if (spotColor != 0) spotColor
             else ambientColor
 
+        /**
+         * contentInset = shadowPadding：内容矩形距 View 边缘的距离。
+         * 阴影从内容矩形边缘向外扩散，到 View 边缘时自然衰减到透明。
+         * 不再套 InsetDrawable，避免裁切边界形成硬边（矩形"边框"感）。
+         */
         val shadowDrawable = SelfDrawnShadowDrawable(
             radius = radiusProvider(),
             shadowSize = elevation,
@@ -284,28 +341,66 @@ class ShadowDrawableBuilder(
             contentInset = shadowPadding.toFloat()
         )
 
-        val existingBackground = view.background
-
-        if (existingBackground != null) {
-            val layerDrawable = LayerDrawable(arrayOf(shadowDrawable, existingBackground))
-            layerDrawable.setLayerInset(
-                1,
-                shadowPadding,
-                shadowPadding,
-                shadowPadding,
-                shadowPadding
-            )
-            view.background = layerDrawable
-        } else {
-            view.background = shadowDrawable
+        /**
+         * 把"用户原来的 background"(渐变 / 纯色 shape)和阴影合成到 LayerDrawable:
+         * 下层 = 阴影本体(自身在 contentInset 之外画扩散光晕)
+         * 上层 = 原 background,通过 setLayerInset 内缩 shadowPadding,
+         *        正好盖在阴影的"白色内容矩形"上,避免阴影内层白底透出。
+         *
+         * 同时支持反复调用 intoShadow():如果当前 background 已经是
+         * ShadowLayerDrawable,先 unwrap 拿到真实内容背景,再重新合成,
+         * 避免 LayerDrawable 嵌套累加导致 inset 翻倍。
+         */
+        val existing = view.background
+        val content: Drawable? = when (existing) {
+            is ShadowLayerDrawable -> existing.contentDrawable
+            is SystemShadowBgWrapper -> existing.contentDrawable
+            null -> null
+            else -> existing
         }
 
+        view.background = if (content != null) {
+            ShadowLayerDrawable(shadowDrawable, content, shadowPadding)
+        } else {
+            shadowDrawable
+        }
+
+        /**
+         * setShadowLayer 需要软件渲染
+         */
         if (!view.isInEditMode) {
             view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
 
         applyContentPadding(shadowPadding)
     }
+
+    /**
+     * 自绘阴影 + 用户内容背景的合成容器。
+     *
+     * 用独立类型(而不是匿名 LayerDrawable)是为了能在 unwrapShadowLayerIfNeeded()
+     * 里用 is 判断,区分"我们包过的 background"和"用户自己设的 LayerDrawable"。
+     * contentDrawable 字段保留对原始内容背景的引用,unwrap 时直接取回。
+     */
+    private class ShadowLayerDrawable(
+        shadow: Drawable,
+        val contentDrawable: Drawable,
+        inset: Int
+    ) : LayerDrawable(arrayOf(shadow, contentDrawable)) {
+        init {
+            setLayerInset(1, inset, inset, inset, inset)
+        }
+    }
+
+    /**
+     * API ≥ 28 系统阴影路径下,用来把 GradientDrawable 套一层 LayerDrawable,
+     * 绕开 RenderNode 对"直接以渐变 GradientDrawable 作为 background"的阴影跳过.
+     * 视觉上完全等同于原 contentDrawable,只是 background 类型变了.
+     * contentDrawable 字段供 unwrap 时取回原始背景。
+     */
+    private class SystemShadowBgWrapper(
+        val contentDrawable: Drawable
+    ) : LayerDrawable(arrayOf(contentDrawable))
 
     /**
      * 计算 CardView 风格阴影 padding
@@ -332,10 +427,10 @@ class ShadowDrawableBuilder(
     private fun applyContentPadding(shadowPadding: Int) {
 
         view.setPadding(
-            contentPaddingLeft + shadowPadding,
-            contentPaddingTop + shadowPadding,
-            contentPaddingRight + shadowPadding,
-            contentPaddingBottom + shadowPadding
+            basePaddingLeft + contentPaddingLeft + shadowPadding,
+            basePaddingTop + contentPaddingTop + shadowPadding,
+            basePaddingRight + contentPaddingRight + shadowPadding,
+            basePaddingBottom + contentPaddingBottom + shadowPadding
         )
     }
 
