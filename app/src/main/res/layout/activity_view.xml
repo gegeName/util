@@ -215,7 +215,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:paddingVertical="12dp"
+            android:textColor="@color/black"
             android:text="Shape 1.11  显式 shape_width_L / shape_height_L"
             android:textStyle="bold" />
 
@@ -323,91 +323,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:paddingVertical="12dp"
-            android:text="Shadow 2.5  shape_shadowContentSize_L 显式锁定白色内容矩形尺寸"
-            android:textStyle="bold" />
-
-        <com.simple.mylibrary.weiget.ShapeTextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="50dp×50dp"
-            android:textColor="#FFFFFF"
-            app:shape_radius_L="8dp"
-            app:shape_shadowContentSize_L="50dp"
-            app:shape_shadowElevation_L="6dp"
-            app:shape_shadowSpotColor_L="#33000000"
-            app:shape_solidColor_L="#3F51B5" />
-
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingVertical="12dp"
-            android:text="Shadow 2.6  shape_shadowContentWidth_L + shape_shadowContentHeight_L 单独设"
-            android:textStyle="bold" />
-
-        <com.simple.mylibrary.weiget.ShapeTextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="120 × 40"
-            android:textColor="#FFFFFF"
-            app:shape_radius_L="20dp"
-            app:shape_shadowContentHeight_L="40dp"
-            app:shape_shadowContentWidth_L="120dp"
-            app:shape_shadowElevation_L="6dp"
-            app:shape_shadowSpotColor_L="#5500BCD4"
-            app:shape_solidColor_L="#00838F" />
-
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingVertical="12dp"
-            android:text="Shadow 2.7  shape_shadowContentPadding_L (统一内边距)"
-            android:textStyle="bold" />
-
-        <com.simple.mylibrary.weiget.ShapeTextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="contentPadding = 12dp"
-            android:textColor="#212121"
-            app:shape_radius_L="8dp"
-            app:shape_shadowContentPadding_L="12dp"
-            app:shape_shadowElevation_L="6dp"
-            app:shape_shadowSpotColor_L="#33000000"
-            app:shape_solidColor_L="#FFFFFF" />
-
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingVertical="12dp"
-            android:text="Shadow 2.8  四向内边距独立 shape_shadowContentPaddingLeft_L / Top_L / Right_L / Bottom_L"
-            android:textStyle="bold" />
-
-        <com.simple.mylibrary.weiget.ShapeTextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="L=24 T=8 R=24 B=8"
-            android:textColor="#212121"
-            app:shape_radius_L="8dp"
-            app:shape_shadowContentPaddingBottom_L="8dp"
-            app:shape_shadowContentPaddingLeft_L="22dp"
-            app:shape_shadowContentPaddingRight_L="24dp"
-            app:shape_shadowContentPaddingTop_L="8dp"
-            app:shape_shadowElevation_L="6dp"
-            app:shape_shadowSpotColor_L="#33000000"
-            app:shape_solidColor_L="#FFFFFF" />
-
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingVertical="12dp"
-            android:text="Shadow 2.9  shape_shadowMaxElevation_L (兼容计算用的最大阴影高度)"
+            android:text="Shadow 2.5  shape_shadowMaxElevation_L (兼容计算用的最大阴影高度)"
             android:textStyle="bold" />
 
         <com.simple.mylibrary.weiget.ShapeTextView
@@ -473,8 +389,8 @@
             android:paddingVertical="10dp"
             android:paddingHorizontal="10dp"
             app:shape_radius_L="12dp"
-            app:shape_shadowElevation_L="8dp"
-            app:shape_shadowSpotColor_L="#406200EE"
+            app:shape_shadowElevation_L="10dp"
+            app:shape_shadowSpotColor_L="#FF5722"
             app:shape_solidGradientEndColor_L="#311B92"
             app:shape_solidGradientOrientation_L="topLeftToBottomRight"
             app:shape_solidGradientStartColor_L="#6200EE">

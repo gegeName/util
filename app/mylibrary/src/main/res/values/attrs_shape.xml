@@ -165,28 +165,12 @@
     <attr name="shape_shadowUseCompatPadding_L" format="boolean" />
     <!-- 是否防止圆角处内容溢出（true 时自动给子 View 加内边距） -->
     <attr name="shape_shadowPreventCornerOverlap_L" format="boolean" />
-    <!-- 阴影主光源颜色（API≥28 系统支持彩色，API<28 自动走自绘兼容路径） -->
+    <!-- 阴影主光源颜色（所有 API 版本均支持；设置后走自绘彩色阴影） -->
     <attr name="shape_shadowSpotColor_L" format="color" />
-    <!-- 阴影环境光颜色（API≥28 系统支持彩色，API<28 自动走自绘兼容路径） -->
+    <!-- 阴影环境光颜色（所有 API 版本均支持；设置后走自绘彩色阴影） -->
     <attr name="shape_shadowAmbientColor_L" format="color" />
-    <!-- 内容统一 padding（自动避让阴影区域） -->
-    <attr name="shape_shadowContentPadding_L" format="dimension" />
-    <!-- 内容左 padding（覆盖 shape_shadowContentPadding_L） -->
-    <attr name="shape_shadowContentPaddingLeft_L" format="dimension" />
-    <!-- 内容上 padding -->
-    <attr name="shape_shadowContentPaddingTop_L" format="dimension" />
-    <!-- 内容右 padding -->
-    <attr name="shape_shadowContentPaddingRight_L" format="dimension" />
-    <!-- 内容下 padding -->
-    <attr name="shape_shadowContentPaddingBottom_L" format="dimension" />
-    <!-- 期望的"白色内容矩形"尺寸（同时设置宽高）：
-         自绘阴影路径下，控件会自动把 layoutParams 加上 2 × shadowPadding，
-         以保证内容矩形最终视觉大小等于该尺寸，阴影向外扩散且不侵占内容。 -->
-    <attr name="shape_shadowContentSize_L" format="dimension" />
-    <!-- 期望的内容矩形宽度（仅覆盖宽度） -->
-    <attr name="shape_shadowContentWidth_L" format="dimension" />
-    <!-- 期望的内容矩形高度（仅覆盖高度） -->
-    <attr name="shape_shadowContentHeight_L" format="dimension" />
+    <!-- 阴影透明度，0.0（完全透明）~ 1.0（完全不透明），默认 1.0；叠加在阴影颜色 alpha 之上 -->
+    <attr name="shape_shadowAlpha_L" format="float" />
 
 
     <!-- ==================== 2. 共享 styleable（Builder 通用，运行时使用） ==================== -->
@@ -243,14 +227,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
 
@@ -309,14 +286,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeTextView">
@@ -368,14 +338,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeImageView">
@@ -427,14 +390,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeButton">
@@ -486,14 +442,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeLinearLayout">
@@ -545,14 +494,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeFrameLayout">
@@ -604,14 +546,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeConstraintLayout">
@@ -663,14 +598,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <!-- ===== Shadow 系列（4 个，shape + shadow 全套属性） ===== -->
@@ -724,14 +652,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShadowLinearLayout">
@@ -783,14 +704,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShadowFrameLayout">
@@ -842,14 +756,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
     <declare-styleable name="ShadowConstraintLayout">
@@ -901,14 +808,7 @@
         <attr name="shape_shadowPreventCornerOverlap_L" />
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
-        <attr name="shape_shadowContentPadding_L" />
-        <attr name="shape_shadowContentPaddingLeft_L" />
-        <attr name="shape_shadowContentPaddingTop_L" />
-        <attr name="shape_shadowContentPaddingRight_L" />
-        <attr name="shape_shadowContentPaddingBottom_L" />
-        <attr name="shape_shadowContentSize_L" />
-        <attr name="shape_shadowContentWidth_L" />
-        <attr name="shape_shadowContentHeight_L" />
+        <attr name="shape_shadowAlpha_L" />
     </declare-styleable>
 
 </resources>
