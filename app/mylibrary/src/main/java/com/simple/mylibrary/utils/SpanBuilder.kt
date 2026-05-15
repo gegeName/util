@@ -177,6 +177,11 @@ class SpanBuilder private constructor(private val context: Context) {
 
     // ============================== 拼接模式 ==============================
 
+    /**
+     * 追加一段文字，后续样式方法仅对该片段生效。
+     *
+     * @param text 要追加的文字
+     */
     fun append(text: CharSequence): SpanBuilder {
         val start = ssb.length
         ssb.append(text)
@@ -184,6 +189,11 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 追加一段文字并在末尾插入换行符，后续样式方法仅对文字片段（不含换行符）生效。
+     *
+     * @param text 要追加的文字，默认空字符串（仅插入换行）
+     */
     fun appendLine(text: CharSequence = ""): SpanBuilder {
         val start = ssb.length
         ssb.append(text)
@@ -193,11 +203,25 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 追加一张图片（资源 ID），后续样式方法对该图片片段生效。
+     *
+     * @param resId  Drawable 资源 ID
+     * @param width  显示宽度 px；-1 = 使用 Drawable 固有宽度
+     * @param height 显示高度 px；-1 = 使用 Drawable 固有高度
+     */
     fun image(@DrawableRes resId: Int, @Px width: Int = -1, @Px height: Int = -1): SpanBuilder {
         val drawable = ContextCompat.getDrawable(context, resId) ?: return this
         return image(drawable, width, height)
     }
 
+    /**
+     * 追加一张图片（Drawable），后续样式方法对该图片片段生效。
+     *
+     * @param drawable 要插入的 Drawable
+     * @param width    显示宽度 px；-1 = 使用 Drawable 固有宽度
+     * @param height   显示高度 px；-1 = 使用 Drawable 固有高度
+     */
     fun image(drawable: Drawable, @Px width: Int = -1, @Px height: Int = -1): SpanBuilder {
         val w = if (width > 0) width else drawable.intrinsicWidth.coerceAtLeast(1)
         val h = if (height > 0) height else drawable.intrinsicHeight.coerceAtLeast(1)
@@ -210,9 +234,25 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 追加一张图片（Bitmap），后续样式方法对该图片片段生效。
+     *
+     * @param bitmap 要插入的 Bitmap
+     * @param width  显示宽度 px；-1 = 使用 Bitmap 固有宽度
+     * @param height 显示高度 px；-1 = 使用 Bitmap 固有高度
+     */
     fun image(bitmap: Bitmap, @Px width: Int = -1, @Px height: Int = -1): SpanBuilder =
         image(bitmap.toDrawable(context.resources), width, height)
 
+    /**
+     * 追加一张网络图片（异步加载），先用透明占位符占位，加载完成后自动刷新 TextView。
+     * 注意：必须配合 [into] 使用，[build] 模式无法触发图片加载回调。
+     *
+     * @param url    图片 URL
+     * @param width  显示宽度 px
+     * @param height 显示高度 px
+     * @param circle 是否裁剪为圆形，默认 false
+     */
     fun image(url: String, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder {
         val start = ssb.length
         ssb.append(" ")
@@ -226,6 +266,11 @@ class SpanBuilder private constructor(private val context: Context) {
 
     // ============================== 服务端文案模式 ==============================
 
+    /**
+     * 装载整段文字（清空之前内容），后续可用 [find]/[findAll]/[findRegex]/[range] 定位片段再施加样式。
+     *
+     * @param text 要装载的完整文字
+     */
     fun setText(text: CharSequence): SpanBuilder {
         ssb.clear()
         ssb.append(text)
@@ -233,6 +278,12 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 查找第一个匹配的子串并将其设为当前片段；未找到则片段为空。
+     *
+     * @param keyword    要查找的关键词
+     * @param ignoreCase 是否忽略大小写，默认 false
+     */
     fun find(keyword: String, ignoreCase: Boolean = false): SpanBuilder {
         if (keyword.isEmpty()) {
             segments = emptyList(); return this
@@ -242,6 +293,12 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 查找所有匹配的子串并将其设为当前片段列表；未找到则片段为空。
+     *
+     * @param keyword    要查找的关键词
+     * @param ignoreCase 是否忽略大小写，默认 false
+     */
     fun findAll(keyword: String, ignoreCase: Boolean = false): SpanBuilder {
         if (keyword.isEmpty()) {
             segments = emptyList(); return this
@@ -259,11 +316,22 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 用正则查找所有匹配项并将其设为当前片段列表。
+     *
+     * @param regex 匹配规则
+     */
     fun findRegex(regex: Regex): SpanBuilder {
         segments = regex.findAll(ssb).map { it.range.first to it.range.last + 1 }.toList()
         return this
     }
 
+    /**
+     * 手动指定一个范围作为当前片段，范围越界时自动修正到合法区间。
+     *
+     * @param start        起始索引（含）
+     * @param endExclusive 结束索引（不含）
+     */
     fun range(start: Int, endExclusive: Int): SpanBuilder {
         val s = start.coerceIn(0, ssb.length)
         val e = endExclusive.coerceIn(s, ssb.length)
@@ -271,11 +339,22 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 将整个文字内容设为当前片段；内容为空时片段为空。
+     */
     fun all(): SpanBuilder {
         segments = if (ssb.isNotEmpty()) listOf(0 to ssb.length) else emptyList()
         return this
     }
 
+    /**
+     * 把文字中所有出现的 [placeholder] 替换为图片（资源 ID）。
+     *
+     * @param placeholder 文字中的占位符字符串
+     * @param resId       替换用的 Drawable 资源 ID
+     * @param width       图片显示宽度 px
+     * @param height      图片显示高度 px
+     */
     fun replaceWithImage(
         placeholder: String,
         @DrawableRes resId: Int,
@@ -286,6 +365,14 @@ class SpanBuilder private constructor(private val context: Context) {
         return replaceWithImage(placeholder, drawable, width, height)
     }
 
+    /**
+     * 把文字中所有出现的 [placeholder] 替换为图片（Drawable）。
+     *
+     * @param placeholder 文字中的占位符字符串
+     * @param drawable    替换用的 Drawable
+     * @param width       图片显示宽度 px；-1 = 使用 Drawable 固有宽度
+     * @param height      图片显示高度 px；-1 = 使用 Drawable 固有高度
+     */
     fun replaceWithImage(
         placeholder: String,
         drawable: Drawable,
@@ -308,6 +395,16 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 把文字中所有出现的 [placeholder] 替换为网络图片（异步加载）。
+     * 注意：必须配合 [into] 使用，[build] 模式无法触发图片加载回调。
+     *
+     * @param placeholder 文字中的占位符字符串
+     * @param url         图片 URL
+     * @param width       图片显示宽度 px
+     * @param height      图片显示高度 px
+     * @param circle      是否裁剪为圆形，默认 false
+     */
     fun replaceWithImage(
         placeholder: String,
         url: String,
@@ -351,10 +448,20 @@ class SpanBuilder private constructor(private val context: Context) {
 
     // ============================== 样式 ==============================
 
+    /**
+     * 设置当前片段的文字颜色（前景色）。
+     *
+     * @param color 颜色值（ARGB）
+     */
     fun color(@ColorInt color: Int): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(ForegroundColorSpan(color), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
+    /**
+     * 设置当前片段的文字背景色。
+     *
+     * @param color 背景颜色值（ARGB）
+     */
     fun backgroundColor(@ColorInt color: Int): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(BackgroundColorSpan(color), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
@@ -382,7 +489,13 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
-    /** [gradientColor] 的二色便捷重载。 */
+    /**
+     * [gradientColor] 的二色便捷重载。
+     *
+     * @param startColor 渐变起始色
+     * @param endColor   渐变结束色
+     * @param vertical   true=自上而下；false=自左到右（默认）
+     */
     fun gradientColor(
         @ColorInt startColor: Int,
         @ColorInt endColor: Int,
@@ -435,26 +548,55 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * 将当前片段文字设为粗体。
+     */
     fun bold(): SpanBuilder = applyStyle(Typeface.BOLD)
+
+    /**
+     * 将当前片段文字设为斜体。
+     */
     fun italic(): SpanBuilder = applyStyle(Typeface.ITALIC)
+
+    /**
+     * 将当前片段文字设为粗斜体。
+     */
     fun boldItalic(): SpanBuilder = applyStyle(Typeface.BOLD_ITALIC)
 
     private fun applyStyle(style: Int): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(StyleSpan(style), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
+    /**
+     * 给当前片段文字添加下划线。
+     */
     fun underline(): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(UnderlineSpan(), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
+    /**
+     * 给当前片段文字添加删除线。
+     */
     fun strikethrough(): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(StrikethroughSpan(), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
+    /**
+     * 设置当前片段文字的绝对字号。
+     *
+     * @param sizePx 字号大小 px
+     */
     fun sizePx(@Px sizePx: Int): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(AbsoluteSizeSpan(sizePx), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
+    /**
+     * 对当前片段文字做居中省略截断，超出 [maxChars] 时保留首尾、中间替换为 [ellipsis]。
+     * 注意：会直接修改 ssb 内容，调用后片段范围随之更新。
+     *
+     * @param maxChars 最大保留字符数（含省略号）
+     * @param ellipsis 省略号字符串，默认 "..."
+     */
     fun maxLengthMiddle(maxChars: Int, ellipsis: String = "..."): SpanBuilder {
         if (maxChars <= 0) return this
         val sorted = segments.sortedByDescending { it.first }
@@ -493,6 +635,13 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 对当前片段文字做末尾省略截断，超出 [maxChars] 时末尾替换为 [ellipsis]。
+     * 注意：会直接修改 ssb 内容，调用后片段范围随之更新。
+     *
+     * @param maxChars 最大保留字符数（含省略号）
+     * @param ellipsis 省略号字符串，默认 "..."
+     */
     fun maxLength(maxChars: Int, ellipsis: String = "..."): SpanBuilder {
         if (maxChars <= 0) return this
         val sorted = segments.sortedByDescending { it.first }
@@ -566,6 +715,11 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 给当前图片片段添加渐变边框（多色）。必须在 [image] 之后调用。
+     *
+     * @param colors       渐变颜色数组，长度 ≥ 2
+     * @param borderWidth  边框宽度 px
+     * @param cornerRadius 边框圆角半径 px，0 = 直角
+     * @param vertical     true=自上而下；false=自左到右（默认）
      */
     fun imageBorderGradient(
         colors: IntArray,
@@ -596,6 +750,17 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * 给当前图片或文字片段添加外边距。
+     * - 图片片段：通过 [InsetDrawable] 扩大显示区域；
+     * - 文字片段：left/right 插入空白占位字符，top/bottom 通过基线偏移实现垂直位移，
+     *   并自动更新 [extraVerticalPaddingPx] 以避免文字被裁剪。
+     *
+     * @param left   左边距 px，默认 0
+     * @param top    上边距 px，默认 0
+     * @param right  右边距 px，默认 0
+     * @param bottom 下边距 px，默认 0
+     */
     fun marginPx(
         @Px left: Int = 0,
         @Px top: Int = 0,
@@ -661,6 +826,13 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
+    /**
+     * 对整段 SpannableStringBuilder 中的文字部分（跳过图片）统一施加垂直偏移，
+     * 实现文字相对于行基线的上下微调。自动更新 [extraVerticalPaddingPx]。
+     *
+     * @param top    上方偏移 px，正值使文字向下移，默认 0
+     * @param bottom 下方偏移 px，正值使文字向上移，默认 0
+     */
     fun textVerticalMarginPx(@Px top: Int = 0, @Px bottom: Int = 0): SpanBuilder {
         val shiftDown = top - bottom
         if (shiftDown == 0 || ssb.isEmpty()) return this
@@ -757,7 +929,10 @@ class SpanBuilder private constructor(private val context: Context) {
     }
 
     /**
-     * 内联版本，无需预先注册。
+     * 对当前图片片段执行用户自定义 Drawable 变换（内联版本，无需预先注册）。
+     *
+     * @param transformer 接收 (drawable, width, height)，返回变换后的新 Drawable；
+     *                    新 Drawable 的 bounds 会自动设置为原图的 bounds。
      */
     fun customImageTransform(
         transformer: (drawable: Drawable, width: Int, height: Int) -> Drawable,
@@ -784,6 +959,13 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * 给当前片段添加点击事件。调用后 [into] 会自动为 TextView 设置 LinkMovementMethod。
+     *
+     * @param underline     点击区域是否显示下划线，默认 false
+     * @param overrideColor 点击区域文字颜色，null = 保持原色
+     * @param listener      点击回调，参数为被点击的 View
+     */
     fun onClick(
         underline: Boolean = false,
         @ColorInt overrideColor: Int? = null,
@@ -805,8 +987,21 @@ class SpanBuilder private constructor(private val context: Context) {
 
     // ============================== 输出 ==============================
 
+    /**
+     * 返回构建好的 [CharSequence]（SpannableStringBuilder）。
+     * 注意：含网络图片时图片尚未加载，建议改用 [into]。
+     */
     fun build(): CharSequence = ssb
 
+    /**
+     * 将构建好的富文本设置到 [textView]，并处理以下逻辑：
+     * - 自动设置 LinkMovementMethod（支持点击事件）；
+     * - 有 [glow] 效果时自动设置 LAYER_TYPE_SOFTWARE；
+     * - 有待加载的网络图片时，图片加载完成后自动刷新 textView.text；
+     * - 若同一 TextView 被重复调用 [into]，通过 tag 标记确保旧任务的回调不会污染新内容。
+     *
+     * @param textView 目标 TextView
+     */
     fun into(textView: TextView) {
         textView.movementMethod = LinkMovementMethod.getInstance()
         applyExtraVerticalPadding(textView)
@@ -1166,4 +1361,3 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 }
-
