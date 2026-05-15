@@ -4,7 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Shader
 import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.InsetDrawable
@@ -32,6 +35,8 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
+import com.simple.mylibrary.R
+import kotlin.math.abs
 
 /**
  * 链式 Span 构建器。支持两种使用模式：
@@ -49,19 +54,22 @@ import com.bumptech.glide.request.transition.Transition
  * 2) **服务端整段文案模式**：先 setText 装载，再按"子串/正则/范围/占位符"定位后施加样式。
  * ```
  * SpanBuilder.with(ctx)
- *     .setText("张三 just sent [gift] x10 to LiveRoom")
- *     .find("张三").color(Color.RED).bold().onClick { ... }
+ *     .setText("李四 just sent [gift] x10 to LiveRoom")
+ *     .find("李四").color(Color.RED).bold().onClick { ... }
  *     .find("LiveRoom").color(Color.CYAN).italic()
  *     .findRegex(Regex("x\\d+")).color(Color.YELLOW)
  *     .replaceWithImage("[gift]", R.drawable.ic_gift, 24, 24)
  *     .into(tvMsg)
  * ```
  *
- * - 所有样式方法（color/bold/italic/underline/strikethrough/onClick 等）作用于"当前片段集合"。
- *   片段集合由最近一次 append/image/find/findAll/findRegex/range/replaceWithImage 更新。
- * - 图片使用 [CenterAlignImageSpan]：当图片高度大于字体高度时会自动撑高行高，让文字垂直居中。
- * - URL 图片走 Glide 异步加载，先用透明占位 Drawable 撑位，加载完成后替换 Span 并刷新 TextView，
- *   用 tag 校验避免 RecyclerView 复用时回调错位。
+ * 3）build模式，不适合有图片的情况，
+ *  val ssb=SpanBuilder.with(ctx)
+ *      .append("王五").color(Color.RED).bold().onClick { ... }
+ *      .append(" 送出 ")
+ *      .image(R.drawable.ic_gift, 24, 24).onClick { ... }
+ *      .append(" x10").color(Color.YELLOW).underline()
+ *      .build()
+ *  tvMsg.text=ssb
  */
 class SpanBuilder private constructor(private val context: Context) {
 
@@ -88,21 +96,18 @@ class SpanBuilder private constructor(private val context: Context) {
     var extraVerticalPaddingPx: Int = 0
         private set
 
+    /**
+     * 远程图待加载任务。用 [placeholder] 这个 Span 实例追踪当前位置，
+     */
     private data class PendingImageLoad(
         val url: String,
-        val start: Int,
+        val placeholder: CenterAlignImageSpan,
         val width: Int,
         val height: Int,
         val circle: Boolean,
     )
 
     companion object {
-        /**
-         * 记录每个 TextView 上次被本类累加到 lineSpacingExtra 上的增量，
-         * 用于 RecyclerView 复用场景下做幂等抵消，避免反复 bind 让行高无限增长。
-         */
-        private val addedLineSpacing = java.util.WeakHashMap<TextView, Int>()
-
         /**
          * 创建一个新的 SpanBuilder 实例。
          * @param context 用于解析 Drawable 资源与挂载 Glide 请求的上下文（推荐传 Activity / View.context）。
@@ -126,18 +131,14 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 追加文本并在末尾补一个换行。
-     * @param text 要追加的文本，默认空串（仅插入换行）。
-     *
-     * 注意：调用后"当前片段"只覆盖刚追加的文本本身、不含换行符，
-     * 这样链式 `.color()` / `.backgroundColor()` 等才能作用在文字上,
-     * 否则会被换行符吃掉(视觉上没反应)。
+     * @param text 要追加的文本，默认空串（仅插入换行；此时无文字片段，后续样式调用静默无效）。
      */
     fun appendLine(text: CharSequence = ""): SpanBuilder {
         val start = ssb.length
         ssb.append(text)
-        val end = ssb.length
+        val textEnd = ssb.length
         ssb.append("\n")
-        segments = if (start < end) listOf(start to end) else emptyList()
+        segments = if (textEnd > start) listOf(start to textEnd) else emptyList()
         return this
     }
 
@@ -195,11 +196,9 @@ class SpanBuilder private constructor(private val context: Context) {
         val start = ssb.length
         ssb.append(" ")
         val end = ssb.length
-        ssb.setSpan(
-            CenterAlignImageSpan(transparentPlaceholder(width, height)),
-            start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        pendingImageLoads.add(PendingImageLoad(url, start, width, height, circle))
+        val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
+        ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        pendingImageLoads.add(PendingImageLoad(url, placeholderSpan, width, height, circle))
         segments = listOf(start to end)
         return this
     }
@@ -212,8 +211,6 @@ class SpanBuilder private constructor(private val context: Context) {
      */
     fun setText(text: CharSequence): SpanBuilder {
         ssb.clear()
-        // 旧文本作废，之前注册的 URL 异步加载也全部失效。
-        pendingImageLoads.clear()
         ssb.append(text)
         segments = listOf(0 to ssb.length)
         return this
@@ -346,31 +343,21 @@ class SpanBuilder private constructor(private val context: Context) {
     ): SpanBuilder {
         if (placeholder.isEmpty()) return this
         val newSegs = replacePlaceholderWith(placeholder) { pos ->
-            ssb.setSpan(
-                CenterAlignImageSpan(transparentPlaceholder(width, height)),
-                pos, pos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            pendingImageLoads.add(PendingImageLoad(url, pos, width, height, circle))
+            val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
+            ssb.setSpan(placeholderSpan, pos, pos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            pendingImageLoads.add(PendingImageLoad(url, placeholderSpan, width, height, circle))
         }
         segments = newSegs
         return this
     }
 
     /**
-     * 内部辅助：从后往前查找并替换 placeholder 为单字符占位（避免下标位移），
-     * 同步维护 pendingImageLoads，并对每个 placeholder 最终落点调用 onPlaced
-     * 写入 ImageSpan / 记录加载任务。
-     *
-     * 关键点：原实现返回的是「替换前」的原始下标，多次匹配时较早的下标在
-     * 后续 replace 中已经被左移,直接把它当成 segments 会让链式的 color /
-     * onClick 等调用 setSpan 时落到不存在的位置上(甚至越界)。
-     * 这里改成返回「替换后」的最终下标。
+     * 内部辅助：把所有 placeholder 替换为单字符占位，替换处调用 onPlaced 写入 ImageSpan / 记录加载任务。
      */
     private fun replacePlaceholderWith(
         placeholder: String,
         onPlaced: (pos: Int) -> Unit,
     ): List<Pair<Int, Int>> {
-        if (placeholder.isEmpty()) return emptyList()
         val src = ssb.toString()
         val originalPositions = mutableListOf<Int>()
         var from = 0
@@ -380,28 +367,15 @@ class SpanBuilder private constructor(private val context: Context) {
             originalPositions.add(idx)
             from = idx + placeholder.length
         }
-        if (originalPositions.isEmpty()) return emptyList()
-
-        // 从尾向头替换,避免被前一个替换扰动下标。
-        // 每次替换后同步 pendingImageLoads,防止异步回调越界。
-        originalPositions.asReversed().forEach { pos ->
+        val shrinkPerHit = placeholder.length - 1
+        val newPositions = mutableListOf<Int>()
+        originalPositions.forEachIndexed { i, origPos ->
+            val pos = origPos - i * shrinkPerHit
             ssb.replace(pos, pos + placeholder.length, " ")
-            shiftPendingLoadsForReplace(pos, pos + placeholder.length, 1)
+            onPlaced(pos)
+            newPositions.add(pos)
         }
-
-        // 计算每个 placeholder 在最终 ssb 中的下标:
-        // 第 i 个 (按原始顺序) 前面有 i 个 placeholder 各缩短了 (len - 1) 个字符。
-        val perReplacementDelta = placeholder.length - 1
-        val finalPositions = originalPositions.mapIndexed { i, p ->
-            p - i * perReplacementDelta
-        }
-
-        // 替换全部完成后再统一挂 span / 注册 URL 加载,
-        // 这样 onPlaced 收到的就是最终下标,后续 segments / pendingImageLoads
-        // 都不会再被位移影响。
-        finalPositions.forEach { onPlaced(it) }
-
-        return finalPositions.map { it to it + 1 }
+        return newPositions.map { it to it + 1 }
     }
 
     // ============================== 样式（对当前片段集合生效） ==============================
@@ -421,6 +395,51 @@ class SpanBuilder private constructor(private val context: Context) {
     fun backgroundColor(@ColorInt color: Int): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(BackgroundColorSpan(color), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
+
+    /**
+     * 给当前片段叠加线性渐变色（文字前景）。
+     *
+     * 实现走 [GradientTextSpan]（ReplacementSpan），在 draw 时按片段实际宽度/高度构造
+     * [LinearGradient]，渐变起止精确对齐到文字范围（不受前置文本宽度影响）。
+     *
+     * **与其他样式的兼容性**：
+     * - 仍生效：[bold] / [italic] / [sizePx]（修改 paint，会传到 ReplacementSpan.draw）
+     * - 不再生效：[color] / [backgroundColor]（颜色被渐变覆盖）、[underline] / [strikethrough]
+     *   （ReplacementSpan 接管绘制，不会自动画下/删除线）
+     * - 仍生效：[onClick]（点击通过 ClickableSpan 命中测试，与绘制无关）
+     *
+     * @param colors    渐变颜色数组，长度 >=2，例如 `intArrayOf(0xFFFFEB3B.toInt(), 0xFFFF5722.toInt())`
+     * @param positions 各颜色在 [0,1] 上的分布位置；传 null 自动等分；非 null 时长度必须与 colors 一致
+     * @param vertical  true=自上而下（沿 y 轴）；false=自左到右（沿 x 轴，默认）
+     */
+    fun gradientColor(
+        colors: IntArray,
+        positions: FloatArray? = null,
+        vertical: Boolean = false,
+    ): SpanBuilder {
+        require(colors.size >= 2) { "gradientColor needs at least 2 colors" }
+        require(positions == null || positions.size == colors.size) {
+            "positions.size must equal colors.size"
+        }
+        return applyEach { s, e ->
+            ssb.setSpan(
+                GradientTextSpan(colors, positions, vertical),
+                s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
+        }
+    }
+
+    /**
+     * [gradientColor] 的二色便捷重载。
+     * @param startColor 起始颜色（左/上）
+     * @param endColor   结束颜色（右/下）
+     * @param vertical   true=自上而下；false=自左到右（默认）
+     */
+    fun gradientColor(
+        @ColorInt startColor: Int,
+        @ColorInt endColor: Int,
+        vertical: Boolean = false,
+    ): SpanBuilder = gradientColor(intArrayOf(startColor, endColor), null, vertical)
 
     /** 加粗。 */
     fun bold(): SpanBuilder = applyStyle(Typeface.BOLD)
@@ -454,16 +473,54 @@ class SpanBuilder private constructor(private val context: Context) {
     }
 
     /**
+     * 限制当前片段文字长度，超出则在**中间**截断并插入省略号（保留头部与尾部，省略中间）。
+     *
+     * 示例：`"abcdefghij" + maxChars=6 + ellipsis="..."` → `"abc...hij"`。
+     *
+     * @param maxChars 最大保留字符数（不含 ellipsis 本身），头尾各分一半，奇数偏头部 1 位
+     * @param ellipsis 中间插入的占位符，默认 "..."
+     */
+    fun maxLengthMiddle(maxChars: Int, ellipsis: String = "..."): SpanBuilder {
+        if (maxChars <= 0) return this
+        val sorted = segments.sortedByDescending { it.first }
+        val updated = mutableListOf<Pair<Int, Int>>()
+        sorted.forEach { (s, e) ->
+            val segLen = e - s
+            if (segLen <= maxChars) {
+                updated.add(s to e)
+                return@forEach
+            }
+            val headLen = (maxChars + 1) / 2
+            val tailLen = maxChars - headLen
+            val cutStart = s + headLen
+            val cutEnd = e - tailLen
+            if (cutStart >= cutEnd) {
+                updated.add(s to e)
+                return@forEach
+            }
+            val covering = ssb.getSpans(s, e, Any::class.java).mapNotNull { sp ->
+                val ss = ssb.getSpanStart(sp)
+                val se = ssb.getSpanEnd(sp)
+                if (se >= e) Triple(sp, ss, ssb.getSpanFlags(sp)) else null
+            }
+            ssb.replace(cutStart, cutEnd, ellipsis)
+            val newE = s + headLen + ellipsis.length + tailLen
+            covering.forEach { (sp, ss, flags) ->
+                ssb.removeSpan(sp)
+                ssb.setSpan(sp, ss, newE, flags)
+            }
+            shiftUpdated(updated, fromExclusive = e, by = newE - e)
+            updated.add(s to newE)
+        }
+        segments = updated.sortedBy { it.first }
+        return this
+    }
+
+    /**
      * 限制当前片段文字长度，超出则截断并追加省略号。
      *
      * @param maxChars 最大保留字符数（不含 ellipsis 本身）
      * @param ellipsis 截断后追加的字符，默认 "..."
-     *
-     * 行为：
-     * - 仅对当前片段集合中长度超过 maxChars 的"文字片段"生效；图片片段（长度为 1 的占位）天然不会被截断。
-     * - 已挂在整段上的样式 span（color/bold/underline/onClick 等）会自动延展到 ellipsis 末尾，
-     *   保证截断后的视觉风格一致（避免出现"昵称是金色但 ... 是白色"的情况）。
-     * - 多片段时按降序处理，文本删除/插入造成的位移会自动同步到 segments 集合，可继续链式调用。
      */
     fun maxLength(maxChars: Int, ellipsis: String = "..."): SpanBuilder {
         if (maxChars <= 0) return this
@@ -481,7 +538,6 @@ class SpanBuilder private constructor(private val context: Context) {
                 if (se >= e) Triple(sp, ss, ssb.getSpanFlags(sp)) else null
             }
             ssb.replace(s + maxChars, e, ellipsis)
-            shiftPendingLoadsForReplace(s + maxChars, e, ellipsis.length)
             val newE = s + maxChars + ellipsis.length
             covering.forEach { (sp, ss, flags) ->
                 ssb.removeSpan(sp)
@@ -545,7 +601,6 @@ class SpanBuilder private constructor(private val context: Context) {
                 var curE = e
                 if (right > 0) {
                     ssb.insert(curE, " ")
-                    shiftPendingLoadsForReplace(curE, curE, 1)
                     ssb.setSpan(
                         BlankWidthSpan(right),
                         curE, curE + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -555,7 +610,6 @@ class SpanBuilder private constructor(private val context: Context) {
                 }
                 if (left > 0) {
                     ssb.insert(curS, " ")
-                    shiftPendingLoadsForReplace(curS, curS, 1)
                     ssb.setSpan(
                         BlankWidthSpan(left),
                         curS, curS + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -569,8 +623,7 @@ class SpanBuilder private constructor(private val context: Context) {
                         VerticalShiftSpan(shiftDown),
                         curS, curE, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                     )
-                    extraVerticalPaddingPx =
-                        maxOf(extraVerticalPaddingPx, kotlin.math.abs(shiftDown))
+                    extraVerticalPaddingPx = maxOf(extraVerticalPaddingPx, abs(shiftDown))
                 }
                 updated.add(curS to curE)
             }
@@ -581,18 +634,6 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 给整段中**所有文字片段**统一上下平移（跳过 CenterAlignImageSpan 占位区域，不影响图片）。
-     *
-     * 设计动机：[marginPx] 只作用于"当前片段"。当行内含 CenterAlignImageSpan 且 PNG 顶/底有透明边时，
-     * 整行所有文字都需要朝同一方向平移才能对齐图片视觉中心 —— 单段调用 [marginPx] 顾此失彼。
-     * 此方法一次性给所有文字段挂 baselineShift。
-     *
-     * 行为：
-     * - 扫描整段，把所有 CenterAlignImageSpan 覆盖范围之外的连续区间识别为"文字片段"。
-     * - 每段文字片段挂 [VerticalShiftSpan]，shift = top - bottom（正下移 / 负上移）。
-     * - 累计 [extraVerticalPaddingPx]，[into] 时自动撑 lineSpacingExtra 避免裁切。
-     * - 调用时机：建议在所有 [image] / [replaceWithImage] / [append] 完成后再调，
-     *   后续新增的文字片段不会被自动覆盖。
-     * - **不更新当前片段集合**，链式后续 onClick/color 等仍作用于上一个 append/find 的范围。
      *
      * @param top 上侧间距 px，<=0 不生效。baselineShift += top（文字下移）。
      * @param bottom 下侧间距 px，<=0 不生效。baselineShift -= bottom（文字上移）。
@@ -606,12 +647,14 @@ class SpanBuilder private constructor(private val context: Context) {
             .map { ssb.getSpanStart(it) to ssb.getSpanEnd(it) }
             .sortedBy { it.first }
         var cursor = 0
+        var placedAny = false
         for ((s, e) in imageRanges) {
             if (cursor < s) {
                 ssb.setSpan(
                     VerticalShiftSpan(shiftDown),
                     cursor, s, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                 )
+                placedAny = true
             }
             cursor = maxOf(cursor, e)
         }
@@ -620,8 +663,11 @@ class SpanBuilder private constructor(private val context: Context) {
                 VerticalShiftSpan(shiftDown),
                 cursor, len, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
             )
+            placedAny = true
         }
-        extraVerticalPaddingPx = maxOf(extraVerticalPaddingPx, kotlin.math.abs(shiftDown))
+        if (placedAny) {
+            extraVerticalPaddingPx = maxOf(extraVerticalPaddingPx, abs(shiftDown))
+        }
         return this
     }
 
@@ -638,44 +684,7 @@ class SpanBuilder private constructor(private val context: Context) {
     }
 
     /**
-     * 当 ssb 在 [replaceStart, replaceEnd) 区间被替换成长度为 newLength 的新内容时，
-     * 同步维护 pendingImageLoads:
-     *
-     * - 完全在替换区前 → 不动
-     * - 完全在替换区后 → start 增加 delta = newLength - (replaceEnd - replaceStart)
-     * - 与替换区有重叠（占位符所在位置被冲掉） → 直接丢弃,
-     *   避免回调时 setSpan 落到已经不存在的下标上引发 IndexOutOfBoundsException
-     *
-     * 用反向遍历以便安全地从 MutableList 中移除元素。
-     */
-    private fun shiftPendingLoadsForReplace(
-        replaceStart: Int,
-        replaceEnd: Int,
-        newLength: Int,
-    ) {
-        if (pendingImageLoads.isEmpty()) return
-        val delta = newLength - (replaceEnd - replaceStart)
-        for (i in pendingImageLoads.indices.reversed()) {
-            val load = pendingImageLoads[i]
-            val loadEnd = load.start + 1
-            when {
-                loadEnd <= replaceStart -> {
-                    // entirely before — no change
-                }
-                load.start >= replaceEnd -> {
-                    if (delta != 0) {
-                        pendingImageLoads[i] = load.copy(start = load.start + delta)
-                    }
-                }
-                else -> {
-                    pendingImageLoads.removeAt(i)
-                }
-            }
-        }
-    }
-
-    /**
-     * 给当前片段集合添加点击事件。每段会得到独立的 ClickableSpan 实例（位置稳定）。
+     * 给当前片段集合添加点击事件。每段会得到独立的 ClickableSpan
      *
      * 注意：`into(textView)` 会自动挂 LinkMovementMethod，无需调用方再设置。
      *
@@ -718,37 +727,19 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 将结果设置到 TextView，并触发已注册的远程图片异步加载。自动挂 [LinkMovementMethod]，让 onClick 生效。
-     *
-     * 远程图片用 `textView.tag` 校验，可在 RecyclerView 复用时避免回调落到错误的 TextView 上。
-     *
-     * 若 [extraVerticalPaddingPx] > 0（因 [marginPx] 上下平移文字导致），会自动累加到
-     * `TextView.lineSpacingExtra` 上并保持 `includeFontPadding = true`，避免文字被裁切。
-     *
      * @param textView 承载 SpannableString 的 TextView。
      */
     fun into(textView: TextView) {
         textView.movementMethod = LinkMovementMethod.getInstance()
         applyExtraVerticalPadding(textView)
-        textView.text = ssb
-        if (pendingImageLoads.isEmpty()) return
+        val tagKey = R.id.span_builder_load_token
+        textView.setTag(tagKey, ssb)
+        if (pendingImageLoads.isEmpty()) {
+            textView.text = ssb
+            return
+        }
 
-        val tagKey = textView.id.takeIf { it != View.NO_ID } ?: hashCode()
-
-        /**
-         * 用一个 Set 而不是单一 url 作为 tag：
-         *
-         * 原写法在循环里每次 setTag(tagKey, load.url)，多张 URL 图共存时
-         * 后写的 url 会盖掉前面的，结果只有最后一张能通过 tag 校验，
-         * 前面的图都被 onResourceReady 里那条 `!=` 误判为「视图已复用」而静默丢弃。
-         *
-         * 改成"本次 into 期待的所有 url 集合"做引用相等检查：
-         *   - RecyclerView 复用：下一次 into 会写入一个新的 Set 实例，
-         *     旧回调里捕获的 expectedUrls 与当前 tag !==，判定失效。
-         *   - 多张 URL：同一个 Set 实例覆盖整轮回调，依次成功。
-         */
-        val expectedUrls = pendingImageLoads.mapTo(HashSet()) { it.url }
-        textView.setTag(tagKey, expectedUrls)
-
+        var initialTextSet = false
         pendingImageLoads.forEach { load ->
             var options = RequestOptions().override(load.width, load.height)
             if (load.circle) options = options.circleCrop()
@@ -758,33 +749,26 @@ class SpanBuilder private constructor(private val context: Context) {
                         resource: Drawable,
                         transition: Transition<in Drawable>?,
                     ) {
-                        // 视图已被复用 / 同一 TextView 再次 into 过：tag 已被新一轮覆盖。
-                        if (textView.getTag(tagKey) !== expectedUrls) return
-
-                        /**
-                         * 注册 URL 加载之后，ssb 可能被 maxLength / setText /
-                         * replaceWithImage 等截断或重排，load.start 不再有效。
-                         * 这里做边界校验，越界就丢弃这次替换，避免
-                         * IndexOutOfBoundsException: setSpan ends beyond length。
-                         */
-                        val end = load.start + 1
-                        if (load.start < 0 || end > ssb.length) return
-
+                        if (textView.getTag(tagKey) !== ssb) return
+                        val curStart = ssb.getSpanStart(load.placeholder)
+                        val curEnd = ssb.getSpanEnd(load.placeholder)
+                        if (curStart !in 0 until curEnd || curEnd > ssb.length) return
                         resource.setBounds(0, 0, load.width, load.height)
-                        ssb.getSpans(load.start, end, CenterAlignImageSpan::class.java)
-                            .forEach { ssb.removeSpan(it) }
+                        ssb.removeSpan(load.placeholder)
                         ssb.setSpan(
                             CenterAlignImageSpan(resource),
-                            load.start,
-                            end,
+                            curStart,
+                            curEnd,
                             Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
                         )
-                        textView.text = ssb
+                        if (initialTextSet) textView.text = ssb
                     }
 
                     override fun onLoadCleared(placeholder: Drawable?) {}
                 })
         }
+        initialTextSet = true
+        textView.text = ssb
     }
 
     private fun transparentPlaceholder(w: Int, h: Int): Drawable {
@@ -794,11 +778,14 @@ class SpanBuilder private constructor(private val context: Context) {
     /**
      * 把 [extraVerticalPaddingPx] 幂等地累加到 TextView.lineSpacingExtra：
      *
-     * 用 tag 记录上次本类加过的增量，每次先抵消再加新值，避免 RecyclerView 复用时
-     * 反复 bind 导致 lineSpacingExtra 无限增长，同时保留用户在 XML/代码里原本设的基础值。
+     * 用 [R.id.span_builder_added_line_spacing] 这条 tag 在 TextView 自身上记录上次累加的增量，
+     * 每次先抵消再加新值，避免 RecyclerView 复用时反复 bind 导致 lineSpacingExtra 无限增长，
+     * 同时保留用户在 XML/代码里原本设的基础值。状态与 View 生命周期天然绑定，TextView 被回收时
+     * tag 也随之释放，无需额外清理。
      */
     private fun applyExtraVerticalPadding(textView: TextView) {
-        val previousAdded = addedLineSpacing[textView] ?: 0
+        val tagKey = R.id.span_builder_added_line_spacing
+        val previousAdded = (textView.getTag(tagKey) as? Int) ?: 0
         if (previousAdded == 0 && extraVerticalPaddingPx == 0) return
         val baseExtra = textView.lineSpacingExtra - previousAdded
         textView.includeFontPadding = true
@@ -806,11 +793,7 @@ class SpanBuilder private constructor(private val context: Context) {
             baseExtra + extraVerticalPaddingPx.toFloat(),
             textView.lineSpacingMultiplier
         )
-        if (extraVerticalPaddingPx == 0) {
-            addedLineSpacing.remove(textView)
-        } else {
-            addedLineSpacing[textView] = extraVerticalPaddingPx
-        }
+        textView.setTag(tagKey, extraVerticalPaddingPx.takeIf { it != 0 })
     }
 
     /**
@@ -824,6 +807,99 @@ class SpanBuilder private constructor(private val context: Context) {
 
         override fun updateMeasureState(tp: TextPaint) {
             tp.baselineShift += shiftDown
+        }
+    }
+
+    /**
+     * 线性渐变文字 ReplacementSpan。
+     *
+     * 用 ReplacementSpan 的原因：CharacterStyle 上挂 `paint.shader` 时 shader 坐标系是 canvas
+     * 全局坐标，segment 在行内的偏移无法在 updateDrawState 阶段拿到，导致渐变起止与文字位置错位。
+     * ReplacementSpan.draw 拿得到 `x`，可以构造精确对齐到本段文字的 shader。
+     */
+    private class GradientTextSpan(
+        private val colors: IntArray,
+        private val positions: FloatArray?,
+        private val vertical: Boolean,
+    ) : ReplacementSpan() {
+
+        private var measuredWidth = 0f
+        private var cachedShader: LinearGradient? = null
+        private var cachedWidth = 0f
+        private var cachedTop = 0
+        private var cachedBottom = 0
+        private val shaderMatrix = Matrix()
+
+        override fun getSize(
+            paint: Paint,
+            text: CharSequence?,
+            start: Int,
+            end: Int,
+            fm: Paint.FontMetricsInt?,
+        ): Int {
+            if (fm != null) paint.getFontMetricsInt(fm)
+            val len = text?.length ?: 0
+            val s = start.coerceIn(0, len)
+            val e = end.coerceIn(s, len)
+            measuredWidth = if (text != null && s < e) paint.measureText(text, s, e) else 0f
+            return measuredWidth.toInt()
+        }
+
+        override fun draw(
+            canvas: Canvas,
+            text: CharSequence?,
+            start: Int,
+            end: Int,
+            x: Float,
+            top: Int,
+            y: Int,
+            bottom: Int,
+            paint: Paint,
+        ) {
+            if (text == null) return
+            val len = text.length
+            val s = start.coerceIn(0, len)
+            val e = end.coerceIn(s, len)
+            if (s >= e) return
+            val width = if (measuredWidth > 0f) measuredWidth else paint.measureText(text, s, e)
+            if (width <= 0f) return
+
+            val shader = obtainShader(width, top, bottom)
+            shaderMatrix.reset()
+            shaderMatrix.setTranslate(x, 0f)
+            shader.setLocalMatrix(shaderMatrix)
+
+            val originalShader = paint.shader
+            paint.shader = shader
+            canvas.drawText(text, s, e, x, y.toFloat(), paint)
+            paint.shader = originalShader
+        }
+
+        private fun obtainShader(width: Float, top: Int, bottom: Int): LinearGradient {
+            val cached = cachedShader
+            val sizeChanged = if (vertical) {
+                top != cachedTop || bottom != cachedBottom
+            } else {
+                width != cachedWidth
+            }
+            if (cached != null && !sizeChanged) return cached
+
+            val shader = if (vertical) {
+                LinearGradient(
+                    0f, top.toFloat(), 0f, bottom.toFloat(),
+                    colors, positions, Shader.TileMode.CLAMP
+                )
+            } else {
+                LinearGradient(
+                    0f, 0f, width, 0f,
+                    colors, positions, Shader.TileMode.CLAMP
+                )
+            }
+            cachedShader = shader
+            cachedWidth = width
+            cachedTop = top
+            cachedBottom = bottom
+            return shader
         }
     }
 
@@ -851,3 +927,4 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 }
+

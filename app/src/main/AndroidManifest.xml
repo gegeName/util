@@ -17,6 +17,9 @@
             android:name=".SpanActivity"
             android:exported="false" />
         <activity
+            android:name=".SpanRecyclerActivity"
+            android:exported="false" />
+        <activity
             android:name=".ViewActivity"
             android:exported="false" />
         <activity

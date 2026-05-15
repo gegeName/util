@@ -169,7 +169,7 @@
         <com.simple.mylibrary.weiget.ShapeView
             android:layout_width="120dp"
             android:layout_height="60dp"
-            app:shape_L="none"
+            app:shape_L="oval"
             app:shape_solidColor_L="#4CAF50"
             app:shape_strokeColor_L="#1B5E20"
             app:shape_strokeSize_L="2dp" />
@@ -470,8 +470,8 @@
             android:layout_marginBottom="24dp"
             android:orientation="vertical"
             app:shape_radius_L="12dp"
-            app:shape_shadowContentPadding_L="16dp"
             app:shape_shadowElevation_L="8dp"
+            app:shape_shadowContentPadding_L="10dp"
             app:shape_shadowSpotColor_L="#406200EE"
             app:shape_solidGradientEndColor_L="#311B92"
             app:shape_solidGradientOrientation_L="topLeftToBottomRight"

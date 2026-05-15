@@ -276,6 +276,13 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="跳转到SpanActivity" />
+
+                <Button
+                    android:id="@+id/btnSpanRecyclerActivity"
+                    style="?attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Span复用测试" />
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>

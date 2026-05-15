@@ -53,6 +53,10 @@ class SpanActivity : AppCompatActivity() {
         demo21OnClickStyled()
         demo22Build()
         demo23Combo()
+        demo24GradientHorizontal()
+        demo25GradientVertical()
+        demo26MaxLengthMiddle()
+        demo27AppendLineEmpty()
     }
 
     // ============== 小工具 ==============
@@ -293,5 +297,54 @@ class SpanActivity : AppCompatActivity() {
             .findRegex(Regex("\\+\\d+")).color(0xFF4CAF50.toInt()).bold()
             .textVerticalMarginPx(bottom = 4.dp())
             .into(tv(R.id.tv_demo_combo))
+    }
+
+    /** 24. gradientColor 横向二色 + 多色 */
+    private fun demo24GradientHorizontal() {
+        SpanBuilder.with(this)
+            .append("二色: ")
+            .append("橙→红渐变").bold().sizePx(20.sp())
+            .gradientColor(0xFFFFC107.toInt(), 0xFFFF1744.toInt())
+            .append("  多色: ")
+            .append("彩虹横向").bold().sizePx(20.sp())
+            .gradientColor(
+                intArrayOf(
+                    0xFFE91E63.toInt(),
+                    0xFFFFC107.toInt(),
+                    0xFF4CAF50.toInt(),
+                    0xFF03A9F4.toInt(),
+                    0xFF673AB7.toInt(),
+                ),
+                positions = floatArrayOf(0f, 0.25f, 0.5f, 0.75f, 1f),
+            )
+            .into(tv(R.id.tv_demo_gradient_horizontal))
+    }
+
+    /** 25. gradientColor vertical = true 纵向渐变 */
+    private fun demo25GradientVertical() {
+        SpanBuilder.with(this)
+            .append("纵向渐变文字").bold().sizePx(28.sp())
+            .gradientColor(0xFF2196F3.toInt(), 0xFF311B92.toInt(), vertical = true)
+            .into(tv(R.id.tv_demo_gradient_vertical))
+    }
+
+    /** 26. maxLengthMiddle 中间截断 */
+    private fun demo26MaxLengthMiddle() {
+        SpanBuilder.with(this)
+            .setText("0123456789ABCDEFGHIJ")
+            .all().color(0xFF607D8B.toInt()).bold()
+            .all().maxLengthMiddle(8, ellipsis = "…")
+            .into(tv(R.id.tv_demo_max_length_middle))
+    }
+
+    /** 27. appendLine() 空参重载,仅插入换行 */
+    private fun demo27AppendLineEmpty() {
+        SpanBuilder.with(this)
+            .append("第一行 默认样式")
+            .appendLine()
+            .append("第二行 红色加粗").color(Color.RED).bold()
+            .appendLine()
+            .append("第三行 蓝色斜体").color(0xFF1976D2.toInt()).italic()
+            .into(tv(R.id.tv_demo_append_line_empty))
     }
 }

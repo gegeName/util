@@ -7,6 +7,7 @@ import android.os.Build
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
+import android.graphics.drawable.LayerDrawable
 import com.simple.mylibrary.R
 import kotlin.math.ceil
 
@@ -200,22 +201,38 @@ class ShadowDrawableBuilder(
         registerLayoutSizeAdjustment()
     }
 
-    /**
-     * 系统阴影
-     */
     private fun applySystemShadow() {
 
         view.elevation = elevation
 
+        val padLeft = contentPaddingLeft
+        val padTop = contentPaddingTop
+        val padRight = contentPaddingRight
+        val padBottom = contentPaddingBottom
+        val hasContentPad = padLeft > 0 || padTop > 0 || padRight > 0 || padBottom > 0
+
+        if (hasContentPad) {
+            val bg = view.background
+            if (bg != null && bg !is LayerDrawable) {
+                val layered = LayerDrawable(arrayOf(bg))
+                layered.setLayerInset(0, padLeft, padTop, padRight, padBottom)
+                view.background = layered
+            }
+        }
+
         view.outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(v: View, outline: Outline) {
+                if (v.width <= padLeft + padRight || v.height <= padTop + padBottom) {
+                    return
+                }
                 outline.setRoundRect(
-                    0,
-                    0,
-                    v.width,
-                    v.height,
+                    padLeft,
+                    padTop,
+                    v.width - padRight,
+                    v.height - padBottom,
                     radiusProvider()
                 )
+                outline.alpha = 1.0f
             }
         }
 
@@ -223,16 +240,6 @@ class ShadowDrawableBuilder(
 
         if (Build.VERSION.SDK_INT >= 28) {
 
-            /**
-             * spot / ambient 颜色互补规则：
-             *
-             * - 都给了：各自生效
-             * - 只给了 spot：ambient 用 spot 颜色按 COMPANION_ALPHA_FACTOR 衰减后的值
-             * - 只给了 ambient：spot 用 ambient 颜色按 COMPANION_ALPHA_FACTOR 衰减后的值
-             * - 都没给：spot 保留系统默认（方向性投影、视觉自然），
-             *          只把 ambient 强制设为完全透明 —— 因为造成「阴影外硬边」
-             *          的恰恰是环境光那一层均匀的硬光晕，去掉它就柔和了
-             */
             when {
                 spotColor != 0 && ambientColor != 0 -> {
                     view.outlineSpotShadowColor = spotColor
@@ -254,12 +261,7 @@ class ShadowDrawableBuilder(
             }
         }
 
-        /**
-         * 系统 elevation 阴影绘制在 View bounds 之外，
-         * 由父布局 clipChildren=false 露出，不需要 View 内部预留空间。
-         * 这里只应用用户配置的 contentPadding。
-         */
-        applyContentPadding(0)
+        view.setPadding(padLeft, padTop, padRight, padBottom)
     }
 
     /**
@@ -275,11 +277,6 @@ class ShadowDrawableBuilder(
             if (spotColor != 0) spotColor
             else ambientColor
 
-        /**
-         * contentInset = shadowPadding：内容矩形距 View 边缘的距离。
-         * 阴影从内容矩形边缘向外扩散，到 View 边缘时自然衰减到透明。
-         * 不再套 InsetDrawable，避免裁切边界形成硬边（矩形"边框"感）。
-         */
         val shadowDrawable = SelfDrawnShadowDrawable(
             radius = radiusProvider(),
             shadowSize = elevation,
@@ -287,11 +284,22 @@ class ShadowDrawableBuilder(
             contentInset = shadowPadding.toFloat()
         )
 
-        view.background = shadowDrawable
+        val existingBackground = view.background
 
-        /**
-         * setShadowLayer 需要软件渲染
-         */
+        if (existingBackground != null) {
+            val layerDrawable = LayerDrawable(arrayOf(shadowDrawable, existingBackground))
+            layerDrawable.setLayerInset(
+                1,
+                shadowPadding,
+                shadowPadding,
+                shadowPadding,
+                shadowPadding
+            )
+            view.background = layerDrawable
+        } else {
+            view.background = shadowDrawable
+        }
+
         if (!view.isInEditMode) {
             view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }

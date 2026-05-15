@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item type="id" name="span_builder_load_token"/>
+    <item type="id" name="span_builder_added_line_spacing"/>
+</resources>

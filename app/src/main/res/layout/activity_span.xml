@@ -290,6 +290,54 @@
             android:id="@+id/tv_demo_combo"
             style="@style/Demo" />
 
+
+        <!-- ========================================================== -->
+        <!-- 24. gradientColor 横向二色 + 多色                          -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="24. gradientColor 横向:二色 + 多色(带 positions)" />
+
+        <TextView
+            android:id="@+id/tv_demo_gradient_horizontal"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 25. gradientColor vertical=true 纵向渐变                   -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="25. gradientColor vertical=true 纵向渐变" />
+
+        <TextView
+            android:id="@+id/tv_demo_gradient_vertical"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 26. maxLengthMiddle 中间截断                                -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="26. maxLengthMiddle(maxChars, ellipsis) 中间截断,保留头尾" />
+
+        <TextView
+            android:id="@+id/tv_demo_max_length_middle"
+            style="@style/Demo" />
+
+
+        <!-- ========================================================== -->
+        <!-- 27. appendLine() 空参重载,仅插入换行                       -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="27. appendLine() 空参重载,仅插入换行(分隔多段)" />
+
+        <TextView
+            android:id="@+id/tv_demo_append_line_empty"
+            style="@style/Demo" />
+
     </LinearLayout>
 
 </ScrollView>
