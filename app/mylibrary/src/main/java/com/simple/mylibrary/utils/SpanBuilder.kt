@@ -842,18 +842,14 @@ class SpanBuilder private constructor(private val context: Context) {
         if (shiftDown == 0 || ssb.isEmpty()) return this
         val len = ssb.length
         val imageSpans = ssb.getSpans(0, len, CenterAlignImageSpan::class.java)
-        val imageRanges =
-            imageSpans.map { ssb.getSpanStart(it) to ssb.getSpanEnd(it) }.sortedBy { it.first }
+        imageSpans.sortWith(Comparator { a, b -> ssb.getSpanStart(a) - ssb.getSpanStart(b) })
         var cursor = 0
         var placedAny = false
-        for ((s, e) in imageRanges) {
+        for (span in imageSpans) {
+            val s = ssb.getSpanStart(span)
+            val e = ssb.getSpanEnd(span)
             if (cursor < s) {
-                ssb.setSpan(
-                    VerticalShiftSpan(shiftDown),
-                    cursor,
-                    s,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+                ssb.setSpan(VerticalShiftSpan(shiftDown), cursor, s, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 placedAny = true
             }
             cursor = maxOf(cursor, e)
