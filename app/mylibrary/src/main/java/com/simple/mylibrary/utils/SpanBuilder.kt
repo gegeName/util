@@ -36,12 +36,12 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.Px
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toDrawable
-import com.bumptech.glide.Glide
-import com.bumptech.glide.request.RequestOptions
-import com.bumptech.glide.request.target.CustomTarget
-import com.bumptech.glide.request.transition.Transition
 import com.simple.mylibrary.R
+import com.simple.mylibrary.span.GlideSpanImageLoader
+import com.simple.mylibrary.span.SpanImageLoader
+import com.simple.mylibrary.utils.SpanBuilder.Companion.setImageLoader
 import kotlin.math.abs
+
 
 /**
  * 链式 Span 构建器。支持两种使用模式：
@@ -83,7 +83,7 @@ class SpanBuilder private constructor(private val context: Context) {
     private var segments: List<Pair<Int, Int>> = emptyList()
     private val pendingImageLoads = mutableListOf<PendingImageLoad>()
 
-    /** 等待 Glide 加载完成后再包边框的配置，key = placeholder span 实例 */
+    /** 等待 SpanImageLoader 加载完成后再包边框的配置，key = placeholder span 实例 */
     private val pendingImageBorders = mutableMapOf<CenterAlignImageSpan, ImageBorderConfig>()
 
     /** glow() 使用了 BlurMaskFilter，需要关闭硬件加速；into() 时自动设置 LAYER_TYPE_SOFTWARE。 */
@@ -139,6 +139,40 @@ class SpanBuilder private constructor(private val context: Context) {
     companion object {
         @JvmStatic
         fun with(context: Context): SpanBuilder = SpanBuilder(context)
+
+        /**
+         * 全局图片加载器，默认使用 Glide。
+         * 在 Application.onCreate 中调用 [setImageLoader] 替换为其他框架。
+         */
+        private var imageLoader: SpanImageLoader = GlideSpanImageLoader()
+
+        @JvmStatic
+        fun setImageLoader(loader: SpanImageLoader) {
+            imageLoader = loader
+        }
+
+        /**
+         * 全局文字自定义 Span 工厂。调用 [customTextSpan] 时使用。
+         * 设置后，每次 [customTextSpan] 都会调用此工厂生成一个 Span 并附加到片段。
+         */
+        private var textSpanFactory: ((start: Int, end: Int, text: CharSequence) -> Any)? = null
+
+        @JvmStatic
+        fun setTextSpanFactory(factory: (start: Int, end: Int, text: CharSequence) -> Any) {
+            textSpanFactory = factory
+        }
+
+        /**
+         * 全局图片 Drawable 变换器。调用 [customImageTransform] 时使用。
+         * 设置后，每次 [customImageTransform] 都会调用此变换器对图片 Drawable 进行处理。
+         */
+        private var imageTransformer: ((drawable: Drawable, width: Int, height: Int) -> Drawable)? =
+            null
+
+        @JvmStatic
+        fun setImageTransformer(transformer: (drawable: Drawable, width: Int, height: Int) -> Drawable) {
+            imageTransformer = transformer
+        }
     }
 
     // ============================== 拼接模式 ==============================
@@ -200,14 +234,18 @@ class SpanBuilder private constructor(private val context: Context) {
     }
 
     fun find(keyword: String, ignoreCase: Boolean = false): SpanBuilder {
-        if (keyword.isEmpty()) { segments = emptyList(); return this }
+        if (keyword.isEmpty()) {
+            segments = emptyList(); return this
+        }
         val idx = ssb.toString().indexOf(keyword, ignoreCase = ignoreCase)
         segments = if (idx >= 0) listOf(idx to idx + keyword.length) else emptyList()
         return this
     }
 
     fun findAll(keyword: String, ignoreCase: Boolean = false): SpanBuilder {
-        if (keyword.isEmpty()) { segments = emptyList(); return this }
+        if (keyword.isEmpty()) {
+            segments = emptyList(); return this
+        }
         val list = mutableListOf<Pair<Int, Int>>()
         val src = ssb.toString()
         var from = 0
@@ -259,7 +297,12 @@ class SpanBuilder private constructor(private val context: Context) {
         val h = if (height > 0) height else drawable.intrinsicHeight.coerceAtLeast(1)
         drawable.setBounds(0, 0, w, h)
         val newSegs = replacePlaceholderWith(placeholder) { pos ->
-            ssb.setSpan(CenterAlignImageSpan(drawable), pos, pos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            ssb.setSpan(
+                CenterAlignImageSpan(drawable),
+                pos,
+                pos + 1,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+            )
         }
         segments = newSegs
         return this
@@ -418,19 +461,31 @@ class SpanBuilder private constructor(private val context: Context) {
         val updated = mutableListOf<Pair<Int, Int>>()
         sorted.forEach { (s, e) ->
             val segLen = e - s
-            if (segLen <= maxChars) { updated.add(s to e); return@forEach }
+            if (segLen <= maxChars) {
+                updated.add(s to e); return@forEach
+            }
             val headLen = (maxChars + 1) / 2
             val tailLen = maxChars - headLen
             val cutStart = s + headLen
             val cutEnd = e - tailLen
-            if (cutStart >= cutEnd) { updated.add(s to e); return@forEach }
+            if (cutStart >= cutEnd) {
+                updated.add(s to e); return@forEach
+            }
             val covering = ssb.getSpans(s, e, Any::class.java).mapNotNull { sp ->
-                val ss = ssb.getSpanStart(sp); val se = ssb.getSpanEnd(sp)
+                val ss = ssb.getSpanStart(sp);
+                val se = ssb.getSpanEnd(sp)
                 if (se >= e) Triple(sp, ss, ssb.getSpanFlags(sp)) else null
             }
             ssb.replace(cutStart, cutEnd, ellipsis)
             val newE = s + headLen + ellipsis.length + tailLen
-            covering.forEach { (sp, ss, flags) -> ssb.removeSpan(sp); ssb.setSpan(sp, ss, newE, flags) }
+            covering.forEach { (sp, ss, flags) ->
+                ssb.removeSpan(sp); ssb.setSpan(
+                sp,
+                ss,
+                newE,
+                flags
+            )
+            }
             shiftUpdated(updated, fromExclusive = e, by = newE - e)
             updated.add(s to newE)
         }
@@ -444,14 +499,24 @@ class SpanBuilder private constructor(private val context: Context) {
         val updated = mutableListOf<Pair<Int, Int>>()
         sorted.forEach { (s, e) ->
             val segLen = e - s
-            if (segLen <= maxChars) { updated.add(s to e); return@forEach }
+            if (segLen <= maxChars) {
+                updated.add(s to e); return@forEach
+            }
             val covering = ssb.getSpans(s, e, Any::class.java).mapNotNull { sp ->
-                val ss = ssb.getSpanStart(sp); val se = ssb.getSpanEnd(sp)
+                val ss = ssb.getSpanStart(sp);
+                val se = ssb.getSpanEnd(sp)
                 if (se >= e) Triple(sp, ss, ssb.getSpanFlags(sp)) else null
             }
             ssb.replace(s + maxChars, e, ellipsis)
             val newE = s + maxChars + ellipsis.length
-            covering.forEach { (sp, ss, flags) -> ssb.removeSpan(sp); ssb.setSpan(sp, ss, newE, flags) }
+            covering.forEach { (sp, ss, flags) ->
+                ssb.removeSpan(sp); ssb.setSpan(
+                sp,
+                ss,
+                newE,
+                flags
+            )
+            }
             shiftUpdated(updated, fromExclusive = e, by = newE - e)
             updated.add(s to newE)
         }
@@ -490,7 +555,13 @@ class SpanBuilder private constructor(private val context: Context) {
         @Px cornerRadius: Float = 0f,
         vertical: Boolean = false,
     ): SpanBuilder = applyImageBorder(
-        ImageBorderConfig(borderWidth, startColor, cornerRadius, intArrayOf(startColor, endColor), vertical)
+        ImageBorderConfig(
+            borderWidth,
+            startColor,
+            cornerRadius,
+            intArrayOf(startColor, endColor),
+            vertical
+        )
     )
 
     /**
@@ -553,19 +624,34 @@ class SpanBuilder private constructor(private val context: Context) {
                 var curE = e
                 if (right > 0) {
                     ssb.insert(curE, " ")
-                    ssb.setSpan(BlankWidthSpan(right), curE, curE + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(
+                        BlankWidthSpan(right),
+                        curE,
+                        curE + 1,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
                     shiftUpdated(updated, fromExclusive = curE, by = 1)
                     curE += 1
                 }
                 if (left > 0) {
                     ssb.insert(curS, " ")
-                    ssb.setSpan(BlankWidthSpan(left), curS, curS + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(
+                        BlankWidthSpan(left),
+                        curS,
+                        curS + 1,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
                     shiftUpdated(updated, fromExclusive = curS, by = 1)
                     curE += 1
                 }
                 val shiftDown = top - bottom
                 if (shiftDown != 0) {
-                    ssb.setSpan(VerticalShiftSpan(shiftDown), curS, curE, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    ssb.setSpan(
+                        VerticalShiftSpan(shiftDown),
+                        curS,
+                        curE,
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
                     extraVerticalPaddingPx = maxOf(extraVerticalPaddingPx, abs(shiftDown))
                 }
                 updated.add(curS to curE)
@@ -580,12 +666,18 @@ class SpanBuilder private constructor(private val context: Context) {
         if (shiftDown == 0 || ssb.isEmpty()) return this
         val len = ssb.length
         val imageSpans = ssb.getSpans(0, len, CenterAlignImageSpan::class.java)
-        val imageRanges = imageSpans.map { ssb.getSpanStart(it) to ssb.getSpanEnd(it) }.sortedBy { it.first }
+        val imageRanges =
+            imageSpans.map { ssb.getSpanStart(it) to ssb.getSpanEnd(it) }.sortedBy { it.first }
         var cursor = 0
         var placedAny = false
         for ((s, e) in imageRanges) {
             if (cursor < s) {
-                ssb.setSpan(VerticalShiftSpan(shiftDown), cursor, s, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                ssb.setSpan(
+                    VerticalShiftSpan(shiftDown),
+                    cursor,
+                    s,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
                 placedAny = true
             }
             cursor = maxOf(cursor, e)
@@ -602,6 +694,93 @@ class SpanBuilder private constructor(private val context: Context) {
         for (i in list.indices) {
             val (us, ue) = list[i]
             if (us >= fromExclusive) list[i] = (us + by) to (ue + by)
+        }
+    }
+
+    /**
+     * 给当前文字片段附加一个用户自定义 Span。
+     *
+     * 需先通过 [SpanBuilder.setTextSpanFactory] 注册工厂。
+     * 工厂接收 (start, end, fullText) 三个参数，返回任意 Span 对象（CharacterStyle / ParagraphStyle 均可）。
+     *
+     * 示例：
+     * ```
+     * // 注册（一次即可，推荐在 Application 中）
+     * SpanBuilder.setTextSpanFactory { _, _, _ -> MyCustomSpan() }
+     *
+     * // 使用
+     * SpanBuilder.with(ctx).append("特效文字").customTextSpan().into(tv)
+     * ```
+     */
+    fun customTextSpan(): SpanBuilder = applyEach { s, e ->
+        val factory = textSpanFactory ?: return@applyEach
+        val span = factory(s, e, ssb)
+        ssb.setSpan(span, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+
+    /**
+     * 给当前文字片段附加一个用户自定义 Span（内联版本，无需预先注册）。
+     *
+     * @param factory 接收 (start, end, fullText)，返回任意 Span 对象。
+     *
+     * 示例：
+     * ```
+     * SpanBuilder.with(ctx)
+     *     .append("特效文字")
+     *     .customTextSpan { _, _, _ -> MyCustomSpan() }
+     *     .into(tv)
+     * ```
+     */
+    fun customTextSpan(factory: (start: Int, end: Int, text: CharSequence) -> Any): SpanBuilder =
+        applyEach { s, e ->
+            val span = factory(s, e, ssb)
+            ssb.setSpan(span, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+    /**
+     * 对当前图片片段执行用户自定义 Drawable 变换。
+     *
+     * 需先通过 [SpanBuilder.setImageTransformer] 注册全局变换器，
+     * 或使用内联版本直接传 lambda。
+     *
+     * 示例（圆角裁剪）：
+     * ```
+     * SpanBuilder.with(ctx)
+     *     .image(R.drawable.avatar, 48.dp(), 48.dp())
+     *     .customImageTransform { drawable, w, h -> RoundedDrawable(drawable, 12.dp()) }
+     *     .into(tv)
+     * ```
+     */
+    fun customImageTransform(): SpanBuilder = applyEach { s, e ->
+        val transformer = imageTransformer ?: return@applyEach
+        applyImageTransform(s, e, transformer)
+    }
+
+    /**
+     * 内联版本，无需预先注册。
+     */
+    fun customImageTransform(
+        transformer: (drawable: Drawable, width: Int, height: Int) -> Drawable,
+    ): SpanBuilder = applyEach { s, e ->
+        applyImageTransform(s, e, transformer)
+    }
+
+    private fun applyImageTransform(
+        s: Int,
+        e: Int,
+        transformer: (Drawable, Int, Int) -> Drawable,
+    ) {
+        val spans = ssb.getSpans(s, e, CenterAlignImageSpan::class.java)
+        spans.forEach { span ->
+            val orig = span.drawable
+            val b = orig.bounds
+            val w = b.width().coerceAtLeast(1)
+            val h = b.height().coerceAtLeast(1)
+            val transformed = transformer(orig, w, h)
+            transformed.bounds = b
+            val newSpan = CenterAlignImageSpan(transformed)
+            ssb.removeSpan(span)
+            ssb.setSpan(newSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
 
@@ -642,30 +821,29 @@ class SpanBuilder private constructor(private val context: Context) {
         }
         var initialTextSet = false
         pendingImageLoads.forEach { load ->
-            var options = RequestOptions().override(load.width, load.height)
-            if (load.circle) options = options.circleCrop()
-            Glide.with(textView).asDrawable().load(load.url).apply(options)
-                .into(object : CustomTarget<Drawable>() {
-                    override fun onResourceReady(resource: Drawable, transition: Transition<in Drawable>?) {
-                        if (textView.getTag(tagKey) !== ssb) return
-                        val curStart = ssb.getSpanStart(load.placeholder)
-                        val curEnd = ssb.getSpanEnd(load.placeholder)
-                        if (curStart !in 0 until curEnd || curEnd > ssb.length) return
-                        resource.setBounds(0, 0, load.width, load.height)
-                        ssb.removeSpan(load.placeholder)
-                        val borderConfig = pendingImageBorders.remove(load.placeholder)
-                        val finalDrawable = if (borderConfig != null) {
-                            BorderedImageDrawable(resource, borderConfig).also {
-                                it.setBounds(0, 0, load.width, load.height)
-                            }
-                        } else {
-                            resource
-                        }
-                        ssb.setSpan(CenterAlignImageSpan(finalDrawable), curStart, curEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                        if (initialTextSet) textView.text = ssb
+            imageLoader.load(context, load.url, load.width, load.height, load.circle) { resource ->
+                if (textView.getTag(tagKey) !== ssb) return@load
+                val curStart = ssb.getSpanStart(load.placeholder)
+                val curEnd = ssb.getSpanEnd(load.placeholder)
+                if (curStart !in 0 until curEnd || curEnd > ssb.length) return@load
+                resource.setBounds(0, 0, load.width, load.height)
+                ssb.removeSpan(load.placeholder)
+                val borderConfig = pendingImageBorders.remove(load.placeholder)
+                val finalDrawable = if (borderConfig != null) {
+                    BorderedImageDrawable(resource, borderConfig).also {
+                        it.setBounds(0, 0, load.width, load.height)
                     }
-                    override fun onLoadCleared(placeholder: Drawable?) {}
-                })
+                } else {
+                    resource
+                }
+                ssb.setSpan(
+                    CenterAlignImageSpan(finalDrawable),
+                    curStart,
+                    curEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+                )
+                if (initialTextSet) textView.text = ssb
+            }
         }
         initialTextSet = true
         textView.text = ssb
@@ -680,14 +858,22 @@ class SpanBuilder private constructor(private val context: Context) {
         if (previousAdded == 0 && extraVerticalPaddingPx == 0) return
         val baseExtra = textView.lineSpacingExtra - previousAdded
         textView.includeFontPadding = true
-        textView.setLineSpacing(baseExtra + extraVerticalPaddingPx.toFloat(), textView.lineSpacingMultiplier)
+        textView.setLineSpacing(
+            baseExtra + extraVerticalPaddingPx.toFloat(),
+            textView.lineSpacingMultiplier
+        )
         textView.setTag(tagKey, extraVerticalPaddingPx.takeIf { it != 0 })
     }
 
 
     private class VerticalShiftSpan(@Px private val shiftDown: Int) : MetricAffectingSpan() {
-        override fun updateDrawState(tp: TextPaint) { tp.baselineShift += shiftDown }
-        override fun updateMeasureState(tp: TextPaint) { tp.baselineShift += shiftDown }
+        override fun updateDrawState(tp: TextPaint) {
+            tp.baselineShift += shiftDown
+        }
+
+        override fun updateMeasureState(tp: TextPaint) {
+            tp.baselineShift += shiftDown
+        }
     }
 
     /**
@@ -708,9 +894,11 @@ class SpanBuilder private constructor(private val context: Context) {
         internal var gradientColors: IntArray? = null
         internal var gradientPositions: FloatArray? = null
         internal var gradientVertical: Boolean = false
+
         // 描边
         internal var strokeColor: Int = Color.TRANSPARENT
         internal var strokeWidthPx: Float = 0f
+
         // 发光
         internal var glowColor: Int = Color.TRANSPARENT
         internal var glowRadiusPx: Float = 0f
@@ -834,7 +1022,11 @@ class SpanBuilder private constructor(private val context: Context) {
             return shader
         }
 
-        fun withGradient(colors: IntArray, positions: FloatArray?, vertical: Boolean): TextDecorationSpan {
+        fun withGradient(
+            colors: IntArray,
+            positions: FloatArray?,
+            vertical: Boolean
+        ): TextDecorationSpan {
             if (gradientColors !== colors) cachedShader = null
             gradientColors = colors
             gradientPositions = positions
@@ -857,8 +1049,26 @@ class SpanBuilder private constructor(private val context: Context) {
     }
 
     private class BlankWidthSpan(@Px private val width: Int) : ReplacementSpan() {
-        override fun getSize(paint: Paint, text: CharSequence?, start: Int, end: Int, fm: Paint.FontMetricsInt?): Int = width
-        override fun draw(canvas: Canvas, text: CharSequence?, start: Int, end: Int, x: Float, top: Int, y: Int, bottom: Int, paint: Paint) {}
+        override fun getSize(
+            paint: Paint,
+            text: CharSequence?,
+            start: Int,
+            end: Int,
+            fm: Paint.FontMetricsInt?
+        ): Int = width
+
+        override fun draw(
+            canvas: Canvas,
+            text: CharSequence?,
+            start: Int,
+            end: Int,
+            x: Float,
+            top: Int,
+            y: Int,
+            bottom: Int,
+            paint: Paint
+        ) {
+        }
     }
 
     /**
@@ -889,12 +1099,29 @@ class SpanBuilder private constructor(private val context: Context) {
             sBorderPaint.strokeWidth = config.borderWidth
 
             if (config.gradientColors != null) {
-                val w = b.width(); val h = b.height()
+                val w = b.width();
+                val h = b.height()
                 if (cachedShader == null || cachedW != w || cachedH != h) {
                     cachedShader = if (config.gradientVertical) {
-                        LinearGradient(0f, 0f, 0f, h.toFloat(), config.gradientColors, null, Shader.TileMode.CLAMP)
+                        LinearGradient(
+                            0f,
+                            0f,
+                            0f,
+                            h.toFloat(),
+                            config.gradientColors,
+                            null,
+                            Shader.TileMode.CLAMP
+                        )
                     } else {
-                        LinearGradient(0f, 0f, w.toFloat(), 0f, config.gradientColors, null, Shader.TileMode.CLAMP)
+                        LinearGradient(
+                            0f,
+                            0f,
+                            w.toFloat(),
+                            0f,
+                            config.gradientColors,
+                            null,
+                            Shader.TileMode.CLAMP
+                        )
                     }
                     cachedW = w; cachedH = h
                 }
@@ -905,7 +1132,12 @@ class SpanBuilder private constructor(private val context: Context) {
             }
 
             if (config.cornerRadius > 0f) {
-                canvas.drawRoundRect(sBorderRectF, config.cornerRadius, config.cornerRadius, sBorderPaint)
+                canvas.drawRoundRect(
+                    sBorderRectF,
+                    config.cornerRadius,
+                    config.cornerRadius,
+                    sBorderPaint
+                )
             } else {
                 canvas.drawRect(sBorderRectF, sBorderPaint)
             }
@@ -913,10 +1145,18 @@ class SpanBuilder private constructor(private val context: Context) {
 
         override fun getIntrinsicWidth(): Int = inner.intrinsicWidth
         override fun getIntrinsicHeight(): Int = inner.intrinsicHeight
-        override fun setAlpha(alpha: Int) { inner.alpha = alpha }
-        override fun setColorFilter(cf: ColorFilter?) { inner.colorFilter = cf }
+        override fun setAlpha(alpha: Int) {
+            inner.alpha = alpha
+        }
+
+        override fun setColorFilter(cf: ColorFilter?) {
+            inner.colorFilter = cf
+        }
+
         override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-        override fun onBoundsChange(bounds: Rect) { cachedShader = null }
+        override fun onBoundsChange(bounds: Rect) {
+            cachedShader = null
+        }
 
         companion object {
             private val sBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -926,3 +1166,4 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 }
+
