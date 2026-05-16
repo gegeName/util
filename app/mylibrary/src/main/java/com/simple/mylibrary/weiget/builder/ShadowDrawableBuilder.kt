@@ -111,11 +111,12 @@ class ShadowDrawableBuilder(
         val insetT = shadowPadding + (-shadowOffsetY).coerceAtLeast(0f).toInt()
         val insetB = shadowPadding + shadowOffsetY.coerceAtLeast(0f).toInt()
 
-        view.background = if (content != null) {
+        val finalBg = if (content != null) {
             ShadowLayerDrawable(shadowDrawable, content, insetL, insetT, insetR, insetB)
         } else {
             shadowDrawable
         }
+        view.background = finalBg
 
         if (!view.isInEditMode) {
             view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)

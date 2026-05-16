@@ -273,7 +273,7 @@
             android:text="spotColor = #FF4081"
             android:textColor="#212121"
             app:shape_radius_L="8dp"
-            app:shape_shadowElevation_L="8dp"
+            app:shape_shadowElevation_L="4dp"
             app:shape_shadowSpotColor_L="#FF4081"/>
 
 
@@ -413,5 +413,22 @@
                 android:textSize="13sp" />
         </com.simple.mylibrary.weiget.ShapeLinearLayout>
 
+
+        <com.simple.mylibrary.weiget.ShapeEditText
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:padding="10dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:shape_shadowElevation_L="3dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:shape_shadowSpotColor_L="#FF00FF"
+            app:shape_shadowOffsetY_L="4dp"
+            app:shape_shadowOffsetX_L="2dp"
+            app:shape_strokeSize_L="1dp"
+            app:shape_strokeColor_L="@color/black"
+            app:shape_radius_L="8dp"
+            app:shape_solidColor_L="@color/white" />
     </LinearLayout>
 </ScrollView>

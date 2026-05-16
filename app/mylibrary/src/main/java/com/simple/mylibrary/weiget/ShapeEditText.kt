@@ -17,9 +17,6 @@ class ShapeEditText @JvmOverloads constructor(
     val shadowDrawableBuilder: ShadowDrawableBuilder
 
     init {
-        // 必须先把 padding 归零（覆盖主题默认 padding），
-        // ShadowDrawableBuilder 构造时会读取 view.paddingXxx 作为 basePadding，
-        // 若此时 padding 未归零，阴影叠加后会把内容往里推，表现为阴影显示在内部。
         ShapePaddingManager.applyDefaultZeroPadding(this, context, attrs)
 
         val shapeTa = context.obtainStyledAttributes(attrs, R.styleable.ShapeWidget)

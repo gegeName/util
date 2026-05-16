@@ -115,6 +115,11 @@ class ShapeDrawableBuilder(
         readAttr(ta, R.attr.shape_strokeDisabledColor_L) { strokeDisabledColor = ta.getColor(it, strokeColor) }
         readAttr(ta, R.attr.shape_strokeFocusedColor_L) { strokeFocusedColor = ta.getColor(it, strokeColor) }
         readAttr(ta, R.attr.shape_strokeSelectedColor_L) { strokeSelectedColor = ta.getColor(it, strokeColor) }
+        if (strokePressedColor == 0) strokePressedColor = strokeColor
+        if (strokeCheckedColor == 0) strokeCheckedColor = strokeColor
+        if (strokeDisabledColor == 0) strokeDisabledColor = strokeColor
+        if (strokeFocusedColor == 0) strokeFocusedColor = strokeColor
+        if (strokeSelectedColor == 0) strokeSelectedColor = strokeColor
         readAttr(ta, R.attr.shape_strokeSize_L) { strokeSize = ta.getDimension(it, 0f) }
         readAttr(ta, R.attr.shape_strokeDashSize_L) { strokeDashSize = ta.getDimension(it, 0f) }
         readAttr(ta, R.attr.shape_strokeDashGap_L) { strokeDashGap = ta.getDimension(it, 0f) }
