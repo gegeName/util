@@ -274,19 +274,10 @@ private class SpanAdapter(
             }
 
             is SpanItem.CustomTextSpan -> {
-                // customTextSpan 内联版：每次 bind 创建新 CharacterStyle，但对象极小，不影响性能
                 SpanBuilder.with(activity)
                     .append("阴影效果: ")
                     .append(item.text).color(0xFF1565C0.toInt()).bold().sizePx(17.sp())
-                    .customTextSpan { _, _, _ ->
-                        object : android.text.style.CharacterStyle() {
-                            override fun updateDrawState(tp: android.text.TextPaint) {
-                                tp.setShadowLayer(6f, 3f, 3f, 0x992196F3.toInt())
-                            }
-                        }
-                    }.onClick {
-                        Toast.makeText(activity, "toast", Toast.LENGTH_SHORT).show()
-                    }
+                    .shadow(0x992196F3.toInt(), 6f, 3f, 3f)
                     .into(tv)
             }
 

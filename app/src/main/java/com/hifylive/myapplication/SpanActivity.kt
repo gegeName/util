@@ -447,28 +447,19 @@ class SpanActivity : AppCompatActivity() {
 
     private fun Float.dp(): Float = this * resources.displayMetrics.density
 
-    /** 34. customTextSpan 内联版：用自定义 Span 实现文字阴影效果 */
+    /** 34. shadow：文字阴影，使用 SpanBuilder 内置方法 */
     private fun demo34CustomTextSpan() {
         SpanBuilder.with(this)
-            .append("内联自定义 Span  ")
+            .append("黑色阴影  ")
             .append("文字阴影").bold().sizePx(22.sp())
-            .customTextSpan { _, _, _ ->
-                // 利用 TextPaint.shadowLayer 实现阴影，不依赖 BlurMaskFilter
-                object : android.text.style.CharacterStyle() {
-                    override fun updateDrawState(tp: TextPaint) {
-                        tp.setShadowLayer(8f, 4f, 4f, 0xBB000000.toInt())
-                    }
-                }
-            }
+            .shadow(0xBB000000.toInt(), 8f, 4f, 4f)
             .append("  ")
             .append("彩色阴影").color(0xFF1565C0.toInt()).bold().sizePx(22.sp())
-            .customTextSpan { _, _, _ ->
-                object : android.text.style.CharacterStyle() {
-                    override fun updateDrawState(tp: TextPaint) {
-                        tp.setShadowLayer(10f, 3f, 3f, 0x992196F3.toInt())
-                    }
-                }
-            }
+            .shadow(0x992196F3.toInt(), 10f, 3f, 3f)
+            .append("  ")
+            .append("渐变+阴影").bold().sizePx(22.sp())
+            .gradientColor(0xFFFF1744.toInt(), 0xFFFF9100.toInt())
+            .shadow(0x88000000.toInt(), 6f, 2f, 4f)
             .into(tv(R.id.tv_demo_custom_text_span))
     }
 

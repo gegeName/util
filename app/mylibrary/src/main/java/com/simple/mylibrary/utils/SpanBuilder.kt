@@ -540,6 +540,29 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
+    /**
+     * 给当前片段文字添加阴影（TextPaint.setShadowLayer）。
+     * 可与 [gradientColor] / [stroke] / [glow] 叠加使用。
+     * 注意：需要 LAYER_TYPE_SOFTWARE，[into] 会自动设置。
+     *
+     * @param color  阴影颜色
+     * @param radius 阴影模糊半径 px，越大越模糊
+     * @param dx     阴影水平偏移 px，正值向右
+     * @param dy     阴影垂直偏移 px，正值向下
+     */
+    fun shadow(
+        @ColorInt color: Int,
+        @Px radius: Float,
+        @Px dx: Float = 0f,
+        @Px dy: Float = 0f,
+    ): SpanBuilder {
+        needsSoftwareLayer = true
+        return applyOrMergeDecoration { existing ->
+            existing?.withShadow(color, radius, dx, dy)
+                ?: TextDecorationSpan().withShadow(color, radius, dx, dy)
+        }
+    }
+
     private fun applyOrMergeDecoration(
         update: (TextDecorationSpan?) -> TextDecorationSpan,
     ): SpanBuilder = applyEach { s, e ->
@@ -1109,6 +1132,12 @@ class SpanBuilder private constructor(private val context: Context) {
         internal var glowColor: Int = Color.TRANSPARENT
         internal var glowRadiusPx: Float = 0f
 
+        // 文字阴影（setShadowLayer）
+        internal var shadowColor: Int = Color.TRANSPARENT
+        internal var shadowRadius: Float = 0f
+        internal var shadowDx: Float = 0f
+        internal var shadowDy: Float = 0f
+
         private var measuredWidth = 0f
         private var cachedShader: LinearGradient? = null
         private var cachedShaderWidth = 0f
@@ -1182,6 +1211,9 @@ class SpanBuilder private constructor(private val context: Context) {
             paint.style = Paint.Style.FILL
             paint.strokeWidth = savedStrokeWidth
             paint.maskFilter = null
+            if (shadowRadius > 0f) {
+                paint.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
+            }
             if (gradientColors != null) {
                 val shader = obtainShader(width, top, bottom)
                 shaderMatrix.reset()
@@ -1200,6 +1232,7 @@ class SpanBuilder private constructor(private val context: Context) {
             paint.shader = savedShader
             paint.strokeWidth = savedStrokeWidth
             paint.maskFilter = savedMaskFilter
+            if (shadowRadius > 0f) paint.clearShadowLayer()
         }
 
         private fun obtainShader(width: Float, top: Int, bottom: Int): LinearGradient {
@@ -1247,9 +1280,17 @@ class SpanBuilder private constructor(private val context: Context) {
         }
 
         fun withGlow(color: Int, radius: Float): TextDecorationSpan {
-            if (cachedBlurRadius != radius) cachedBlurFilter = null  // 半径变了需重建 filter
+            if (cachedBlurRadius != radius) cachedBlurFilter = null
             glowColor = color
             glowRadiusPx = radius
+            return this
+        }
+
+        fun withShadow(color: Int, radius: Float, dx: Float, dy: Float): TextDecorationSpan {
+            shadowColor = color
+            shadowRadius = radius
+            shadowDx = dx
+            shadowDy = dy
             return this
         }
     }
