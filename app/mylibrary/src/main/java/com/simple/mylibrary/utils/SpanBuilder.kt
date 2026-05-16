@@ -53,6 +53,9 @@ class SpanBuilder private constructor(private val context: Context) {
 
     private var needsSoftwareLayer = false
 
+    /** 是否包含 ClickableSpan，[into] / [buildAndAttach] 时把 highlightColor 设为透明，消除点击闪烁。 */
+    private var hasClickable = false
+
     /**
      * 文字片段经 [marginPx] 上下平移后所需的额外行高（px）。
      * [into] 会自动累加到 TextView.lineSpacingExtra，使用者无需手动处理。
@@ -801,14 +804,17 @@ class SpanBuilder private constructor(private val context: Context) {
      */
     fun onClick(
         underline: Boolean = false, @ColorInt overrideColor: Int? = null, listener: (View) -> Unit,
-    ): SpanBuilder = applyEach { s, e ->
-        ssb.setSpan(object : ClickableSpan() {
-            override fun onClick(widget: View) = listener(widget)
-            override fun updateDrawState(ds: TextPaint) {
-                overrideColor?.let { ds.color = it }
-                ds.isUnderlineText = underline
-            }
-        }, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    ): SpanBuilder {
+        hasClickable = true
+        return applyEach { s, e ->
+            ssb.setSpan(object : ClickableSpan() {
+                override fun onClick(widget: View) = listener(widget)
+                override fun updateDrawState(ds: TextPaint) {
+                    overrideColor?.let { ds.color = it }
+                    ds.isUnderlineText = underline
+                }
+            }, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
     }
 
     private inline fun applyEach(block: (Int, Int) -> Unit): SpanBuilder {
@@ -838,6 +844,66 @@ class SpanBuilder private constructor(private val context: Context) {
     fun build(): CharSequence = ssb
 
     /**
+     * 构建 CharSequence 并把点击/发光/图片加载等所需的运行时配置都挂到 [textView] 上，
+     * 但**不**直接给 textView 赋值 text，由调用方自行决定何时设置（例如插入到富文本中）。
+     *
+     * 与 [build] 的区别：
+     * - 自动设置 [LinkMovementMethod]，[onClick] 立即生效
+     * - 有 ClickableSpan 时自动把 highlightColor 设为透明，消除点击闪烁
+     * - 自动应用 [glow] / [shadow] 所需的 LAYER_TYPE_SOFTWARE
+     * - 自动应用 [marginPx] / [textVerticalMarginPx] 累积的额外行高
+     * - 自动触发已注册的网络图片异步加载，加载完成后回调 [onUpdate]
+     *
+     * 与 [into] 的区别：
+     * - [into] 直接给 `textView.text` 赋值；本方法把 CharSequence 返回给调用方使用
+     * - 适用场景：把构建好的内容拼接到外部 SpannableStringBuilder、或同一 TextView 多次拼接
+     *
+     * @param textView 用于挂载 movementMethod / 软件渲染层 / 异步图片加载的目标 TextView
+     * @param onUpdate 网络图片加载完成时的回调（在主线程），参数为更新后的 CharSequence。
+     *                 如果用了 URL 图片但不传此回调，加载完成后调用方拿到的 CharSequence 不会自动刷新
+     * @return 构建好的 CharSequence（SpannableStringBuilder）
+     */
+    fun buildAndAttach(
+        textView: TextView,
+        onUpdate: ((CharSequence) -> Unit)? = null,
+    ): CharSequence {
+        textView.movementMethod = LinkMovementMethod.getInstance()
+        if (hasClickable) textView.highlightColor = Color.TRANSPARENT
+        applyExtraVerticalPadding(textView)
+        if (needsSoftwareLayer && !textView.isInEditMode) {
+            textView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+        }
+        if (pendingImageLoads.isEmpty()) return ssb
+
+        val tagKey = R.id.span_builder_load_token
+        textView.setTag(tagKey, ssb)
+        pendingImageLoads.forEach { load ->
+            imageLoader.load(context, load.url, load.width, load.height, load.circle) { resource ->
+                if (textView.getTag(tagKey) !== ssb) return@load
+                val curStart = ssb.getSpanStart(load.placeholder)
+                val curEnd = ssb.getSpanEnd(load.placeholder)
+                if (curStart !in 0 until curEnd || curEnd > ssb.length) return@load
+                resource.setBounds(0, 0, load.width, load.height)
+                ssb.removeSpan(load.placeholder)
+                val borderConfig = pendingImageBorders.remove(load.placeholder)
+                val transformer = pendingImageTransforms.remove(load.placeholder)
+                var finalDrawable: Drawable = if (borderConfig != null) {
+                    makeBorderedDrawable(resource, borderConfig).also {
+                        it.setBounds(0, 0, load.width, load.height)
+                    }
+                } else resource
+                if (transformer != null) {
+                    finalDrawable = transformer(finalDrawable, load.width, load.height)
+                    finalDrawable.setBounds(0, 0, load.width, load.height)
+                }
+                ssb.setSpan(CenterAlignImageSpan(finalDrawable), curStart, curEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                onUpdate?.invoke(ssb)
+            }
+        }
+        return ssb
+    }
+
+    /**
      * 将构建好的富文本设置到 [textView]，并处理以下逻辑：
      * - 自动设置 LinkMovementMethod（支持点击事件）；
      * - 有 [glow] / [shadow] 效果时自动设置 LAYER_TYPE_SOFTWARE；
@@ -848,6 +914,8 @@ class SpanBuilder private constructor(private val context: Context) {
      */
     fun into(textView: TextView) {
         textView.movementMethod = LinkMovementMethod.getInstance()
+        // 有 ClickableSpan 时把高亮色设为透明，消除点击时一闪而过的背景色
+        if (hasClickable) textView.highlightColor = Color.TRANSPARENT
         applyExtraVerticalPadding(textView)
         if (needsSoftwareLayer && !textView.isInEditMode) {
             textView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
