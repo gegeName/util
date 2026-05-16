@@ -2,18 +2,8 @@ package com.simple.mylibrary.utils
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.ColorFilter
-import android.graphics.LinearGradient
-import android.graphics.Matrix
-import android.graphics.Paint
-import android.graphics.PixelFormat
-import android.graphics.Rect
-import android.graphics.RectF
-import android.graphics.Shader
-import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.InsetDrawable
 import android.text.SpannableStringBuilder
@@ -24,8 +14,6 @@ import android.text.style.AbsoluteSizeSpan
 import android.text.style.BackgroundColorSpan
 import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
-import android.text.style.MetricAffectingSpan
-import android.text.style.ReplacementSpan
 import android.text.style.StrikethroughSpan
 import android.text.style.StyleSpan
 import android.text.style.UnderlineSpan
@@ -37,67 +25,42 @@ import androidx.annotation.Px
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toDrawable
 import com.simple.mylibrary.R
+import com.simple.mylibrary.span.BlankWidthSpan
+import com.simple.mylibrary.span.BorderedImageDrawable
 import com.simple.mylibrary.span.GlideSpanImageLoader
 import com.simple.mylibrary.span.SpanImageLoader
-import com.simple.mylibrary.utils.SpanBuilder.Companion.setImageLoader
+import com.simple.mylibrary.span.TextDecorationSpan
+import com.simple.mylibrary.span.VerticalShiftSpan
+import android.graphics.Typeface
 import kotlin.math.abs
 
-
 /**
- * 链式 Span 构建器。支持两种使用模式：
+ * 链式 Span 构建器。支持三种使用模式：
  *
- * 1) **拼接模式**：客户端已知每个片段，按顺序 append。
- * ```
- * SpanBuilder.with(ctx)
- *     .append("张三").color(Color.RED).bold().onClick { ... }
- *     .append(" 送出 ")
- *     .image(R.drawable.ic_gift, 24, 24).onClick { ... }
- *     .append(" x10").color(Color.YELLOW).underline()
- *     .into(tvMsg)
- * ```
- *
- * 2) **服务端整段文案模式**：先 setText 装载，再按"子串/正则/范围/占位符"定位后施加样式。
- * ```
- * SpanBuilder.with(ctx)
- *     .setText("李四 just sent [gift] x10 to LiveRoom")
- *     .find("李四").color(Color.RED).bold().onClick { ... }
- *     .find("LiveRoom").color(Color.CYAN).italic()
- *     .findRegex(Regex("x\\d+")).color(Color.YELLOW)
- *     .replaceWithImage("[gift]", R.drawable.ic_gift, 24, 24)
- *     .into(tvMsg)
- * ```
- *
- * 3）build 模式，不适合有图片的情况：
- * ```
- * val ssb = SpanBuilder.with(ctx)
- *     .append("王五").color(Color.RED).bold()
- *     .build()
- * tvMsg.text = ssb
- * ```
+ * 1) **拼接模式**：按顺序 append 每个片段。
+ * 2) **服务端文案模式**：先 setText 装载，再 find/findRegex/range 定位后施加样式。
+ * 3) **build 模式**：不触发网络图片加载，直接拿 CharSequence。
  */
 class SpanBuilder private constructor(private val context: Context) {
 
     private val ssb = SpannableStringBuilder()
-
-    /** 当前操作片段集合：每个 Pair 表示 [start, endExclusive)。所有样式方法对其中每段生效。 */
     private var segments: List<Pair<Int, Int>> = emptyList()
+
     private val pendingImageLoads = mutableListOf<PendingImageLoad>()
-
-    /** 等待 SpanImageLoader 加载完成后再包边框的配置，key = placeholder span 实例 */
     private val pendingImageBorders = mutableMapOf<CenterAlignImageSpan, ImageBorderConfig>()
-
-    /** 等待 SpanImageLoader 加载完成后再执行的图片变换器，key = placeholder span 实例 */
     private val pendingImageTransforms =
         mutableMapOf<CenterAlignImageSpan, (Drawable, Int, Int) -> Drawable>()
 
-    /** glow() 使用了 BlurMaskFilter，需要关闭硬件加速；into() 时自动设置 LAYER_TYPE_SOFTWARE。 */
     private var needsSoftwareLayer = false
 
     /**
-     * 文字片段经 [marginPx] 上下平移后所需的"额外行垂直空间"（px，取所有调用中的最大 |top - bottom|）。
+     * 文字片段经 [marginPx] 上下平移后所需的额外行高（px）。
+     * [into] 会自动累加到 TextView.lineSpacingExtra，使用者无需手动处理。
      */
     var extraVerticalPaddingPx: Int = 0
         private set
+
+    // ── 内部数据类 ─────────────────────────────────────────────────────────
 
     private data class PendingImageLoad(
         val url: String,
@@ -107,7 +70,10 @@ class SpanBuilder private constructor(private val context: Context) {
         val circle: Boolean,
     )
 
-    /** 图片边框配置。gradientColors 非空时使用渐变边框，否则使用纯色边框。 */
+    /**
+     * 图片边框配置，gradientColors 非空时使用渐变边框。
+     * equals/hashCode 手动实现以正确对比 IntArray。
+     */
     private data class ImageBorderConfig(
         val borderWidth: Float,
         val borderColor: Int,
@@ -118,18 +84,13 @@ class SpanBuilder private constructor(private val context: Context) {
         override fun equals(other: Any?): Boolean {
             if (this === other) return true
             if (javaClass != other?.javaClass) return false
-
             other as ImageBorderConfig
-
-            if (borderWidth != other.borderWidth) return false
-            if (borderColor != other.borderColor) return false
-            if (cornerRadius != other.cornerRadius) return false
-            if (gradientVertical != other.gradientVertical) return false
-            if (!gradientColors.contentEquals(other.gradientColors)) return false
-
-            return true
+            return borderWidth == other.borderWidth &&
+                    borderColor == other.borderColor &&
+                    cornerRadius == other.cornerRadius &&
+                    gradientVertical == other.gradientVertical &&
+                    gradientColors.contentEquals(other.gradientColors)
         }
-
         override fun hashCode(): Int {
             var result = borderWidth.hashCode()
             result = 31 * result + borderColor
@@ -140,6 +101,8 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
+    // ── companion（全局配置） ───────────────────────────────────────────────
+
     companion object {
         @JvmStatic
         fun with(context: Context): SpanBuilder = SpanBuilder(context)
@@ -149,32 +112,21 @@ class SpanBuilder private constructor(private val context: Context) {
          * 在 Application.onCreate 中调用 [setImageLoader] 替换为其他框架。
          */
         private var imageLoader: SpanImageLoader = GlideSpanImageLoader()
-
-        @JvmStatic
-        fun setImageLoader(loader: SpanImageLoader) {
-            imageLoader = loader
-        }
+        @JvmStatic fun setImageLoader(loader: SpanImageLoader) { imageLoader = loader }
 
         /**
-         * 全局文字自定义 Span 工厂。调用 [customTextSpan] 时使用。
-         * 设置后，每次 [customTextSpan] 都会调用此工厂生成一个 Span 并附加到片段。
+         * 全局文字自定义 Span 工厂。[customTextSpan] 无参版使用此工厂。
          */
         private var textSpanFactory: ((start: Int, end: Int, text: CharSequence) -> Any)? = null
-
-        @JvmStatic
-        fun setTextSpanFactory(factory: (start: Int, end: Int, text: CharSequence) -> Any) {
+        @JvmStatic fun setTextSpanFactory(factory: (start: Int, end: Int, text: CharSequence) -> Any) {
             textSpanFactory = factory
         }
 
         /**
-         * 全局图片 Drawable 变换器。调用 [customImageTransform] 时使用。
-         * 设置后，每次 [customImageTransform] 都会调用此变换器对图片 Drawable 进行处理。
+         * 全局图片 Drawable 变换器。[customImageTransform] 无参版使用此变换器。
          */
-        private var imageTransformer: ((drawable: Drawable, width: Int, height: Int) -> Drawable)? =
-            null
-
-        @JvmStatic
-        fun setImageTransformer(transformer: (drawable: Drawable, width: Int, height: Int) -> Drawable) {
+        private var imageTransformer: ((drawable: Drawable, width: Int, height: Int) -> Drawable)? = null
+        @JvmStatic fun setImageTransformer(transformer: (drawable: Drawable, width: Int, height: Int) -> Drawable) {
             imageTransformer = transformer
         }
     }
@@ -289,9 +241,7 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param ignoreCase 是否忽略大小写，默认 false
      */
     fun find(keyword: String, ignoreCase: Boolean = false): SpanBuilder {
-        if (keyword.isEmpty()) {
-            segments = emptyList(); return this
-        }
+        if (keyword.isEmpty()) { segments = emptyList(); return this }
         val idx = ssb.toString().indexOf(keyword, ignoreCase = ignoreCase)
         segments = if (idx >= 0) listOf(idx to idx + keyword.length) else emptyList()
         return this
@@ -304,9 +254,7 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param ignoreCase 是否忽略大小写，默认 false
      */
     fun findAll(keyword: String, ignoreCase: Boolean = false): SpanBuilder {
-        if (keyword.isEmpty()) {
-            segments = emptyList(); return this
-        }
+        if (keyword.isEmpty()) { segments = emptyList(); return this }
         val list = mutableListOf<Pair<Int, Int>>()
         val src = ssb.toString()
         var from = 0
@@ -360,10 +308,7 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param height      图片显示高度 px
      */
     fun replaceWithImage(
-        placeholder: String,
-        @DrawableRes resId: Int,
-        @Px width: Int,
-        @Px height: Int,
+        placeholder: String, @DrawableRes resId: Int, @Px width: Int, @Px height: Int,
     ): SpanBuilder {
         val drawable = ContextCompat.getDrawable(context, resId) ?: return this
         return replaceWithImage(placeholder, drawable, width, height)
@@ -378,24 +323,15 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param height      图片显示高度 px；-1 = 使用 Drawable 固有高度
      */
     fun replaceWithImage(
-        placeholder: String,
-        drawable: Drawable,
-        @Px width: Int = -1,
-        @Px height: Int = -1,
+        placeholder: String, drawable: Drawable, @Px width: Int = -1, @Px height: Int = -1,
     ): SpanBuilder {
         if (placeholder.isEmpty()) return this
         val w = if (width > 0) width else drawable.intrinsicWidth.coerceAtLeast(1)
         val h = if (height > 0) height else drawable.intrinsicHeight.coerceAtLeast(1)
         drawable.setBounds(0, 0, w, h)
-        val newSegs = replacePlaceholderWith(placeholder) { pos ->
-            ssb.setSpan(
-                CenterAlignImageSpan(drawable),
-                pos,
-                pos + 1,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
+        segments = replacePlaceholderWith(placeholder) { pos ->
+            ssb.setSpan(CenterAlignImageSpan(drawable), pos, pos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
-        segments = newSegs
         return this
     }
 
@@ -410,25 +346,19 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param circle      是否裁剪为圆形，默认 false
      */
     fun replaceWithImage(
-        placeholder: String,
-        url: String,
-        @Px width: Int,
-        @Px height: Int,
-        circle: Boolean = false,
+        placeholder: String, url: String, @Px width: Int, @Px height: Int, circle: Boolean = false,
     ): SpanBuilder {
         if (placeholder.isEmpty()) return this
-        val newSegs = replacePlaceholderWith(placeholder) { pos ->
+        segments = replacePlaceholderWith(placeholder) { pos ->
             val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
             ssb.setSpan(placeholderSpan, pos, pos + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             pendingImageLoads.add(PendingImageLoad(url, placeholderSpan, width, height, circle))
         }
-        segments = newSegs
         return this
     }
 
     private fun replacePlaceholderWith(
-        placeholder: String,
-        onPlaced: (pos: Int) -> Unit,
+        placeholder: String, onPlaced: (pos: Int) -> Unit,
     ): List<Pair<Int, Int>> {
         val src = ssb.toString()
         val originalPositions = mutableListOf<Int>()
@@ -472,16 +402,14 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 给当前片段叠加线性渐变色（文字前景）。
-     * 可与 [stroke] / [glow] 叠加，三者合用时内部共享同一个 [TextDecorationSpan]。
+     * 可与 [stroke] / [glow] / [shadow] 叠加，共享同一个 [TextDecorationSpan]。
      *
      * @param colors    渐变颜色数组，长度 ≥ 2
      * @param positions 各颜色在 [0,1] 上的分布位置；null = 自动等分
      * @param vertical  true=自上而下；false=自左到右（默认）
      */
     fun gradientColor(
-        colors: IntArray,
-        positions: FloatArray? = null,
-        vertical: Boolean = false,
+        colors: IntArray, positions: FloatArray? = null, vertical: Boolean = false,
     ): SpanBuilder {
         require(colors.size >= 2) { "gradientColor needs at least 2 colors" }
         require(positions == null || positions.size == colors.size) {
@@ -501,108 +429,83 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param vertical   true=自上而下；false=自左到右（默认）
      */
     fun gradientColor(
-        @ColorInt startColor: Int,
-        @ColorInt endColor: Int,
-        vertical: Boolean = false,
+        @ColorInt startColor: Int, @ColorInt endColor: Int, vertical: Boolean = false,
     ): SpanBuilder = gradientColor(intArrayOf(startColor, endColor), null, vertical)
 
     /**
-     * 给当前片段文字添加描边（边框）。
-     * 可与 [gradientColor] / [glow] 叠加使用。
+     * 给当前片段文字添加描边（边框）。可与 [gradientColor] / [glow] / [shadow] 叠加使用。
      *
      * @param color       描边颜色
      * @param strokeWidth 描边宽度 px；描边沿字形轮廓向内外各扩展 strokeWidth/2
      */
-    fun stroke(
-        @ColorInt color: Int,
-        @Px strokeWidth: Float,
-    ): SpanBuilder = applyOrMergeDecoration { existing ->
-        existing?.withStroke(color, strokeWidth)
-            ?: TextDecorationSpan().withStroke(color, strokeWidth)
-    }
+    fun stroke(@ColorInt color: Int, @Px strokeWidth: Float): SpanBuilder =
+        applyOrMergeDecoration { existing ->
+            existing?.withStroke(color, strokeWidth) ?: TextDecorationSpan().withStroke(color, strokeWidth)
+        }
 
     /**
      * 给当前片段文字添加发光效果（BlurMaskFilter）。
-     * 可与 [gradientColor] / [stroke] 叠加使用。
-     * 注意：发光依赖 BlurMaskFilter，[into] 会自动为 TextView 设置 LAYER_TYPE_SOFTWARE。
+     * 可与 [gradientColor] / [stroke] / [shadow] 叠加使用。
+     * 注意：[into] 会自动为 TextView 设置 LAYER_TYPE_SOFTWARE。
      *
      * @param color  发光颜色
      * @param radius 发光半径 px，越大扩散范围越宽
      */
-    fun glow(
-        @ColorInt color: Int,
-        @Px radius: Float,
-    ): SpanBuilder {
+    fun glow(@ColorInt color: Int, @Px radius: Float): SpanBuilder {
         needsSoftwareLayer = true
         return applyOrMergeDecoration { existing ->
-            existing?.withGlow(color, radius)
-                ?: TextDecorationSpan().withGlow(color, radius)
+            existing?.withGlow(color, radius) ?: TextDecorationSpan().withGlow(color, radius)
         }
     }
 
     /**
      * 给当前片段文字添加阴影（TextPaint.setShadowLayer）。
      * 可与 [gradientColor] / [stroke] / [glow] 叠加使用。
-     * 注意：需要 LAYER_TYPE_SOFTWARE，[into] 会自动设置。
+     * 注意：[into] 会自动为 TextView 设置 LAYER_TYPE_SOFTWARE。
      *
      * @param color  阴影颜色
      * @param radius 阴影模糊半径 px，越大越模糊
      * @param dx     阴影水平偏移 px，正值向右
      * @param dy     阴影垂直偏移 px，正值向下
      */
-    fun shadow(
-        @ColorInt color: Int,
-        @Px radius: Float,
-        @Px dx: Float = 0f,
-        @Px dy: Float = 0f,
-    ): SpanBuilder {
+    fun shadow(@ColorInt color: Int, @Px radius: Float, @Px dx: Float = 0f, @Px dy: Float = 0f): SpanBuilder {
         needsSoftwareLayer = true
         return applyOrMergeDecoration { existing ->
-            existing?.withShadow(color, radius, dx, dy)
-                ?: TextDecorationSpan().withShadow(color, radius, dx, dy)
-        }
-    }
-
-    private fun applyOrMergeDecoration(
-        update: (TextDecorationSpan?) -> TextDecorationSpan,
-    ): SpanBuilder = applyEach { s, e ->
-        val existing = ssb.getSpans(s, e, TextDecorationSpan::class.java)
-            .firstOrNull { ssb.getSpanStart(it) == s && ssb.getSpanEnd(it) == e }
-        val newSpan = update(existing)
-        if (existing == null) {
-            ssb.setSpan(newSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            existing?.withShadow(color, radius, dx, dy) ?: TextDecorationSpan().withShadow(color, radius, dx, dy)
         }
     }
 
     /**
-     * 将当前片段文字设为粗体。
+     * 查找或新建当前片段对应的 [TextDecorationSpan] 并就地更新。
+     * 就地修改（不 remove+set）：RecyclerView 复用时不重复创建对象。
      */
+    private fun applyOrMergeDecoration(update: (TextDecorationSpan?) -> TextDecorationSpan): SpanBuilder =
+        applyEach { s, e ->
+            val existing = ssb.getSpans(s, e, TextDecorationSpan::class.java)
+                .firstOrNull { ssb.getSpanStart(it) == s && ssb.getSpanEnd(it) == e }
+            val newSpan = update(existing)
+            if (existing == null) ssb.setSpan(newSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+
+    /** 将当前片段文字设为粗体。 */
     fun bold(): SpanBuilder = applyStyle(Typeface.BOLD)
 
-    /**
-     * 将当前片段文字设为斜体。
-     */
+    /** 将当前片段文字设为斜体。 */
     fun italic(): SpanBuilder = applyStyle(Typeface.ITALIC)
 
-    /**
-     * 将当前片段文字设为粗斜体。
-     */
+    /** 将当前片段文字设为粗斜体。 */
     fun boldItalic(): SpanBuilder = applyStyle(Typeface.BOLD_ITALIC)
 
     private fun applyStyle(style: Int): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(StyleSpan(style), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
-    /**
-     * 给当前片段文字添加下划线。
-     */
+    /** 给当前片段文字添加下划线。 */
     fun underline(): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(UnderlineSpan(), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
-    /**
-     * 给当前片段文字添加删除线。
-     */
+    /** 给当前片段文字添加删除线。 */
     fun strikethrough(): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(StrikethroughSpan(), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
@@ -618,9 +521,8 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 对当前片段文字做居中省略截断，超出 [maxChars] 时保留首尾、中间替换为 [ellipsis]。
-     * 注意：会直接修改 ssb 内容，调用后片段范围随之更新。
      *
-     * @param maxChars 最大保留字符数（含省略号）
+     * @param maxChars 最大保留字符数（不含 ellipsis）
      * @param ellipsis 省略号字符串，默认 "..."
      */
     fun maxLengthMiddle(maxChars: Int, ellipsis: String = "..."): SpanBuilder {
@@ -629,31 +531,14 @@ class SpanBuilder private constructor(private val context: Context) {
         val updated = mutableListOf<Pair<Int, Int>>()
         sorted.forEach { (s, e) ->
             val segLen = e - s
-            if (segLen <= maxChars) {
-                updated.add(s to e); return@forEach
-            }
+            if (segLen <= maxChars) { updated.add(s to e); return@forEach }
             val headLen = (maxChars + 1) / 2
             val tailLen = maxChars - headLen
             val cutStart = s + headLen
             val cutEnd = e - tailLen
-            if (cutStart >= cutEnd) {
-                updated.add(s to e); return@forEach
-            }
-            val covering = ssb.getSpans(s, e, Any::class.java).mapNotNull { sp ->
-                val ss = ssb.getSpanStart(sp);
-                val se = ssb.getSpanEnd(sp)
-                if (se >= e) Triple(sp, ss, ssb.getSpanFlags(sp)) else null
-            }
-            ssb.replace(cutStart, cutEnd, ellipsis)
+            if (cutStart >= cutEnd) { updated.add(s to e); return@forEach }
             val newE = s + headLen + ellipsis.length + tailLen
-            covering.forEach { (sp, ss, flags) ->
-                ssb.removeSpan(sp); ssb.setSpan(
-                sp,
-                ss,
-                newE,
-                flags
-            )
-            }
+            replaceAndRespan(s, e, cutStart, cutEnd, ellipsis, newE)
             shiftUpdated(updated, fromExclusive = e, by = newE - e)
             updated.add(s to newE)
         }
@@ -663,9 +548,8 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 对当前片段文字做末尾省略截断，超出 [maxChars] 时末尾替换为 [ellipsis]。
-     * 注意：会直接修改 ssb 内容，调用后片段范围随之更新。
      *
-     * @param maxChars 最大保留字符数（含省略号）
+     * @param maxChars 最大保留字符数（不含 ellipsis）
      * @param ellipsis 省略号字符串，默认 "..."
      */
     fun maxLength(maxChars: Int, ellipsis: String = "..."): SpanBuilder {
@@ -674,29 +558,33 @@ class SpanBuilder private constructor(private val context: Context) {
         val updated = mutableListOf<Pair<Int, Int>>()
         sorted.forEach { (s, e) ->
             val segLen = e - s
-            if (segLen <= maxChars) {
-                updated.add(s to e); return@forEach
-            }
-            val covering = ssb.getSpans(s, e, Any::class.java).mapNotNull { sp ->
-                val ss = ssb.getSpanStart(sp);
-                val se = ssb.getSpanEnd(sp)
-                if (se >= e) Triple(sp, ss, ssb.getSpanFlags(sp)) else null
-            }
-            ssb.replace(s + maxChars, e, ellipsis)
-            val newE = s + maxChars + ellipsis.length
-            covering.forEach { (sp, ss, flags) ->
-                ssb.removeSpan(sp); ssb.setSpan(
-                sp,
-                ss,
-                newE,
-                flags
-            )
-            }
+            if (segLen <= maxChars) { updated.add(s to e); return@forEach }
+            val cutStart = s + maxChars
+            val newE = cutStart + ellipsis.length
+            replaceAndRespan(s, e, cutStart, e, ellipsis, newE)
             shiftUpdated(updated, fromExclusive = e, by = newE - e)
             updated.add(s to newE)
         }
         segments = updated.sortedBy { it.first }
         return this
+    }
+
+    /**
+     * maxLength / maxLengthMiddle 共性逻辑：
+     * 1. 收集覆盖范围 [s,e) 的 span；
+     * 2. 替换 [cutStart, cutEnd) 为 ellipsis；
+     * 3. 将收集到的 span 重新绑定到 [s, newE)。
+     */
+    private fun replaceAndRespan(s: Int, e: Int, cutStart: Int, cutEnd: Int, ellipsis: String, newE: Int) {
+        val covering = ssb.getSpans(s, e, Any::class.java).mapNotNull { sp ->
+            val ss = ssb.getSpanStart(sp); val se = ssb.getSpanEnd(sp)
+            if (se >= e) Triple(sp, ss, ssb.getSpanFlags(sp)) else null
+        }
+        ssb.replace(cutStart, cutEnd, ellipsis)
+        covering.forEach { (sp, ss, flags) ->
+            ssb.removeSpan(sp)
+            ssb.setSpan(sp, ss, newE, flags)
+        }
     }
 
     /**
@@ -707,12 +595,8 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param cornerRadius 边框圆角半径 px，0 = 直角
      */
     fun imageBorder(
-        @ColorInt color: Int,
-        @Px borderWidth: Float,
-        @Px cornerRadius: Float = 0f,
-    ): SpanBuilder = applyImageBorder(
-        ImageBorderConfig(borderWidth, color, cornerRadius)
-    )
+        @ColorInt color: Int, @Px borderWidth: Float, @Px cornerRadius: Float = 0f,
+    ): SpanBuilder = applyImageBorder(ImageBorderConfig(borderWidth, color, cornerRadius))
 
     /**
      * 给当前图片片段添加渐变边框（二色）。必须在 [image] 之后调用。
@@ -724,19 +608,10 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param vertical     true=自上而下；false=自左到右（默认）
      */
     fun imageBorderGradient(
-        @ColorInt startColor: Int,
-        @ColorInt endColor: Int,
-        @Px borderWidth: Float,
-        @Px cornerRadius: Float = 0f,
-        vertical: Boolean = false,
+        @ColorInt startColor: Int, @ColorInt endColor: Int,
+        @Px borderWidth: Float, @Px cornerRadius: Float = 0f, vertical: Boolean = false,
     ): SpanBuilder = applyImageBorder(
-        ImageBorderConfig(
-            borderWidth,
-            startColor,
-            cornerRadius,
-            intArrayOf(startColor, endColor),
-            vertical
-        )
+        ImageBorderConfig(borderWidth, startColor, cornerRadius, intArrayOf(startColor, endColor), vertical)
     )
 
     /**
@@ -748,15 +623,10 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param vertical     true=自上而下；false=自左到右（默认）
      */
     fun imageBorderGradient(
-        colors: IntArray,
-        @Px borderWidth: Float,
-        @Px cornerRadius: Float = 0f,
-        vertical: Boolean = false,
+        colors: IntArray, @Px borderWidth: Float, @Px cornerRadius: Float = 0f, vertical: Boolean = false,
     ): SpanBuilder {
         require(colors.size >= 2) { "imageBorderGradient needs at least 2 colors" }
-        return applyImageBorder(
-            ImageBorderConfig(borderWidth, colors[0], cornerRadius, colors, vertical)
-        )
+        return applyImageBorder(ImageBorderConfig(borderWidth, colors[0], cornerRadius, colors, vertical))
     }
 
     private fun applyImageBorder(config: ImageBorderConfig): SpanBuilder = applyEach { s, e ->
@@ -768,31 +638,31 @@ class SpanBuilder private constructor(private val context: Context) {
                 return@forEach
             }
             val orig = span.drawable
-            val wrapped = BorderedImageDrawable(orig, config)
-            wrapped.bounds = orig.bounds
-            val newSpan = CenterAlignImageSpan(wrapped)
+            val wrapped = makeBorderedDrawable(orig, config)
+            wrapped.setBounds(orig.bounds)
             ssb.removeSpan(span)
-            ssb.setSpan(newSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            ssb.setSpan(CenterAlignImageSpan(wrapped), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
+
+    /** 从 [ImageBorderConfig] 创建 [BorderedImageDrawable]。 */
+    private fun makeBorderedDrawable(inner: Drawable, config: ImageBorderConfig): BorderedImageDrawable =
+        BorderedImageDrawable(
+            inner, config.borderWidth, config.borderColor, config.cornerRadius,
+            config.gradientColors, config.gradientVertical
+        )
 
     /**
      * 给当前图片或文字片段添加外边距。
      * - 图片片段：通过 [InsetDrawable] 扩大显示区域；
-     * - 文字片段：left/right 插入空白占位字符，top/bottom 通过基线偏移实现垂直位移，
-     *   并自动更新 [extraVerticalPaddingPx] 以避免文字被裁剪。
+     * - 文字片段：left/right 插入空白占位字符，top/bottom 通过基线偏移实现垂直位移。
      *
      * @param left   左边距 px，默认 0
      * @param top    上边距 px，默认 0
      * @param right  右边距 px，默认 0
      * @param bottom 下边距 px，默认 0
      */
-    fun marginPx(
-        @Px left: Int = 0,
-        @Px top: Int = 0,
-        @Px right: Int = 0,
-        @Px bottom: Int = 0,
-    ): SpanBuilder {
+    fun marginPx(@Px left: Int = 0, @Px top: Int = 0, @Px right: Int = 0, @Px bottom: Int = 0): SpanBuilder {
         if (left <= 0 && top <= 0 && right <= 0 && bottom <= 0) return this
         val sorted = segments.sortedByDescending { it.first }
         val updated = mutableListOf<Pair<Int, Int>>()
@@ -811,38 +681,20 @@ class SpanBuilder private constructor(private val context: Context) {
                 }
                 updated.add(s to e)
             } else {
-                val curS = s
-                var curE = e
+                val curS = s; var curE = e
                 if (right > 0) {
                     ssb.insert(curE, " ")
-                    ssb.setSpan(
-                        BlankWidthSpan(right),
-                        curE,
-                        curE + 1,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                    shiftUpdated(updated, fromExclusive = curE, by = 1)
-                    curE += 1
+                    ssb.setSpan(BlankWidthSpan(right), curE, curE + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    shiftUpdated(updated, fromExclusive = curE, by = 1); curE += 1
                 }
                 if (left > 0) {
                     ssb.insert(curS, " ")
-                    ssb.setSpan(
-                        BlankWidthSpan(left),
-                        curS,
-                        curS + 1,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
-                    shiftUpdated(updated, fromExclusive = curS, by = 1)
-                    curE += 1
+                    ssb.setSpan(BlankWidthSpan(left), curS, curS + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    shiftUpdated(updated, fromExclusive = curS, by = 1); curE += 1
                 }
                 val shiftDown = top - bottom
                 if (shiftDown != 0) {
-                    ssb.setSpan(
-                        VerticalShiftSpan(shiftDown),
-                        curS,
-                        curE,
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                    )
+                    ssb.setSpan(VerticalShiftSpan(shiftDown), curS, curE, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                     extraVerticalPaddingPx = maxOf(extraVerticalPaddingPx, abs(shiftDown))
                 }
                 updated.add(curS to curE)
@@ -853,8 +705,7 @@ class SpanBuilder private constructor(private val context: Context) {
     }
 
     /**
-     * 对整段 SpannableStringBuilder 中的文字部分（跳过图片）统一施加垂直偏移，
-     * 实现文字相对于行基线的上下微调。自动更新 [extraVerticalPaddingPx]。
+     * 对整段中的文字部分（跳过图片）统一施加垂直偏移，实现文字与图片视觉居中微调。
      *
      * @param top    上方偏移 px，正值使文字向下移，默认 0
      * @param bottom 下方偏移 px，正值使文字向上移，默认 0
@@ -865,11 +716,9 @@ class SpanBuilder private constructor(private val context: Context) {
         val len = ssb.length
         val imageSpans = ssb.getSpans(0, len, CenterAlignImageSpan::class.java)
         imageSpans.sortWith(Comparator { a, b -> ssb.getSpanStart(a) - ssb.getSpanStart(b) })
-        var cursor = 0
-        var placedAny = false
+        var cursor = 0; var placedAny = false
         for (span in imageSpans) {
-            val s = ssb.getSpanStart(span)
-            val e = ssb.getSpanEnd(span)
+            val s = ssb.getSpanStart(span); val e = ssb.getSpanEnd(span)
             if (cursor < s) {
                 ssb.setSpan(VerticalShiftSpan(shiftDown), cursor, s, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 placedAny = true
@@ -892,58 +741,27 @@ class SpanBuilder private constructor(private val context: Context) {
     }
 
     /**
-     * 给当前文字片段附加一个用户自定义 Span。
-     *
-     * 需先通过 [SpanBuilder.setTextSpanFactory] 注册工厂。
-     * 工厂接收 (start, end, fullText) 三个参数，返回任意 Span 对象（CharacterStyle / ParagraphStyle 均可）。
-     *
-     * 示例：
-     * ```
-     * // 注册（一次即可，推荐在 Application 中）
-     * SpanBuilder.setTextSpanFactory { _, _, _ -> MyCustomSpan() }
-     *
-     * // 使用
-     * SpanBuilder.with(ctx).append("特效文字").customTextSpan().into(tv)
-     * ```
+     * 给当前文字片段附加一个用户自定义 Span（使用全局工厂）。
+     * 需先通过 [setTextSpanFactory] 注册工厂，工厂接收 (start, end, fullText)，返回任意 Span 对象。
      */
     fun customTextSpan(): SpanBuilder = applyEach { s, e ->
-        val factory = textSpanFactory ?: return@applyEach
-        val span = factory(s, e, ssb)
+        val span = textSpanFactory?.invoke(s, e, ssb) ?: return@applyEach
         ssb.setSpan(span, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
     /**
      * 给当前文字片段附加一个用户自定义 Span（内联版本，无需预先注册）。
      *
-     * @param factory 接收 (start, end, fullText)，返回任意 Span 对象。
-     *
-     * 示例：
-     * ```
-     * SpanBuilder.with(ctx)
-     *     .append("特效文字")
-     *     .customTextSpan { _, _, _ -> MyCustomSpan() }
-     *     .into(tv)
-     * ```
+     * @param factory 接收 (start, end, fullText)，返回任意 Span 对象
      */
     fun customTextSpan(factory: (start: Int, end: Int, text: CharSequence) -> Any): SpanBuilder =
         applyEach { s, e ->
-            val span = factory(s, e, ssb)
-            ssb.setSpan(span, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            ssb.setSpan(factory(s, e, ssb), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
 
     /**
-     * 对当前图片片段执行用户自定义 Drawable 变换。
-     *
-     * 需先通过 [SpanBuilder.setImageTransformer] 注册全局变换器，
-     * 或使用内联版本直接传 lambda。
-     *
-     * 示例（圆角裁剪）：
-     * ```
-     * SpanBuilder.with(ctx)
-     *     .image(R.drawable.avatar, 48.dp(), 48.dp())
-     *     .customImageTransform { drawable, w, h -> RoundedDrawable(drawable, 12.dp()) }
-     *     .into(tv)
-     * ```
+     * 对当前图片片段执行用户自定义 Drawable 变换（使用全局变换器）。
+     * 需先通过 [setImageTransformer] 注册变换器。
      */
     fun customImageTransform(): SpanBuilder = applyEach { s, e ->
         val transformer = imageTransformer ?: return@applyEach
@@ -952,37 +770,25 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 对当前图片片段执行用户自定义 Drawable 变换（内联版本，无需预先注册）。
+     * 新 Drawable 的 bounds 会自动设置为原图的 bounds。
      *
-     * @param transformer 接收 (drawable, width, height)，返回变换后的新 Drawable；
-     *                    新 Drawable 的 bounds 会自动设置为原图的 bounds。
+     * @param transformer 接收 (drawable, width, height)，返回变换后的新 Drawable
      */
-    fun customImageTransform(
-        transformer: (drawable: Drawable, width: Int, height: Int) -> Drawable,
-    ): SpanBuilder = applyEach { s, e ->
-        applyImageTransform(s, e, transformer)
-    }
+    fun customImageTransform(transformer: (drawable: Drawable, width: Int, height: Int) -> Drawable): SpanBuilder =
+        applyEach { s, e -> applyImageTransform(s, e, transformer) }
 
-    private fun applyImageTransform(
-        s: Int,
-        e: Int,
-        transformer: (Drawable, Int, Int) -> Drawable,
-    ) {
-        val spans = ssb.getSpans(s, e, CenterAlignImageSpan::class.java)
-        spans.forEach { span ->
-            // URL 图还在加载中（placeholder），记录变换器等加载完成后执行
+    private fun applyImageTransform(s: Int, e: Int, transformer: (Drawable, Int, Int) -> Drawable) {
+        ssb.getSpans(s, e, CenterAlignImageSpan::class.java).forEach { span ->
             if (pendingImageLoads.any { it.placeholder === span }) {
                 pendingImageTransforms[span] = transformer
                 return@forEach
             }
-            val orig = span.drawable
-            val b = orig.bounds
-            val w = b.width().coerceAtLeast(1)
-            val h = b.height().coerceAtLeast(1)
+            val orig = span.drawable; val b = orig.bounds
+            val w = b.width().coerceAtLeast(1); val h = b.height().coerceAtLeast(1)
             val transformed = transformer(orig, w, h)
             transformed.bounds = b
-            val newSpan = CenterAlignImageSpan(transformed)
             ssb.removeSpan(span)
-            ssb.setSpan(newSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            ssb.setSpan(CenterAlignImageSpan(transformed), s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
 
@@ -994,9 +800,7 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param listener      点击回调，参数为被点击的 View
      */
     fun onClick(
-        underline: Boolean = false,
-        @ColorInt overrideColor: Int? = null,
-        listener: (View) -> Unit,
+        underline: Boolean = false, @ColorInt overrideColor: Int? = null, listener: (View) -> Unit,
     ): SpanBuilder = applyEach { s, e ->
         ssb.setSpan(object : ClickableSpan() {
             override fun onClick(widget: View) = listener(widget)
@@ -1023,7 +827,7 @@ class SpanBuilder private constructor(private val context: Context) {
     /**
      * 将构建好的富文本设置到 [textView]，并处理以下逻辑：
      * - 自动设置 LinkMovementMethod（支持点击事件）；
-     * - 有 [glow] 效果时自动设置 LAYER_TYPE_SOFTWARE；
+     * - 有 [glow] / [shadow] 效果时自动设置 LAYER_TYPE_SOFTWARE；
      * - 有待加载的网络图片时，图片加载完成后自动刷新 textView.text；
      * - 若同一 TextView 被重复调用 [into]，通过 tag 标记确保旧任务的回调不会污染新内容。
      *
@@ -1037,10 +841,7 @@ class SpanBuilder private constructor(private val context: Context) {
         }
         val tagKey = R.id.span_builder_load_token
         textView.setTag(tagKey, ssb)
-        if (pendingImageLoads.isEmpty()) {
-            textView.text = ssb
-            return
-        }
+        if (pendingImageLoads.isEmpty()) { textView.text = ssb; return }
         var initialTextSet = false
         pendingImageLoads.forEach { load ->
             imageLoader.load(context, load.url, load.width, load.height, load.circle) { resource ->
@@ -1053,23 +854,15 @@ class SpanBuilder private constructor(private val context: Context) {
                 val borderConfig = pendingImageBorders.remove(load.placeholder)
                 val transformer = pendingImageTransforms.remove(load.placeholder)
                 var finalDrawable: Drawable = if (borderConfig != null) {
-                    BorderedImageDrawable(resource, borderConfig).also {
+                    makeBorderedDrawable(resource, borderConfig).also {
                         it.setBounds(0, 0, load.width, load.height)
                     }
-                } else {
-                    resource
-                }
+                } else resource
                 if (transformer != null) {
-                    val transformed = transformer(finalDrawable, load.width, load.height)
-                    transformed.setBounds(0, 0, load.width, load.height)
-                    finalDrawable = transformed
+                    finalDrawable = transformer(finalDrawable, load.width, load.height)
+                    finalDrawable.setBounds(0, 0, load.width, load.height)
                 }
-                ssb.setSpan(
-                    CenterAlignImageSpan(finalDrawable),
-                    curStart,
-                    curEnd,
-                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                )
+                ssb.setSpan(CenterAlignImageSpan(finalDrawable), curStart, curEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 if (initialTextSet) textView.text = ssb
             }
         }
@@ -1086,329 +879,7 @@ class SpanBuilder private constructor(private val context: Context) {
         if (previousAdded == 0 && extraVerticalPaddingPx == 0) return
         val baseExtra = textView.lineSpacingExtra - previousAdded
         textView.includeFontPadding = true
-        textView.setLineSpacing(
-            baseExtra + extraVerticalPaddingPx.toFloat(),
-            textView.lineSpacingMultiplier
-        )
+        textView.setLineSpacing(baseExtra + extraVerticalPaddingPx.toFloat(), textView.lineSpacingMultiplier)
         textView.setTag(tagKey, extraVerticalPaddingPx.takeIf { it != 0 })
-    }
-
-
-    private class VerticalShiftSpan(@Px private val shiftDown: Int) : MetricAffectingSpan() {
-        override fun updateDrawState(tp: TextPaint) {
-            tp.baselineShift += shiftDown
-        }
-
-        override fun updateMeasureState(tp: TextPaint) {
-            tp.baselineShift += shiftDown
-        }
-    }
-
-    /**
-     * 统一文字装饰 Span：渐变填充 + 描边（边框）+ 发光，可单独或任意组合使用。
-     *
-     * 绘制顺序：发光 → 描边 → 填充（渐变 / 原色）
-     *
-     * 组合示例：
-     * ```
-     * .append("文字")
-     *     .gradientColor(Color.RED, Color.YELLOW)   // 渐变
-     *     .stroke(Color.WHITE, 3f)                   // 白色描边
-     *     .glow(Color.RED, 12f)                      // 红色发光
-     * ```
-     */
-    internal class TextDecorationSpan : ReplacementSpan() {
-
-        internal var gradientColors: IntArray? = null
-        internal var gradientPositions: FloatArray? = null
-        internal var gradientVertical: Boolean = false
-
-        // 描边
-        internal var strokeColor: Int = Color.TRANSPARENT
-        internal var strokeWidthPx: Float = 0f
-
-        // 发光
-        internal var glowColor: Int = Color.TRANSPARENT
-        internal var glowRadiusPx: Float = 0f
-
-        // 文字阴影（setShadowLayer）
-        internal var shadowColor: Int = Color.TRANSPARENT
-        internal var shadowRadius: Float = 0f
-        internal var shadowDx: Float = 0f
-        internal var shadowDy: Float = 0f
-
-        private var measuredWidth = 0f
-        private var cachedShader: LinearGradient? = null
-        private var cachedShaderWidth = 0f
-        private var cachedShaderTop = 0
-        private var cachedShaderBottom = 0
-        private val shaderMatrix = Matrix()
-        private var cachedBlurFilter: BlurMaskFilter? = null
-        private var cachedBlurRadius = 0f
-
-        override fun getSize(
-            paint: Paint,
-            text: CharSequence?,
-            start: Int,
-            end: Int,
-            fm: Paint.FontMetricsInt?,
-        ): Int {
-            if (fm != null) paint.getFontMetricsInt(fm)
-            val len = text?.length ?: 0
-            val s = start.coerceIn(0, len)
-            val e = end.coerceIn(s, len)
-            measuredWidth = if (text != null && s < e) paint.measureText(text, s, e) else 0f
-            return measuredWidth.toInt()
-        }
-
-        override fun draw(
-            canvas: Canvas,
-            text: CharSequence?,
-            start: Int,
-            end: Int,
-            x: Float,
-            top: Int,
-            y: Int,
-            bottom: Int,
-            paint: Paint,
-        ) {
-            if (text == null) return
-            val len = text.length
-            val s = start.coerceIn(0, len)
-            val e = end.coerceIn(s, len)
-            if (s >= e) return
-            val width = if (measuredWidth > 0f) measuredWidth else paint.measureText(text, s, e)
-            if (width <= 0f) return
-
-            val savedStyle = paint.style
-            val savedColor = paint.color
-            val savedShader = paint.shader
-            val savedStrokeWidth = paint.strokeWidth
-            val savedMaskFilter = paint.maskFilter
-
-            if (glowRadiusPx > 0f) {
-                if (cachedBlurRadius != glowRadiusPx) {
-                    cachedBlurFilter = BlurMaskFilter(glowRadiusPx, BlurMaskFilter.Blur.NORMAL)
-                    cachedBlurRadius = glowRadiusPx
-                }
-                paint.style = Paint.Style.FILL
-                paint.color = glowColor
-                paint.shader = null
-                paint.maskFilter = cachedBlurFilter
-                canvas.drawText(text, s, e, x, y.toFloat(), paint)
-                paint.maskFilter = null
-            }
-
-            if (strokeWidthPx > 0f) {
-                paint.style = Paint.Style.STROKE
-                paint.strokeWidth = strokeWidthPx
-                paint.color = strokeColor
-                paint.shader = null
-                canvas.drawText(text, s, e, x, y.toFloat(), paint)
-            }
-
-            paint.style = Paint.Style.FILL
-            paint.strokeWidth = savedStrokeWidth
-            paint.maskFilter = null
-            if (shadowRadius > 0f) {
-                paint.setShadowLayer(shadowRadius, shadowDx, shadowDy, shadowColor)
-            }
-            if (gradientColors != null) {
-                val shader = obtainShader(width, top, bottom)
-                shaderMatrix.reset()
-                shaderMatrix.setTranslate(x, 0f)
-                shader.setLocalMatrix(shaderMatrix)
-                paint.shader = shader
-                paint.color = savedColor
-            } else {
-                paint.shader = savedShader
-                paint.color = savedColor
-            }
-            canvas.drawText(text, s, e, x, y.toFloat(), paint)
-
-            paint.style = savedStyle
-            paint.color = savedColor
-            paint.shader = savedShader
-            paint.strokeWidth = savedStrokeWidth
-            paint.maskFilter = savedMaskFilter
-            if (shadowRadius > 0f) paint.clearShadowLayer()
-        }
-
-        private fun obtainShader(width: Float, top: Int, bottom: Int): LinearGradient {
-            val cached = cachedShader
-            val sizeChanged = if (gradientVertical) {
-                top != cachedShaderTop || bottom != cachedShaderBottom
-            } else {
-                width != cachedShaderWidth
-            }
-            if (cached != null && !sizeChanged) return cached
-            val shader = if (gradientVertical) {
-                LinearGradient(
-                    0f, top.toFloat(), 0f, bottom.toFloat(),
-                    gradientColors!!, gradientPositions, Shader.TileMode.CLAMP
-                )
-            } else {
-                LinearGradient(
-                    0f, 0f, width, 0f,
-                    gradientColors!!, gradientPositions, Shader.TileMode.CLAMP
-                )
-            }
-            cachedShader = shader
-            cachedShaderWidth = width
-            cachedShaderTop = top
-            cachedShaderBottom = bottom
-            return shader
-        }
-
-        fun withGradient(
-            colors: IntArray,
-            positions: FloatArray?,
-            vertical: Boolean
-        ): TextDecorationSpan {
-            if (gradientColors !== colors) cachedShader = null
-            gradientColors = colors
-            gradientPositions = positions
-            gradientVertical = vertical
-            return this
-        }
-
-        fun withStroke(color: Int, width: Float): TextDecorationSpan {
-            strokeColor = color
-            strokeWidthPx = width
-            return this
-        }
-
-        fun withGlow(color: Int, radius: Float): TextDecorationSpan {
-            if (cachedBlurRadius != radius) cachedBlurFilter = null
-            glowColor = color
-            glowRadiusPx = radius
-            return this
-        }
-
-        fun withShadow(color: Int, radius: Float, dx: Float, dy: Float): TextDecorationSpan {
-            shadowColor = color
-            shadowRadius = radius
-            shadowDx = dx
-            shadowDy = dy
-            return this
-        }
-    }
-
-    private class BlankWidthSpan(@Px private val width: Int) : ReplacementSpan() {
-        override fun getSize(
-            paint: Paint,
-            text: CharSequence?,
-            start: Int,
-            end: Int,
-            fm: Paint.FontMetricsInt?
-        ): Int = width
-
-        override fun draw(
-            canvas: Canvas,
-            text: CharSequence?,
-            start: Int,
-            end: Int,
-            x: Float,
-            top: Int,
-            y: Int,
-            bottom: Int,
-            paint: Paint
-        ) {
-        }
-    }
-
-    /**
-     * 在原始 Drawable 外围绘制边框的包装 Drawable。
-     * bounds = 原图 bounds（不扩大尺寸），边框向内绘制，不侵占外部布局空间。
-     *
-     * Paint / RectF 放在 companion object（静态）：
-     * draw() 在主线程单线程执行，多个实例不会并发，共享同一组对象，
-     * 避免每次 onBindViewHolder 创建新实例时反复 new Paint/RectF 导致内存抖动。
-     */
-    private class BorderedImageDrawable(
-        private val inner: Drawable,
-        private val config: ImageBorderConfig,
-    ) : Drawable() {
-
-        private var cachedShader: LinearGradient? = null
-        private var cachedW = 0
-        private var cachedH = 0
-
-        override fun draw(canvas: Canvas) {
-            val b = bounds
-            inner.bounds = b
-            inner.draw(canvas)
-
-            val half = config.borderWidth / 2f
-            sBorderRectF.set(b.left + half, b.top + half, b.right - half, b.bottom - half)
-
-            sBorderPaint.strokeWidth = config.borderWidth
-
-            if (config.gradientColors != null) {
-                val w = b.width();
-                val h = b.height()
-                if (cachedShader == null || cachedW != w || cachedH != h) {
-                    cachedShader = if (config.gradientVertical) {
-                        LinearGradient(
-                            0f,
-                            0f,
-                            0f,
-                            h.toFloat(),
-                            config.gradientColors,
-                            null,
-                            Shader.TileMode.CLAMP
-                        )
-                    } else {
-                        LinearGradient(
-                            0f,
-                            0f,
-                            w.toFloat(),
-                            0f,
-                            config.gradientColors,
-                            null,
-                            Shader.TileMode.CLAMP
-                        )
-                    }
-                    cachedW = w; cachedH = h
-                }
-                sBorderPaint.shader = cachedShader
-            } else {
-                sBorderPaint.shader = null
-                sBorderPaint.color = config.borderColor
-            }
-
-            if (config.cornerRadius > 0f) {
-                canvas.drawRoundRect(
-                    sBorderRectF,
-                    config.cornerRadius,
-                    config.cornerRadius,
-                    sBorderPaint
-                )
-            } else {
-                canvas.drawRect(sBorderRectF, sBorderPaint)
-            }
-        }
-
-        override fun getIntrinsicWidth(): Int = inner.intrinsicWidth
-        override fun getIntrinsicHeight(): Int = inner.intrinsicHeight
-        override fun setAlpha(alpha: Int) {
-            inner.alpha = alpha
-        }
-
-        override fun setColorFilter(cf: ColorFilter?) {
-            inner.colorFilter = cf
-        }
-
-        override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
-        override fun onBoundsChange(bounds: Rect) {
-            cachedShader = null
-        }
-
-        companion object {
-            private val sBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                style = Paint.Style.STROKE
-            }
-            private val sBorderRectF = RectF()
-        }
     }
 }
