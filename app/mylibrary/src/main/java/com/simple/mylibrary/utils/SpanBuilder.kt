@@ -820,7 +820,20 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 返回构建好的 [CharSequence]（SpannableStringBuilder）。
-     * 注意：含网络图片时图片尚未加载，建议改用 [into]。
+     *
+     * **注意 1**：含网络图片时图片尚未加载，建议改用 [into]。
+     *
+     * **注意 2**：[onClick] 添加的 [android.text.style.ClickableSpan] 必须配合 TextView 的
+     * [LinkMovementMethod] 才能响应点击。[into] 会自动设置 LinkMovementMethod，
+     * 而直接用 `textView.text = build()` 时**不会**设置，导致 onClick 不生效。
+     *
+     * 如果用了 [onClick] 又必须用 build 模式，请这样做：
+     * ```
+     * tv.text = SpanBuilder.with(ctx).append("xxx").onClick { ... }.build()
+     * tv.movementMethod = LinkMovementMethod.getInstance()  // 手动设置
+     * ```
+     *
+     * 或者使用 [buildAndAttach]，它会自动挂上 movementMethod 并返回 CharSequence。
      */
     fun build(): CharSequence = ssb
 
