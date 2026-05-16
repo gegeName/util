@@ -569,7 +569,6 @@ class SpanBuilder private constructor(private val context: Context) {
         val existing = ssb.getSpans(s, e, TextDecorationSpan::class.java)
             .firstOrNull { ssb.getSpanStart(it) == s && ssb.getSpanEnd(it) == e }
         val newSpan = update(existing)
-        // existing 就地修改后返回的是同一个对象，不需要 remove+set；只有 existing==null 时才是新建
         if (existing == null) {
             ssb.setSpan(newSpan, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }

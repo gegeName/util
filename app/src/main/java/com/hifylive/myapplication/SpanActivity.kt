@@ -1,10 +1,13 @@
 package com.hifylive.myapplication
 
+import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.drawable.Drawable
 import android.os.Bundle
-import android.text.TextPaint
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +19,7 @@ import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.simple.mylibrary.utils.SpanBuilder
+import kotlin.math.min
 
 /**
  * SpanBuilder 全方法演示。
@@ -493,19 +497,50 @@ class SpanActivity : AppCompatActivity() {
         w: Int,
         h: Int,
         radius: Float,
+        isCircle: Boolean = false
     ): Drawable {
-        val bmp = createBitmap(w, h)
-        val canvas = Canvas(bmp)
-        val rect = android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat())
-        canvas.saveLayer(rect, null)
+
+        // 先把 Drawable 转 Bitmap
+        val srcBitmap = createBitmap(w, h)
+        val srcCanvas = Canvas(srcBitmap)
+
         drawable.setBounds(0, 0, w, h)
-        drawable.draw(canvas)
-        val maskPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+        drawable.draw(srcCanvas)
+
+        // 输出 Bitmap
+        val outBitmap = createBitmap(w, h)
+        val canvas = Canvas(outBitmap)
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+        // 关键：BitmapShader
+        val shader = BitmapShader(
+            srcBitmap,
+            Shader.TileMode.CLAMP,
+            Shader.TileMode.CLAMP
+        )
+
+        paint.shader = shader
+
+        if (isCircle) {
+            val radiusCircle = min(w, h) / 2f
+            canvas.drawCircle(
+                w / 2f,
+                h / 2f,
+                radiusCircle,
+                paint
+            )
+        } else {
+            val rect = RectF(0f, 0f, w.toFloat(), h.toFloat())
+            canvas.drawRoundRect(
+                rect,
+                radius,
+                radius,
+                paint
+            )
         }
-        canvas.drawRoundRect(rect, radius, radius, maskPaint)
-        canvas.restore()
-        return bmp.toDrawable(resources)
+
+        return outBitmap.toDrawable(resources)
     }
 
 }
