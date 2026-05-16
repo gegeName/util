@@ -148,21 +148,7 @@ class ShapeDrawableBuilder(
     /** 构造并应用为 View 背景 */
     fun intoBackground() {
         view.background = buildDrawable()
-
-        /**
-         * 清除系统 backgroundTintList。
-         *
-         * AppCompatButton / AppCompatEditText 等会从 MaterialComponents 主题里
-         * 自动拿到一层 backgroundTint（通常是 ?attr/colorPrimary），
-         * 这层 tint 会叠在我们构造的 StateListDrawable 上，
-         * 导致 solidPressedColor / solidSelectedColor 等状态色看上去"没切换"。
-         * 用 ViewCompat 兼容 API < 21，对没有 tint 的 View 是安全 no-op。
-         */
         ViewCompat.setBackgroundTintList(view, null)
-
-        // 虚线描边在硬件加速 Canvas 上 PathEffect 会失效（虚线显示为实线），
-        // 自动关闭该 View 的硬件加速以保证虚线正确渲染。
-        // 预览环境（isInEditMode）下 setLayerType 可能 NPE，跳过。
         if (strokeSize > 0 && strokeDashSize > 0 && !view.isInEditMode) {
             view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
@@ -273,15 +259,10 @@ class ShapeDrawableBuilder(
             }
             cls.getDeclaredField("mThicknessRatio").apply { isAccessible = true }
                 .setFloat(state, thicknessRatio)
-            // 关键：GradientDrawable 圆环用 mUseLevelForShape 控制是否按 level 截断扫掠角度。
-            // 默认 true + level=0 ⇒ 扫掠角 0° ⇒ 圆环根本不绘制。
-            // 这里把它同步成用户声明的 shape_useLevel_L 值。
             cls.getDeclaredField("mUseLevelForShape").apply { isAccessible = true }
                 .setBoolean(state, ringUseLevel)
         }
 
-        // 反射失败的兜底：useLevel=false 时把 level 顶满，
-        // sweep = 360 × 10000 / 10000 = 360°，圆环画满。
         if (!ringUseLevel) {
             drawable.level = 10000
         }
@@ -299,7 +280,6 @@ class ShapeDrawableBuilder(
         else -> GradientDrawable.Orientation.LEFT_RIGHT
     }
 
-    // ====== 链式 Setter（动态修改后调用 intoBackground() 生效） ======
     fun setSolidColor(color: Int) = apply { solidColor = color }
     fun setSolidPressedColor(color: Int) = apply { solidPressedColor = color }
     fun setSolidSelectedColor(color: Int) = apply { solidSelectedColor = color }

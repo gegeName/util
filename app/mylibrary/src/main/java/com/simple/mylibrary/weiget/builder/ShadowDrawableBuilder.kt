@@ -39,7 +39,6 @@ class ShadowDrawableBuilder(
     private var originalLpWidth: Int = LP_UNCAPTURED
     private var originalLpHeight: Int = LP_UNCAPTURED
 
-    // 在 intoShadow 之前由外部（ShapeXxx.init）设置好的 base padding（用户显式配置的 padding）
     private val basePaddingLeft: Int = view.paddingLeft
     private val basePaddingTop: Int = view.paddingTop
     private val basePaddingRight: Int = view.paddingRight
@@ -107,8 +106,13 @@ class ShadowDrawableBuilder(
             else -> existing
         }
 
+        val insetL = shadowPadding + (-shadowOffsetX).coerceAtLeast(0f).toInt()
+        val insetR = shadowPadding + shadowOffsetX.coerceAtLeast(0f).toInt()
+        val insetT = shadowPadding + (-shadowOffsetY).coerceAtLeast(0f).toInt()
+        val insetB = shadowPadding + shadowOffsetY.coerceAtLeast(0f).toInt()
+
         view.background = if (content != null) {
-            ShadowLayerDrawable(shadowDrawable, content, shadowPadding)
+            ShadowLayerDrawable(shadowDrawable, content, insetL, insetT, insetR, insetB)
         } else {
             shadowDrawable
         }
@@ -116,23 +120,16 @@ class ShadowDrawableBuilder(
         if (!view.isInEditMode) {
             view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
-
-        // 偏移量决定各方向实际需要的 padding：
-        // 向右偏移时，右侧需要更多空间，左侧可以减少（但不低于 shadowPadding）
-        val padL = shadowPadding + (-shadowOffsetX).coerceAtLeast(0f).toInt()
-        val padR = shadowPadding + shadowOffsetX.coerceAtLeast(0f).toInt()
-        val padT = shadowPadding + (-shadowOffsetY).coerceAtLeast(0f).toInt()
-        val padB = shadowPadding + shadowOffsetY.coerceAtLeast(0f).toInt()
-        applyContentPaddingDirectional(padL, padT, padR, padB)
-        registerLayoutSizeAdjustment(padL, padT, padR, padB)
+        applyContentPadding(shadowPadding)
+        registerLayoutSizeAdjustment(insetL, insetT, insetR, insetB)
     }
 
     private class ShadowLayerDrawable(
         shadow: Drawable,
         val contentDrawable: Drawable,
-        inset: Int,
+        insetL: Int, insetT: Int, insetR: Int, insetB: Int,
     ) : LayerDrawable(arrayOf(shadow, contentDrawable)) {
-        init { setLayerInset(1, inset, inset, inset, inset) }
+        init { setLayerInset(1, insetL, insetT, insetR, insetB) }
     }
 
     private fun calculateShadowPadding(): Int = ceil(elevation).toInt()
@@ -149,15 +146,6 @@ class ShadowDrawableBuilder(
             basePaddingTop + shadowPadding,
             basePaddingRight + shadowPadding,
             basePaddingBottom + shadowPadding
-        )
-    }
-
-    private fun applyContentPaddingDirectional(padL: Int, padT: Int, padR: Int, padB: Int) {
-        view.setPadding(
-            basePaddingLeft + padL,
-            basePaddingTop + padT,
-            basePaddingRight + padR,
-            basePaddingBottom + padB
         )
     }
 
@@ -202,7 +190,6 @@ class ShadowDrawableBuilder(
         if (changed) view.layoutParams = lp
     }
 
-    // ── 公开 Setter ───────────────────────────────────────────────────────────
 
     fun setShadowElevation(e: Float) = apply { elevation = e; intoShadow() }
 
