@@ -171,6 +171,10 @@
     <attr name="shape_shadowAmbientColor_L" format="color" />
     <!-- 阴影透明度，0.0（完全透明）~ 1.0（完全不透明），默认 1.0；叠加在阴影颜色 alpha 之上 -->
     <attr name="shape_shadowAlpha_L" format="float" />
+    <!-- 阴影水平偏移，正值向右，负值向左，默认 0 -->
+    <attr name="shape_shadowOffsetX_L" format="dimension" />
+    <!-- 阴影垂直偏移，正值向下，负值向上，默认 0 -->
+    <attr name="shape_shadowOffsetY_L" format="dimension" />
 
 
     <!-- ==================== 2. 共享 styleable（Builder 通用，运行时使用） ==================== -->
@@ -228,6 +232,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
 
@@ -287,6 +293,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeTextView">
@@ -339,6 +347,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeImageView">
@@ -391,6 +401,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeButton">
@@ -443,6 +455,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeLinearLayout">
@@ -495,6 +509,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeFrameLayout">
@@ -547,6 +563,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeConstraintLayout">
@@ -599,6 +617,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeRecyclerView">
@@ -651,6 +671,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
     <declare-styleable name="ShapeEditText">
@@ -703,6 +725,8 @@
         <attr name="shape_shadowSpotColor_L" />
         <attr name="shape_shadowAmbientColor_L" />
         <attr name="shape_shadowAlpha_L" />
+        <attr name="shape_shadowOffsetX_L" />
+        <attr name="shape_shadowOffsetY_L" />
     </declare-styleable>
 
 </resources>

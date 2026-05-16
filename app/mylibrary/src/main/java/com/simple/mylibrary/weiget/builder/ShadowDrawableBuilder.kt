@@ -1,22 +1,26 @@
 package com.simple.mylibrary.weiget.builder
 
 import android.content.res.TypedArray
-import android.graphics.Color
-import android.graphics.Outline
-import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.DrawableWrapper
 import android.graphics.drawable.LayerDrawable
-import android.os.Build
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewOutlineProvider
 import com.simple.mylibrary.R
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /**
- * 通用 Shadow 构建器
+ * 通用 Shadow 构建器（CardView 风格）
+ *
+ * 策略：统一走自绘阴影（SelfDrawnShadowDrawable + BlurMaskFilter），所有 API 一致。
+ * 系统 elevation 在 View 控件（非容器）上无法向外扩散阴影区域，故放弃使用。
+ *
+ * 行为：
+ * - 声明的 width/height = 白色内容矩形大小
+ * - 自动给 View 增加 shadowPadding（四周），阴影在 padding 区扩散
+ * - 若 layout_width/height 是固定值，自动扩大 2×shadowPadding 以保证内容区不变小
+ * - spotColor/ambientColor 设置阴影颜色；未设置时使用默认半透明黑色
+ * - shadowAlpha 叠加控制整体透明度
  */
 class ShadowDrawableBuilder(
     private val view: View,
@@ -26,21 +30,16 @@ class ShadowDrawableBuilder(
 ) {
 
     private var elevation: Float = 0f
-    private var maxElevation: Float = 0f
-
-    private var useCompatPadding: Boolean = false
-    private var preventCornerOverlap: Boolean = true
-
     private var spotColor: Int = 0
     private var ambientColor: Int = 0
     private var shadowAlpha: Float = 1f
+    private var shadowOffsetX: Float = 0f
+    private var shadowOffsetY: Float = 0f
 
     private var originalLpWidth: Int = LP_UNCAPTURED
     private var originalLpHeight: Int = LP_UNCAPTURED
 
-    /** 有颜色配置时走自绘路径（所有 API 版本） */
-    private var selfDrawShadow: Boolean = false
-
+    // 在 intoShadow 之前由外部（ShapeXxx.init）设置好的 base padding（用户显式配置的 padding）
     private val basePaddingLeft: Int = view.paddingLeft
     private val basePaddingTop: Int = view.paddingTop
     private val basePaddingRight: Int = view.paddingRight
@@ -48,16 +47,11 @@ class ShadowDrawableBuilder(
 
     init {
         readAttr(ta, R.attr.shape_shadowElevation_L) { elevation = ta.getDimension(it, 0f) }
-        readAttr(ta, R.attr.shape_shadowMaxElevation_L) { maxElevation = ta.getDimension(it, elevation) }
-        if (maxElevation < elevation) maxElevation = elevation
-
-        readAttr(ta, R.attr.shape_shadowUseCompatPadding_L) { useCompatPadding = ta.getBoolean(it, false) }
-        readAttr(ta, R.attr.shape_shadowPreventCornerOverlap_L) { preventCornerOverlap = ta.getBoolean(it, true) }
         readAttr(ta, R.attr.shape_shadowSpotColor_L) { spotColor = ta.getColor(it, 0) }
         readAttr(ta, R.attr.shape_shadowAmbientColor_L) { ambientColor = ta.getColor(it, 0) }
         readAttr(ta, R.attr.shape_shadowAlpha_L) { shadowAlpha = ta.getFloat(it, 1f).coerceIn(0f, 1f) }
-
-        selfDrawShadow = (spotColor != 0 || ambientColor != 0) && Build.VERSION.SDK_INT < 28
+        readAttr(ta, R.attr.shape_shadowOffsetX_L) { shadowOffsetX = ta.getDimension(it, 0f) }
+        readAttr(ta, R.attr.shape_shadowOffsetY_L) { shadowOffsetY = ta.getDimension(it, 0f) }
     }
 
     private inline fun readAttr(ta: TypedArray, attrResId: Int, action: (Int) -> Unit) {
@@ -71,83 +65,39 @@ class ShadowDrawableBuilder(
     }
 
     fun intoShadow() {
+        unwrapIfNeeded()
         if (elevation <= 0f) {
-            unwrapIfNeeded()
             applyContentPadding(0)
-            registerLayoutSizeAdjustment()
+            registerLayoutSizeAdjustment(0)
             return
         }
-        if (selfDrawShadow) {
-            applySelfDrawShadow()
-        } else {
-            applySystemShadow()
-        }
+        applySelfDrawShadow()
         registerParentClipDisable()
-        registerLayoutSizeAdjustment()
     }
 
     private fun unwrapIfNeeded() {
         val bg = view.background
-        if (bg is OpaqueWrapper) view.background = bg.drawable
-        else if (bg is ShadowLayerDrawable) view.background = bg.contentDrawable
+        if (bg is ShadowLayerDrawable) view.background = bg.contentDrawable
     }
-
-
-    private fun applySystemShadow() {
-        unwrapIfNeeded()
-        view.elevation = elevation
-
-        val bg = view.background
-        if (bg != null && bg !is OpaqueWrapper) {
-            view.background = OpaqueWrapper(bg)
-        }
-
-        view.outlineProvider = object : ViewOutlineProvider() {
-            override fun getOutline(v: View, outline: Outline) {
-                outline.setRoundRect(0, 0, v.width, v.height, radiusProvider())
-            }
-        }
-        view.clipToOutline = false
-
-        if (Build.VERSION.SDK_INT >= 28) {
-            val spotC  = if (spotColor != 0) applyAlpha(spotColor, shadowAlpha) else 0
-            val ambC   = if (ambientColor != 0) applyAlpha(ambientColor, shadowAlpha) else 0
-            when {
-                spotC != 0 && ambC != 0 -> {
-                    view.outlineSpotShadowColor = spotC
-                    view.outlineAmbientShadowColor = ambC
-                }
-                spotC != 0 -> {
-                    view.outlineSpotShadowColor = spotC
-                    view.outlineAmbientShadowColor = Color.TRANSPARENT
-                }
-                ambC != 0 -> {
-                    view.outlineSpotShadowColor = Color.TRANSPARENT
-                    view.outlineAmbientShadowColor = ambC
-                }
-                else -> {
-                    view.outlineAmbientShadowColor = Color.TRANSPARENT
-                }
-            }
-        }
-
-        applyContentPadding(0)
-    }
-
 
     private fun applySelfDrawShadow() {
         view.elevation = 0f
-        unwrapIfNeeded()
 
         val shadowPadding = calculateShadowPadding()
-        val rawColor = if (spotColor != 0) spotColor else ambientColor
+        val rawColor = when {
+            spotColor != 0 -> spotColor
+            ambientColor != 0 -> ambientColor
+            else -> 0x44000000
+        }
         val color = applyAlpha(rawColor, shadowAlpha)
 
         val shadowDrawable = SelfDrawnShadowDrawable(
             radius = radiusProvider(),
             shadowSize = elevation,
             shadowColor = color,
-            contentInset = shadowPadding.toFloat()
+            contentInset = shadowPadding.toFloat(),
+            offsetX = shadowOffsetX,
+            offsetY = shadowOffsetY,
         )
 
         val existing = view.background
@@ -167,17 +117,14 @@ class ShadowDrawableBuilder(
             view.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
 
-        applyContentPadding(shadowPadding)
-    }
-
-    // ── Drawable 工具类 ───────────────────────────────────────────────────────
-
-    /**
-     * 让系统把被包装的 background 视为不透明，防止渐变 GradientDrawable 的
-     * TRANSLUCENT opacity 导致 outline alpha=0 进而阴影消失。
-     */
-    private class OpaqueWrapper(drawable: Drawable) : DrawableWrapper(drawable) {
-        override fun getOpacity(): Int = PixelFormat.OPAQUE
+        // 偏移量决定各方向实际需要的 padding：
+        // 向右偏移时，右侧需要更多空间，左侧可以减少（但不低于 shadowPadding）
+        val padL = shadowPadding + (-shadowOffsetX).coerceAtLeast(0f).toInt()
+        val padR = shadowPadding + shadowOffsetX.coerceAtLeast(0f).toInt()
+        val padT = shadowPadding + (-shadowOffsetY).coerceAtLeast(0f).toInt()
+        val padB = shadowPadding + shadowOffsetY.coerceAtLeast(0f).toInt()
+        applyContentPaddingDirectional(padL, padT, padR, padB)
+        registerLayoutSizeAdjustment(padL, padT, padR, padB)
     }
 
     private class ShadowLayerDrawable(
@@ -188,11 +135,8 @@ class ShadowDrawableBuilder(
         init { setLayerInset(1, inset, inset, inset, inset) }
     }
 
-    // ── 辅助方法 ──────────────────────────────────────────────────────────────
-
     private fun calculateShadowPadding(): Int = ceil(elevation).toInt()
 
-    /** 把 shadowAlpha 叠加到颜色 alpha 通道：finalAlpha = colorAlpha × shadowAlpha */
     private fun applyAlpha(color: Int, alpha: Float): Int {
         val originalAlpha = (color ushr 24) and 0xFF
         val newAlpha = (originalAlpha * alpha).roundToInt().coerceIn(0, 255)
@@ -205,6 +149,15 @@ class ShadowDrawableBuilder(
             basePaddingTop + shadowPadding,
             basePaddingRight + shadowPadding,
             basePaddingBottom + shadowPadding
+        )
+    }
+
+    private fun applyContentPaddingDirectional(padL: Int, padT: Int, padR: Int, padB: Int) {
+        view.setPadding(
+            basePaddingLeft + padL,
+            basePaddingTop + padT,
+            basePaddingRight + padR,
+            basePaddingBottom + padB
         )
     }
 
@@ -226,23 +179,26 @@ class ShadowDrawableBuilder(
         }
     }
 
-    private fun registerLayoutSizeAdjustment() {
-        view.post { applyLayoutSizeAdjustment() }
-        if (view.isAttachedToWindow) applyLayoutSizeAdjustment()
+    private fun registerLayoutSizeAdjustment(shadowPadding: Int) {
+        view.post { applyLayoutSizeAdjustment(shadowPadding, shadowPadding, shadowPadding, shadowPadding) }
+        if (view.isAttachedToWindow) applyLayoutSizeAdjustment(shadowPadding, shadowPadding, shadowPadding, shadowPadding)
     }
 
-    private fun applyLayoutSizeAdjustment() {
+    private fun registerLayoutSizeAdjustment(padL: Int, padT: Int, padR: Int, padB: Int) {
+        view.post { applyLayoutSizeAdjustment(padL, padT, padR, padB) }
+        if (view.isAttachedToWindow) applyLayoutSizeAdjustment(padL, padT, padR, padB)
+    }
+
+    private fun applyLayoutSizeAdjustment(padL: Int, padT: Int, padR: Int, padB: Int) {
         val lp = view.layoutParams ?: return
         if (originalLpWidth == LP_UNCAPTURED) originalLpWidth = lp.width
         if (originalLpHeight == LP_UNCAPTURED) originalLpHeight = lp.height
 
-        val shadowPadding = if (selfDrawShadow && elevation > 0f) calculateShadowPadding() else 0
-        val targetWidth = if (selfDrawShadow && originalLpWidth > 0) originalLpWidth + 2 * shadowPadding else originalLpWidth
-        val targetHeight = if (selfDrawShadow && originalLpHeight > 0) originalLpHeight + 2 * shadowPadding else originalLpHeight
-
         var changed = false
-        if (lp.width != targetWidth) { lp.width = targetWidth; changed = true }
-        if (lp.height != targetHeight) { lp.height = targetHeight; changed = true }
+        val tw = if (originalLpWidth > 0) originalLpWidth + padL + padR else originalLpWidth
+        val th = if (originalLpHeight > 0) originalLpHeight + padT + padB else originalLpHeight
+        if (lp.width != tw) { lp.width = tw; changed = true }
+        if (lp.height != th) { lp.height = th; changed = true }
         if (changed) view.layoutParams = lp
     }
 
@@ -250,26 +206,15 @@ class ShadowDrawableBuilder(
 
     fun setShadowElevation(e: Float) = apply { elevation = e; intoShadow() }
 
-    fun setShadowSpotColor(color: Int) = apply {
-        spotColor = color
-        selfDrawShadow = (spotColor != 0 || ambientColor != 0) && Build.VERSION.SDK_INT < 28
-        intoShadow()
-    }
+    fun setShadowSpotColor(color: Int) = apply { spotColor = color; intoShadow() }
 
-    fun setShadowAmbientColor(color: Int) = apply {
-        ambientColor = color
-        selfDrawShadow = (spotColor != 0 || ambientColor != 0) && Build.VERSION.SDK_INT < 28
-        intoShadow()
-    }
+    fun setShadowAmbientColor(color: Int) = apply { ambientColor = color; intoShadow() }
 
-    fun setShadowAlpha(alpha: Float) = apply {
-        shadowAlpha = alpha.coerceIn(0f, 1f)
-        intoShadow()
-    }
+    fun setShadowAlpha(alpha: Float) = apply { shadowAlpha = alpha.coerceIn(0f, 1f); intoShadow() }
+
+    fun setShadowOffset(x: Float, y: Float) = apply { shadowOffsetX = x; shadowOffsetY = y; intoShadow() }
 
     fun getShadowElevation(): Float = elevation
-    fun getUseCompatPadding(): Boolean = useCompatPadding
-    fun getPreventCornerOverlap(): Boolean = preventCornerOverlap
 
     companion object {
         private const val LP_UNCAPTURED = Int.MIN_VALUE

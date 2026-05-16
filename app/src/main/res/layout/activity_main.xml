@@ -244,9 +244,11 @@
                 <com.simple.mylibrary.weiget.ShapeTextView
                     android:id="@+id/btnServerUpdate"
                     android:layout_width="wrap_content"
+                    app:shape_shadowElevation_L="4dp"
+                    app:shape_shadowSpotColor_L="#FF4081"
+                    app:shape_solidColor_L="#999999"
                     android:padding="10dp"
                     android:layout_height="wrap_content"
-                    app:shape_shadowElevation_L="4dp"
                     android:text="服务端改" />
 
 

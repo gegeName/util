@@ -17,6 +17,8 @@ class ShapeTextView @JvmOverloads constructor(
     val shadowDrawableBuilder: ShadowDrawableBuilder
 
     init {
+        ShapePaddingManager.applyDefaultZeroPadding(this, context, attrs)
+
         val shapeTa = context.obtainStyledAttributes(attrs, R.styleable.ShapeWidget)
         shapeDrawableBuilder = ShapeDrawableBuilder(this, shapeTa, R.styleable.ShapeWidget)
         shapeTa.recycle()
@@ -29,7 +31,5 @@ class ShapeTextView @JvmOverloads constructor(
 
         shapeDrawableBuilder.intoBackground()
         shadowDrawableBuilder.intoShadow()
-
-        ShapePaddingManager.applyDefaultZeroPadding(this, context, attrs)
     }
 }
