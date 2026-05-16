@@ -2,16 +2,17 @@ package com.simple.mylibrary.weiget
 
 import android.content.Context
 import android.util.AttributeSet
+import androidx.appcompat.widget.AppCompatEditText
 import androidx.appcompat.widget.AppCompatTextView
 import com.simple.mylibrary.R
 import com.simple.mylibrary.weiget.builder.ShadowDrawableBuilder
 import com.simple.mylibrary.weiget.builder.ShapeDrawableBuilder
 
-class ShadowTextView @JvmOverloads constructor(
+class ShapeEditText @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
-) : AppCompatTextView(context, attrs, defStyleAttr) {
+) : AppCompatEditText(context, attrs, defStyleAttr) {
 
     val shapeDrawableBuilder: ShapeDrawableBuilder
     val shadowDrawableBuilder: ShadowDrawableBuilder
