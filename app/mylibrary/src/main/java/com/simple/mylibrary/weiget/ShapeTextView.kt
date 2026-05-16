@@ -10,7 +10,7 @@ import com.simple.mylibrary.weiget.builder.ShapeDrawableBuilder
 class ShapeTextView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = android.R.attr.textViewStyle
 ) : AppCompatTextView(context, attrs, defStyleAttr) {
 
     val shapeDrawableBuilder: ShapeDrawableBuilder
@@ -29,5 +29,7 @@ class ShapeTextView @JvmOverloads constructor(
 
         shapeDrawableBuilder.intoBackground()
         shadowDrawableBuilder.intoShadow()
+
+        ShapePaddingManager.applyDefaultZeroPadding(this, context, attrs)
     }
 }

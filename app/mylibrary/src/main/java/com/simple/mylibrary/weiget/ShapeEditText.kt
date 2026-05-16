@@ -3,7 +3,6 @@ package com.simple.mylibrary.weiget
 import android.content.Context
 import android.util.AttributeSet
 import androidx.appcompat.widget.AppCompatEditText
-import androidx.appcompat.widget.AppCompatTextView
 import com.simple.mylibrary.R
 import com.simple.mylibrary.weiget.builder.ShadowDrawableBuilder
 import com.simple.mylibrary.weiget.builder.ShapeDrawableBuilder
@@ -11,7 +10,7 @@ import com.simple.mylibrary.weiget.builder.ShapeDrawableBuilder
 class ShapeEditText @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = android.R.attr.editTextStyle
 ) : AppCompatEditText(context, attrs, defStyleAttr) {
 
     val shapeDrawableBuilder: ShapeDrawableBuilder
@@ -30,5 +29,7 @@ class ShapeEditText @JvmOverloads constructor(
 
         shapeDrawableBuilder.intoBackground()
         shadowDrawableBuilder.intoShadow()
+
+        ShapePaddingManager.applyDefaultZeroPadding(this, context, attrs)
     }
 }

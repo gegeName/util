@@ -284,6 +284,18 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Span复用测试" />
+                <com.simple.mylibrary.weiget.ShapeEditText
+                    app:shape_radius_L="6dp"
+                    android:textSize="12sp"
+                    android:hint="数量减少"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:gravity="start|center_vertical"
+                    app:shape_solidColor_L="#D3D3D3"
+                    app:shape_strokeColor_L="@color/black"
+                    app:shape_strokeSize_L="1dp"
+                    android:layout_width="100dp"
+                    android:layout_height="35dp"/>
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>
