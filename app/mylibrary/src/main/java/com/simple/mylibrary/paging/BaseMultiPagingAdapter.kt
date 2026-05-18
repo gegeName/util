@@ -77,6 +77,7 @@ abstract class BaseMultiPagingAdapter<T : Any>(
         val viewType: Int,
         val isMine: (T) -> Boolean,
         val bindingClass: Class<out ViewBinding>,
+        val onCreate: ((ViewBinding) -> Unit)?,
         val onBind: (ViewBinding, T, Int) -> Unit
     )
 
@@ -90,17 +91,30 @@ abstract class BaseMultiPagingAdapter<T : Any>(
      * @param VB ViewBinding / ViewDataBinding 生成类
      * @param isMine 给定 item 是否由此类型渲染；按注册顺序首个返回 true 的胜出
      * @param viewType 显式指定 viewType；不传时自动分配
+     * @param onCreate 可选；ViewHolder 创建完 + 点击事件绑完之后只调一次，拿到强类型 binding
+     *                 做一次性初始化（嵌套 RV 的 layoutManager / addItemDecoration /
+     *                 setRecycledViewPool 等），与 item 数据无关
      * @param onBind 拿到强类型 binding 后做绑定，参数为 binding / item / position
      */
     inline fun <reified VB : ViewBinding> addType(
         noinline isMine: (T) -> Boolean,
         viewType: Int = -1,
+        noinline onCreate: ((binding: VB) -> Unit)? = null,
         noinline onBind: (binding: VB, item: T, position: Int) -> Unit
     ) {
-        addTypeInternal(viewType, isMine, VB::class.java) { binding, item, pos ->
-            @Suppress("UNCHECKED_CAST")
-            onBind(binding as VB, item, pos)
-        }
+        addTypeInternal(
+            viewType, isMine, VB::class.java,
+            onCreate = onCreate?.let { cb ->
+                { binding ->
+                    @Suppress("UNCHECKED_CAST")
+                    cb(binding as VB)
+                }
+            },
+            onBind = { binding, item, pos ->
+                @Suppress("UNCHECKED_CAST")
+                onBind(binding as VB, item, pos)
+            }
+        )
     }
 
     /**
@@ -112,18 +126,31 @@ abstract class BaseMultiPagingAdapter<T : Any>(
      *
      * @param VB ViewBinding / ViewDataBinding 生成类
      * @param typeValue 数据 itemType 的具体值，同时作为 RecyclerView 的 viewType（便于按 type 调试）
+     * @param onCreate 可选；ViewHolder 创建完 + 点击事件绑完之后只调一次，拿到强类型 binding
+     *                 做一次性初始化（嵌套 RV 的 layoutManager / addItemDecoration /
+     *                 setRecycledViewPool 等），与 item 数据无关
      * @param onBind 拿到强类型 binding 后做绑定，参数为 binding / item / position
      */
     inline fun <reified VB : ViewBinding> addType(
         typeValue: Int,
+        noinline onCreate: ((binding: VB) -> Unit)? = null,
         noinline onBind: (binding: VB, item: T, position: Int) -> Unit
     ) {
-        addTypeInternal(typeValue, { item ->
-            (item as? MultiTypeItem)?.itemType == typeValue
-        }, VB::class.java) { binding, item, pos ->
-            @Suppress("UNCHECKED_CAST")
-            onBind(binding as VB, item, pos)
-        }
+        addTypeInternal(
+            typeValue,
+            isMine = { item -> (item as? MultiTypeItem)?.itemType == typeValue },
+            bindingClass = VB::class.java,
+            onCreate = onCreate?.let { cb ->
+                { binding ->
+                    @Suppress("UNCHECKED_CAST")
+                    cb(binding as VB)
+                }
+            },
+            onBind = { binding, item, pos ->
+                @Suppress("UNCHECKED_CAST")
+                onBind(binding as VB, item, pos)
+            }
+        )
     }
 
     /**
@@ -138,11 +165,28 @@ abstract class BaseMultiPagingAdapter<T : Any>(
         viewType: Int,
         isMine: (T) -> Boolean,
         bindingClass: Class<out ViewBinding>,
+        onCreate: ((ViewBinding) -> Unit)? = null,
         onBind: (ViewBinding, T, Int) -> Unit
     ) {
         val finalType = if (viewType == -1) nextAutoType++ else viewType
-        delegates.add(TypeDelegate(finalType, isMine, bindingClass, onBind))
+        delegates.add(TypeDelegate(finalType, isMine, bindingClass, onCreate, onBind))
     }
+
+    /**
+     * onCreateViewHolder 创建完 ViewHolder、绑完点击事件、跑完该 type 的
+     * [addType] 里 `onCreate` 之后回调,整个 holder 生命周期只触发一次.
+     *
+     * 用于跨所有 itemType 的一次性配置(全局钩子);
+     * 跟某个具体 type 强相关的配置(嵌套 RV / 装饰 / 监听)更建议用 [addType] 的
+     * `onCreate` 参数,拿到强类型 binding,免 when (viewType) 分发.
+     *
+     * 默认空实现.
+     */
+    protected open fun onViewHolderCreated(
+        holder: MultiHolder,
+        binding: ViewBinding,
+        viewType: Int
+    ) = Unit
 
     /** 反射 inflate 方法缓存，每种 ViewBinding 类只在首次 onCreateViewHolder 时反射一次 */
     private val inflateCache = mutableMapOf<Class<out ViewBinding>, Method>()
@@ -189,6 +233,8 @@ abstract class BaseMultiPagingAdapter<T : Any>(
         ) as ViewBinding
         val holder = MultiHolder(binding)
         bindClickListeners(holder)
+        delegate.onCreate?.invoke(binding)
+        onViewHolderCreated(holder, binding, viewType)
         return holder
     }
 

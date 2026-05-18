@@ -4,6 +4,7 @@ import android.animation.Animator
 import android.animation.ValueAnimator
 import android.graphics.Matrix
 import android.graphics.RectF
+import android.graphics.drawable.Drawable
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -11,10 +12,10 @@ import android.view.VelocityTracker
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewParent
+import android.view.ViewTreeObserver
 import android.view.animation.DecelerateInterpolator
 import android.widget.ImageView
 import androidx.core.animation.doOnEnd
-import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import kotlin.math.abs
 import kotlin.math.max
@@ -27,15 +28,16 @@ import kotlin.math.min
  *
  * 1. 双指缩放
  * 2. 自动恢复
- * 3. 双击渐进放大
- * 4. 三次双击恢复
- * 5. 惯性滑动
- * 6. 边界回弹
- * 7. 双击定位动画
- * 8. RecyclerView 手势冲突
- * 9. ViewPager2 手势冲突
- * 10. ImageView真实边界计算
- * 11. 任意View支持
+ * 3. 双击 toggle 放大/复位
+ * 4. 惯性滑动
+ * 5. 边界回弹（ImageView 与普通 View 都支持）
+ * 6. 双击定位动画
+ * 7. RecyclerView 手势冲突
+ * 8. ViewPager2 手势冲突
+ * 9. ImageView真实边界计算
+ * 10. 任意View支持
+ * 11. drawable 切换自动重算 baseMatrix（适配 ViewPager2 + Glide）
+ * 12. detach() 主动释放（适配列表复用）
  */
 class ZoomGestureHelper private constructor(
     private val targetView: View,
@@ -75,10 +77,9 @@ class ZoomGestureHelper private constructor(
 
     private var isDragging = false
     private var animatorWarmedUp = false
-    private var doubleTapCount = 0
     private var isDetached = false
-    private var firstDoubleTap = true
     private var isScaling = false
+    private var hardwareLayerOn = false
     private val touchSlop =
         ViewConfiguration.get(targetView.context).scaledTouchSlop
 
@@ -90,6 +91,36 @@ class ZoomGestureHelper private constructor(
 
     private val baseMatrix = Matrix()
 
+    // 保存 drawable 引用，用于检测切图（ViewPager2 + Glide 场景）
+    private var lastDrawable: Drawable? = null
+
+    private val preDrawListener = ViewTreeObserver.OnPreDrawListener {
+        if (targetView is ImageView) {
+            val current = targetView.drawable
+            if (current !== lastDrawable) {
+                lastDrawable = current
+                baseMatrixComputed = false
+            }
+        }
+        ensureBaseMatrix()
+        true
+    }
+
+    private val attachStateListener = object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(v: View) {
+            isDetached = false
+        }
+
+        override fun onViewDetachedFromWindow(v: View) {
+            isDetached = true
+            currentAnimator?.cancel()
+            currentAnimator = null
+            velocityTracker?.recycle()
+            velocityTracker = null
+            setHardwareLayer(false)
+        }
+    }
+
     init {
 
         if (targetView is ImageView) {
@@ -100,45 +131,9 @@ class ZoomGestureHelper private constructor(
 
         targetView.setOnTouchListener(this)
 
-        targetView.setLayerType(
-            View.LAYER_TYPE_HARDWARE,
-            null
-        )
+        targetView.addOnAttachStateChangeListener(attachStateListener)
 
-        targetView.addOnAttachStateChangeListener(
-            object : View.OnAttachStateChangeListener {
-
-                override fun onViewAttachedToWindow(v: View) {
-                    isDetached = false
-                }
-
-                override fun onViewDetachedFromWindow(v: View) {
-
-                    isDetached = true
-
-                    currentAnimator?.cancel()
-                    currentAnimator = null
-
-                    velocityTracker?.recycle()
-                    velocityTracker = null
-                }
-            }
-        )
-
-        // drawable 可能晚于 attach 到来（Glide 异步加载），
-        // 用 OnPreDrawListener 持续尝试，直到拿到正确尺寸再计算 baseMatrix。
-        val vto = targetView.viewTreeObserver
-        val preDrawListener = object : android.view.ViewTreeObserver.OnPreDrawListener {
-            override fun onPreDraw(): Boolean {
-                if (ensureBaseMatrix()) {
-                    targetView.viewTreeObserver
-                        .takeIf { it.isAlive }
-                        ?.removeOnPreDrawListener(this)
-                }
-                return true
-            }
-        }
-        vto.addOnPreDrawListener(preDrawListener)
+        targetView.viewTreeObserver.addOnPreDrawListener(preDrawListener)
 
         targetView.post {
 
@@ -147,8 +142,6 @@ class ZoomGestureHelper private constructor(
             warmUpAnimator()
 
             warmUpMatrix()
-
-            targetView.buildLayer()
         }
     }
 
@@ -193,6 +186,7 @@ class ZoomGestureHelper private constructor(
         targetView.imageMatrix = matrix
 
         currentScale = 1f
+        lastDrawable = drawable
 
         baseMatrixComputed = true
         return true
@@ -230,6 +224,17 @@ class ZoomGestureHelper private constructor(
 
         animator.cancel()
     }
+
+    private fun setHardwareLayer(on: Boolean) {
+        if (hardwareLayerOn == on) return
+        hardwareLayerOn = on
+        targetView.setLayerType(
+            if (on) View.LAYER_TYPE_HARDWARE else View.LAYER_TYPE_NONE,
+            null
+        )
+        if (on) targetView.buildLayer()
+    }
+
     // =========================
     // 双指缩放
     // =========================
@@ -298,6 +303,10 @@ class ZoomGestureHelper private constructor(
 
                     currentScale = targetScale
 
+                    if (config.enableBounce) {
+                        checkBorder()
+                    }
+
                     return true
                 }
             })
@@ -313,24 +322,8 @@ class ZoomGestureHelper private constructor(
 
                 override fun onDoubleTap(e: MotionEvent): Boolean {
 
-                    if (firstDoubleTap) {
-
-                        firstDoubleTap = false
-
-                        targetView.setLayerType(
-                            View.LAYER_TYPE_HARDWARE,
-                            null
-                        )
-                    }
-
-                    doubleTapCount++
-
-                    if (doubleTapCount >= 3) {
-
-                        doubleTapCount = 0
-
+                    if (currentScale > config.minScale + 0.001f) {
                         reset()
-
                         return true
                     }
 
@@ -338,6 +331,10 @@ class ZoomGestureHelper private constructor(
                         currentScale * config.doubleTapScaleFactor,
                         config.maxScale
                     )
+
+                    if (abs(targetScale - currentScale) < 0.001f) {
+                        return true
+                    }
 
                     animateScale(
                         currentScale,
@@ -356,11 +353,9 @@ class ZoomGestureHelper private constructor(
 
         handleParentIntercept()
 
-        // 必须在分发给 GestureDetector 之前取消旧动画，
-        // 否则 GestureDetector 在第二次 ACTION_DOWN 就会触发 onDoubleTap
-        // 启动新动画，紧接着被下面的 cancel 干掉。
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
             currentAnimator?.cancel()
+            setHardwareLayer(true)
         }
 
         scaleDetector.onTouchEvent(event)
@@ -383,24 +378,21 @@ class ZoomGestureHelper private constructor(
             }
 
             MotionEvent.ACTION_POINTER_DOWN -> {
-
-                // 进入多指（缩放）模式：清空速度跟踪、禁止 fling
                 isDragging = false
                 velocityTracker?.clear()
             }
 
             MotionEvent.ACTION_POINTER_UP -> {
 
-                // 多指减一，切换主手指坐标，避免单指继续拖动时的瞬移
                 val upIndex = event.actionIndex
-                val newIndex = if (upIndex == 0) 1 else 0
+                val newIndex = (0 until event.pointerCount)
+                    .firstOrNull { it != upIndex }
 
-                if (event.pointerCount > newIndex) {
+                if (newIndex != null) {
                     lastX = event.getX(newIndex)
                     lastY = event.getY(newIndex)
                 }
 
-                // 缩放产生的速度不能作为 fling 使用
                 velocityTracker?.clear()
                 isDragging = false
             }
@@ -451,13 +443,13 @@ class ZoomGestureHelper private constructor(
                 velocityTracker?.recycle()
                 velocityTracker = null
 
-                // 只有真正单指拖拽过、且当前已放大、且未在缩放，才允许 fling
-                if (config.enableFling &&
-                    isDragging &&
-                    !isScaling &&
-                    currentScale > 1f &&
-                    event.actionMasked == MotionEvent.ACTION_UP
-                ) {
+                val willFling = config.enableFling &&
+                        isDragging &&
+                        !isScaling &&
+                        currentScale > 1f &&
+                        event.actionMasked == MotionEvent.ACTION_UP
+
+                if (willFling) {
                     startFling(vx, vy)
                 }
 
@@ -465,6 +457,10 @@ class ZoomGestureHelper private constructor(
 
                 if (config.autoResetWhenRelease) {
                     reset()
+                }
+
+                if (!willFling && currentAnimator == null) {
+                    setHardwareLayer(false)
                 }
             }
         }
@@ -536,6 +532,8 @@ class ZoomGestureHelper private constructor(
         py: Float
     ) {
 
+        if (abs(to - from) < 0.001f) return
+
         currentAnimator?.cancel()
 
         val animator =
@@ -572,9 +570,13 @@ class ZoomGestureHelper private constructor(
         animator.doOnEnd {
             if (currentAnimator === animator) {
                 currentAnimator = null
+                if (velocityTracker == null) {
+                    setHardwareLayer(false)
+                }
             }
         }
 
+        setHardwareLayer(true)
         currentAnimator = animator
         animator.start()
     }
@@ -591,6 +593,7 @@ class ZoomGestureHelper private constructor(
         if (abs(velocityX) < 300 &&
             abs(velocityY) < 300
         ) {
+            setHardwareLayer(false)
             return
         }
 
@@ -621,9 +624,13 @@ class ZoomGestureHelper private constructor(
         animator.doOnEnd {
             if (currentAnimator === animator) {
                 currentAnimator = null
+                if (velocityTracker == null) {
+                    setHardwareLayer(false)
+                }
             }
         }
 
+        setHardwareLayer(true)
         currentAnimator = animator
         animator.start()
     }
@@ -634,15 +641,19 @@ class ZoomGestureHelper private constructor(
 
     private fun checkBorder() {
 
-        if (targetView !is ImageView) return
+        if (targetView is ImageView) {
+            checkBorderImageView()
+        } else {
+            checkBorderGeneralView()
+        }
+    }
+
+    private fun checkBorderImageView() {
 
         val rect = getMatrixRectF() ?: return
 
-        val viewWidth =
-            targetView.width.toFloat()
-
-        val viewHeight =
-            targetView.height.toFloat()
+        val viewWidth = (targetView as ImageView).width.toFloat()
+        val viewHeight = targetView.height.toFloat()
 
         var dx = 0f
         var dy = 0f
@@ -681,9 +692,38 @@ class ZoomGestureHelper private constructor(
                 viewHeight / 2f - rect.centerY()
         }
 
-        matrix.postTranslate(dx, dy)
+        if (dx != 0f || dy != 0f) {
+            matrix.postTranslate(dx, dy)
+            targetView.imageMatrix = matrix
+        }
+    }
 
-        targetView.imageMatrix = matrix
+    /**
+     * 非 ImageView 边界：scale > 1 时 translation 最大允许偏移 = (scale-1) * size / 2，
+     * 等价于 ImageView checkBorder 的"贴边不留白"语义。
+     */
+    private fun checkBorderGeneralView() {
+
+        val viewW = targetView.width.toFloat()
+        val viewH = targetView.height.toFloat()
+
+        if (viewW <= 0f || viewH <= 0f) return
+
+        val sx = targetView.scaleX
+        val sy = targetView.scaleY
+
+        val maxTx = if (sx > 1f) (sx - 1f) * viewW / 2f else 0f
+        val maxTy = if (sy > 1f) (sy - 1f) * viewH / 2f else 0f
+
+        val newTx = targetView.translationX.coerceIn(-maxTx, maxTx)
+        val newTy = targetView.translationY.coerceIn(-maxTy, maxTy)
+
+        if (newTx != targetView.translationX) {
+            targetView.translationX = newTx
+        }
+        if (newTy != targetView.translationY) {
+            targetView.translationY = newTy
+        }
     }
 
     // =========================
@@ -733,8 +773,6 @@ class ZoomGestureHelper private constructor(
 
                 targetView.imageMatrix = matrix
             }
-
-            doubleTapCount = 0
 
             return
         }
@@ -817,13 +855,15 @@ class ZoomGestureHelper private constructor(
 
             currentScale = 1f
 
-            doubleTapCount = 0
-
             if (currentAnimator === animator) {
                 currentAnimator = null
+                if (velocityTracker == null) {
+                    setHardwareLayer(false)
+                }
             }
         }
 
+        setHardwareLayer(true)
         currentAnimator = animator
         animator.start()
     }
@@ -845,6 +885,29 @@ class ZoomGestureHelper private constructor(
         if (parent is ViewPager2) {
             parent.isUserInputEnabled = !disallow
         }
+    }
+
+    /**
+     * 主动释放：移除所有监听、取消动画、回收 velocityTracker、关闭硬件层。
+     * 适用于 RecyclerView / ViewPager 复用 view 的场景。
+     */
+    fun detach() {
+        currentAnimator?.cancel()
+        currentAnimator = null
+
+        velocityTracker?.recycle()
+        velocityTracker = null
+
+        targetView.setOnTouchListener(null)
+        targetView.removeOnAttachStateChangeListener(attachStateListener)
+
+        targetView.viewTreeObserver
+            ?.takeIf { it.isAlive }
+            ?.removeOnPreDrawListener(preDrawListener)
+
+        setHardwareLayer(false)
+
+        isDetached = true
     }
 
     companion object {

@@ -47,6 +47,24 @@ abstract class SingleItemBindingAdapter<T, VB : ViewBinding> :
 
     abstract fun onBind(binding: VB, data: T)
 
+    /**
+     * onCreateViewHolder 创建完 ViewHolder、绑完点击事件之后回调,
+     * 整个 holder 生命周期只触发一次(后续 submit / setVisible 都不会再进来).
+     *
+     * 用来做"与 data 无关、只跟 View 有关"的一次性配置:
+     * - 嵌套 RecyclerView 设 layoutManager / addItemDecoration / setRecycledViewPool
+     * - 给某个 View 挂 setOnTouchListener 等长期监听
+     * - 给 holder.itemView 上挂 tag、自定义属性
+     *
+     * 与 [onBind] 区分:
+     * - onBind 每次 submit(data) 触发的 notifyItemChanged 都会重新跑,
+     *   适合写"数据 → 视图"的映射
+     * - onViewHolderCreated 只调一次, 适合写"View 自身的结构 / 行为初始化"
+     *
+     * 默认空实现, 业务按需 override.
+     */
+    protected open fun onViewHolderCreated(holder: VH<VB>, binding: VB) = Unit
+
     fun submit(data: T?) {
         this.data = data
         notifyItemChanged(0)
@@ -111,6 +129,7 @@ abstract class SingleItemBindingAdapter<T, VB : ViewBinding> :
         ) as VB
         val holder = VH(binding)
         bindClickListeners(holder)
+        onViewHolderCreated(holder, binding)
         return holder
     }
 
