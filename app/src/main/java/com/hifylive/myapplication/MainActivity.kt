@@ -11,6 +11,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.GridLayoutManager
+import com.gzxkwl.library.utils.SpacingItemDecoration
 import com.hifylive.myapplication.databinding.ActivityMainBinding
 import com.hifylive.myapplication.sample.BannerData
 import com.hifylive.myapplication.sample.BannerHeaderAdapter
@@ -101,6 +102,8 @@ class MainActivity : AppCompatActivity() {
                 toast("点击子View #$position  → ${item.title}")
             }
         }
+
+        SpacingItemDecoration.builder().itemSpacing(16).edge(10).attachRecyclerView(binding.rv)
 
         // ── 演示：外部自定义 SpanSize（PagingHelper 会保留这套规则） ──────────
         // 4 列 Grid：id % 7 == 0 跨满 4 列，id % 3 == 0 占 2 列，其它 1 列
