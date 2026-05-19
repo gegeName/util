@@ -75,6 +75,8 @@ class SpanActivity : AppCompatActivity() {
         demo34CustomTextSpan()
         demo35CustomImageTransform()
         demo36CustomImageGif()
+        demo37GifLocalRemote()
+        demo38SvgLocalRemote()
     }
 
     // ============== 小工具 ==============
@@ -501,6 +503,52 @@ class SpanActivity : AppCompatActivity() {
                 Toast.makeText(this@SpanActivity, "toast", Toast.LENGTH_SHORT).show()
             }
             .into(tv(R.id.tv_demo_custom_image_gif))
+    }
+
+    /**
+     * 37. gif 本地资源 + 网络 URL。
+     *
+     * 本地 GIF 用法(需要在 res/raw 放 *.gif 文件):
+     * ```
+     * .gif(R.raw.my_gif, 44.dp(), 44.dp())
+     * ```
+     * 项目当前没有本地 .gif 资源,此处用 ic_launcher_foreground 作为"本地静态资源"占位。
+     */
+    private fun demo37GifLocalRemote() {
+        SpanBuilder.with(this)
+            .append("本地资源 ")
+            .gif(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
+            .append("  网络 GIF ")
+            .gif(
+                "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3lwNWtqMGdocWpvdWp1Ymtrc2hmeTZnbTI2MG5naHZ6ZnZwbWY3bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/DzFj5QLRs7AZ2/giphy.gif",
+                44.dp(), 44.dp()
+            )
+            .append("  圆形网络 GIF ")
+            .gif(
+                "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3lwNWtqMGdocWpvdWp1Ymtrc2hmeTZnbTI2MG5naHZ6ZnZwbWY3bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/DzFj5QLRs7AZ2/giphy.gif",
+                44.dp(), 44.dp(), circle = true
+            )
+            .into(tv(R.id.tv_demo_gif_local_remote))
+    }
+
+    /**
+     * 38. svg 本地 raw 资源 + 网络 URL。
+     *
+     * 本地资源走 [SpanBuilder.svg] 的 @RawRes 重载,网络 URL 走 String 重载。
+     * 远程 SVG 用 OkHttp 异步下载 → AndroidSVG 解析,失败静默不破坏布局。
+     */
+    private fun demo38SvgLocalRemote() {
+        SpanBuilder.with(this)
+            .append("本地 raw ")
+            .svg(R.raw.sample_star, 44.dp(), 44.dp())
+            .append("  本地圆形 ")
+            .svg(R.raw.sample_star, 44.dp(), 44.dp(), circle = true)
+            .append("  网络 SVG ")
+            .svg(
+                "https://upload.wikimedia.org/wikipedia/commons/0/02/SVG_logo.svg",
+                44.dp(), 44.dp()
+            )
+            .into(tv(R.id.tv_demo_svg_local_remote))
     }
 
     /**

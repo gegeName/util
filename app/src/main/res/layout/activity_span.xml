@@ -438,6 +438,28 @@
             android:id="@+id/tv_demo_custom_image_gif"
             style="@style/Demo" />
 
+        <!-- ========================================================== -->
+        <!-- 37. gif 本地 + 网络                                          -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="37. gif 本地 res + 网络 URL" />
+
+        <TextView
+            android:id="@+id/tv_demo_gif_local_remote"
+            style="@style/Demo" />
+
+        <!-- ========================================================== -->
+        <!-- 38. svg 本地 res + 网络 URL                                  -->
+        <!-- ========================================================== -->
+        <TextView
+            style="@style/Section"
+            android:text="38. svg 本地 raw + 网络 URL" />
+
+        <TextView
+            android:id="@+id/tv_demo_svg_local_remote"
+            style="@style/Demo" />
+
     </LinearLayout>
 
 </ScrollView>

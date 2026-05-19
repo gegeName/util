@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -19,12 +20,13 @@ import java.io.IOException
  * - `String` 以 `http://` / `https://` 开头: OkHttp 异步下载,主线程回调。
  * - `String` 其他形式(本地文件绝对路径或 `file://` URI): 同步读文件并解析。
  *
- * 解析失败 / 文件不存在 / 网络失败时静默丢弃,onReady 不会被回调,
- * SpanBuilder 占位符会保留为透明区域,不会破坏文字布局。
+ * 解析失败 / 文件不存在 / 网络失败时静默丢弃 onReady,但会通过 [Log] 打 warn,
+ * 便于排查;SpanBuilder 占位符会保留为透明区域,不破坏文字布局。
  *
  * `circle` 参数会在加载完成后用 [RoundMaskDrawable] 包装,与 GIF 走相同流程。
  *
- * 远程下载共享一个 OkHttpClient 单例,避免每次新建连接池造成内存抖动。
+ * 远程下载共享一个 OkHttpClient 单例(预设浏览器风格 UA + 跟随重定向),
+ * 避免每次新建连接池造成内存抖动,同时避开部分服务器对默认 okhttp UA 的 403。
  */
 class DefaultSvgLoader(
     private val client: OkHttpClient = sharedClient,
@@ -44,9 +46,10 @@ class DefaultSvgLoader(
                     context.resources.openRawResource(url).use { stream ->
                         SvgRenderer.render(stream, width, height)
                     }
-                }.getOrNull()?.let { drawable ->
-                    onReady(maybeWrap(drawable, circle))
-                }
+                }.onFailure { Log.w(TAG, "raw svg parse failed: $url", it) }
+                    .getOrNull()?.let { drawable ->
+                        onReady(maybeWrap(drawable, circle))
+                    }
             }
 
             is String -> {
@@ -58,9 +61,10 @@ class DefaultSvgLoader(
                         File(path).inputStream().use { stream ->
                             SvgRenderer.render(stream, width, height)
                         }
-                    }.getOrNull()?.let { drawable ->
-                        onReady(maybeWrap(drawable, circle))
-                    }
+                    }.onFailure { Log.w(TAG, "file svg parse failed: $path", it) }
+                        .getOrNull()?.let { drawable ->
+                            onReady(maybeWrap(drawable, circle))
+                        }
                 }
             }
         }
@@ -73,19 +77,32 @@ class DefaultSvgLoader(
         circle: Boolean,
         onReady: (Drawable) -> Unit,
     ) {
-        val req = Request.Builder().url(url).build()
+        val req = Request.Builder()
+            .url(url)
+            .header("User-Agent", DEFAULT_UA)
+            .header("Accept", "image/svg+xml,image/*;q=0.8,*/*;q=0.5")
+            .build()
         client.newCall(req).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) = Unit
+            override fun onFailure(call: Call, e: IOException) {
+                Log.w(TAG, "remote svg failed: $url", e)
+            }
 
             override fun onResponse(call: Call, response: Response) {
                 response.use { resp ->
-                    if (!resp.isSuccessful) return
-                    val body = resp.body ?: return
+                    if (!resp.isSuccessful) {
+                        Log.w(TAG, "remote svg http ${resp.code}: $url")
+                        return
+                    }
+                    val body = resp.body ?: run {
+                        Log.w(TAG, "remote svg empty body: $url")
+                        return
+                    }
                     val drawable = runCatching {
                         body.byteStream().use { stream ->
                             SvgRenderer.render(stream, width, height)
                         }
-                    }.getOrNull() ?: return
+                    }.onFailure { Log.w(TAG, "remote svg parse failed: $url", it) }
+                        .getOrNull() ?: return
                     val finalDrawable = maybeWrap(drawable, circle)
                     mainHandler.post { onReady(finalDrawable) }
                 }
@@ -97,7 +114,15 @@ class DefaultSvgLoader(
         if (circle) RoundMaskDrawable(drawable, cornerRadius = -1f) else drawable
 
     companion object {
+        private const val TAG = "DefaultSvgLoader"
+        private const val DEFAULT_UA =
+            "Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
         private val mainHandler = Handler(Looper.getMainLooper())
-        private val sharedClient by lazy { OkHttpClient() }
+        private val sharedClient by lazy {
+            OkHttpClient.Builder()
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .build()
+        }
     }
 }
