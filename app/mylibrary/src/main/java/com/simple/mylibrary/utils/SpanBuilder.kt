@@ -1304,7 +1304,15 @@ class SpanBuilder private constructor(private val context: Context) {
                 tvRef.get()?.removeCallbacks(what)
             }
         }
+        android.util.Log.d(
+            "SpanBuilder",
+            "wireAnimatable: $animatable isRunning=${animatable.isRunning} tv=${tvRef.get()}"
+        )
         if (!animatable.isRunning) animatable.start()
+        android.util.Log.d(
+            "SpanBuilder",
+            "wireAnimatable after start: $animatable isRunning=${animatable.isRunning}"
+        )
     }
 
     /**
