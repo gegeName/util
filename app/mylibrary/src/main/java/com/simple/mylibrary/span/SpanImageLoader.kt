@@ -27,7 +27,7 @@ fun interface SpanImageLoader {
      */
     fun load(
         context: Context,
-        url: String,
+        url: Any,
         @Px width: Int,
         @Px height: Int,
         circle: Boolean,

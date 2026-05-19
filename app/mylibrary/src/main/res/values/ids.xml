@@ -2,4 +2,6 @@
 <resources>
     <item type="id" name="span_builder_load_token"/>
     <item type="id" name="span_builder_added_line_spacing"/>
+    <item type="id" name="span_builder_anim_listener"/>
+    <item type="id" name="span_builder_anim_list"/>
 </resources>

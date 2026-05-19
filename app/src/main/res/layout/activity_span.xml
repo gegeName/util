@@ -434,6 +434,10 @@
             android:id="@+id/tv_demo_custom_image_transform"
             style="@style/Demo" />
 
+        <TextView
+            android:id="@+id/tv_demo_custom_image_gif"
+            style="@style/Demo" />
+
     </LinearLayout>
 
 </ScrollView>

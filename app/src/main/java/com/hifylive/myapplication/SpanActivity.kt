@@ -74,6 +74,7 @@ class SpanActivity : AppCompatActivity() {
         demo33ImageBorderUrl()
         demo34CustomTextSpan()
         demo35CustomImageTransform()
+        demo36CustomImageGif()
     }
 
     // ============== 小工具 ==============
@@ -486,6 +487,20 @@ class SpanActivity : AppCompatActivity() {
                 Toast.makeText(this@SpanActivity, "toast", Toast.LENGTH_SHORT).show()
             }
             .into(tv(R.id.tv_demo_custom_image_transform))
+    }
+
+    private fun demo36CustomImageGif() {
+        SpanBuilder.with(this)
+            .append("原图 ")
+            .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
+            .append("  圆角变换 ")
+            .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
+            .append("  URL GIF ")
+            .gif("https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3lwNWtqMGdocWpvdWp1Ymtrc2hmeTZnbTI2MG5naHZ6ZnZwbWY3bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/DzFj5QLRs7AZ2/giphy.gif",44.dp(),44.dp(),true)
+            .onClick {
+                Toast.makeText(this@SpanActivity, "toast", Toast.LENGTH_SHORT).show()
+            }
+            .into(tv(R.id.tv_demo_custom_image_gif))
     }
 
     /**

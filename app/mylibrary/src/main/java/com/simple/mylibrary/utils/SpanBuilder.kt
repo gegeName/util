@@ -27,11 +27,17 @@ import androidx.core.graphics.drawable.toDrawable
 import com.simple.mylibrary.R
 import com.simple.mylibrary.span.BlankWidthSpan
 import com.simple.mylibrary.span.BorderedImageDrawable
+import com.simple.mylibrary.span.DefaultSvgLoader
 import com.simple.mylibrary.span.GlideSpanImageLoader
+import com.simple.mylibrary.span.RoundMaskDrawable
 import com.simple.mylibrary.span.SpanImageLoader
 import com.simple.mylibrary.span.TextDecorationSpan
 import com.simple.mylibrary.span.VerticalShiftSpan
 import android.graphics.Typeface
+import android.graphics.drawable.Animatable
+import android.os.SystemClock
+import androidx.annotation.RawRes
+import java.lang.ref.WeakReference
 import kotlin.math.abs
 
 /**
@@ -50,7 +56,13 @@ class SpanBuilder private constructor(private val context: Context) {
     private val pendingImageBorders = mutableMapOf<CenterAlignImageSpan, ImageBorderConfig>()
     private val pendingImageTransforms =
         mutableMapOf<CenterAlignImageSpan, (Drawable, Int, Int) -> Drawable>()
-
+    /**
+     * 已知的 Animatable Drawable 集合（GIF / WebP 动图 / AnimatedImageDrawable）。
+     * [into] 会给每个 Drawable 挂上 [Drawable.Callback] 把帧刷新转发到 TextView，
+     * 并通过 attach/detach 监听器控制 start/stop，确保 RecyclerView 复用、Fragment
+     * 不可见时不会持续占用主线程。
+     */
+    private val animatables = mutableListOf<Animatable>()
     private var needsSoftwareLayer = false
 
     /** 是否包含 ClickableSpan，[into] / [buildAndAttach] 时把 highlightColor 设为透明，消除点击闪烁。 */
@@ -66,11 +78,13 @@ class SpanBuilder private constructor(private val context: Context) {
     // ── 内部数据类 ─────────────────────────────────────────────────────────
 
     private data class PendingImageLoad(
-        val url: String,
+        val url: Any,
         val placeholder: CenterAlignImageSpan,
         val width: Int,
         val height: Int,
         val circle: Boolean,
+        /** 该 load 使用的加载器;null 表示用全局 [imageLoader](默认 Glide)。 */
+        val loader: SpanImageLoader? = null,
     )
 
     /**
@@ -116,6 +130,13 @@ class SpanBuilder private constructor(private val context: Context) {
          */
         private var imageLoader: SpanImageLoader = GlideSpanImageLoader()
         @JvmStatic fun setImageLoader(loader: SpanImageLoader) { imageLoader = loader }
+
+        /**
+         * 全局 SVG 加载器,默认 [DefaultSvgLoader](OkHttp + AndroidSVG)。
+         * 项目想换实现(例如复用业务侧 OkHttpClient / Coil)调 [setSvgLoader] 即可。
+         */
+        private var svgLoader: SpanImageLoader = DefaultSvgLoader()
+        @JvmStatic fun setSvgLoader(loader: SpanImageLoader) { svgLoader = loader }
 
         /**
          * 全局文字自定义 Span 工厂。[customTextSpan] 无参版使用此工厂。
@@ -189,6 +210,8 @@ class SpanBuilder private constructor(private val context: Context) {
         ssb.append(" ")
         val end = ssb.length
         ssb.setSpan(CenterAlignImageSpan(drawable), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        // 动图(GIF / AnimatedImageDrawable 等)登记到 animatables, 由 into() 统一驱动播放
+        if (drawable is Animatable) animatables.add(drawable)
         segments = listOf(start to end)
         return this
     }
@@ -219,6 +242,77 @@ class SpanBuilder private constructor(private val context: Context) {
         val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
         ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         pendingImageLoads.add(PendingImageLoad(url, placeholderSpan, width, height, circle))
+        segments = listOf(start to end)
+        return this
+    }
+
+    /**
+     * 添加本地 GIF / WebP 动图(@RawRes 或 @DrawableRes)。走 Glide 异步解码,
+     * 加载完成后由 [into] 自动启动动画(同时也支持静态图,等价于通过 Glide 加载的 [image]).
+     *
+     * 必须配合 [into] 使用,否则不会触发实际加载。
+     *
+     * @param resId 资源 ID(放 res/raw 或 res/drawable 均可)。
+     * @param width 显示宽度,单位 px。
+     * @param height 显示高度,单位 px。
+     * @param circle 是否裁剪为圆形,默认 false。
+     */
+    fun gif(@RawRes @DrawableRes resId: Int, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder {
+        val start = ssb.length
+        ssb.append(" ")
+        val end = ssb.length
+        val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
+        ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        pendingImageLoads.add(PendingImageLoad(resId, placeholderSpan, width, height, circle))
+        segments = listOf(start to end)
+        return this
+    }
+
+    /**
+     * 添加远程 GIF / WebP 动图。语义等同于 [image] 的 URL 版,仅为可读性而提供。
+     */
+    fun gif(url: String, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder =
+        image(url, width, height, circle)
+
+    /**
+     * 添加 SVG 矢量图,统一入口,支持:
+     *
+     * - **远程 URL**: `http://` / `https://` 开头,异步下载 → AndroidSVG 解析。
+     * - **本地文件**: 绝对路径或 `file://` URI,同步读盘 → 解析。
+     *
+     * 必须配合 [into] / [buildAndAttach] 使用,[build] 模式不会触发加载。
+     * SVG 解析失败 / 网络失败时占位符保持透明,不破坏文字布局。
+     *
+     * 如果 SVG 已在 build 时转成 VectorDrawable,直接用 [image] (@DrawableRes) 即可。
+     *
+     * @param url    SVG 资源地址(URL 或本地路径)
+     * @param width  显示宽度 px
+     * @param height 显示高度 px
+     * @param circle 是否裁剪为圆形,默认 false
+     */
+    fun svg(url: String, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder =
+        addSvgLoad(url, width, height, circle)
+
+    /**
+     * 添加本地 SVG 资源(放 res/raw 的原始 .svg)。
+     *
+     * @param resId res/raw 下的 .svg 资源 ID
+     * @param width 显示宽度 px
+     * @param height 显示高度 px
+     * @param circle 是否裁剪为圆形,默认 false
+     */
+    fun svg(@RawRes resId: Int, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder =
+        addSvgLoad(resId, width, height, circle)
+
+    private fun addSvgLoad(url: Any, width: Int, height: Int, circle: Boolean): SpanBuilder {
+        val start = ssb.length
+        ssb.append(" ")
+        val end = ssb.length
+        val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
+        ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        pendingImageLoads.add(
+            PendingImageLoad(url, placeholderSpan, width, height, circle, loader = svgLoader)
+        )
         segments = listOf(start to end)
         return this
     }
@@ -867,39 +961,9 @@ class SpanBuilder private constructor(private val context: Context) {
         textView: TextView,
         onUpdate: ((CharSequence) -> Unit)? = null,
     ): CharSequence {
-        textView.movementMethod = LinkMovementMethod.getInstance()
-        if (hasClickable) textView.highlightColor = Color.TRANSPARENT
-        applyExtraVerticalPadding(textView)
-        if (needsSoftwareLayer && !textView.isInEditMode) {
-            textView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
-        }
+        val tvRef = prepareTextView(textView)
         if (pendingImageLoads.isEmpty()) return ssb
-
-        val tagKey = R.id.span_builder_load_token
-        textView.setTag(tagKey, ssb)
-        pendingImageLoads.forEach { load ->
-            imageLoader.load(context, load.url, load.width, load.height, load.circle) { resource ->
-                if (textView.getTag(tagKey) !== ssb) return@load
-                val curStart = ssb.getSpanStart(load.placeholder)
-                val curEnd = ssb.getSpanEnd(load.placeholder)
-                if (curStart !in 0 until curEnd || curEnd > ssb.length) return@load
-                resource.setBounds(0, 0, load.width, load.height)
-                ssb.removeSpan(load.placeholder)
-                val borderConfig = pendingImageBorders.remove(load.placeholder)
-                val transformer = pendingImageTransforms.remove(load.placeholder)
-                var finalDrawable: Drawable = if (borderConfig != null) {
-                    makeBorderedDrawable(resource, borderConfig).also {
-                        it.setBounds(0, 0, load.width, load.height)
-                    }
-                } else resource
-                if (transformer != null) {
-                    finalDrawable = transformer(finalDrawable, load.width, load.height)
-                    finalDrawable.setBounds(0, 0, load.width, load.height)
-                }
-                ssb.setSpan(CenterAlignImageSpan(finalDrawable), curStart, curEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                onUpdate?.invoke(ssb)
-            }
-        }
+        dispatchPendingImageLoads(textView, tvRef) { onUpdate?.invoke(ssb) }
         return ssb
     }
 
@@ -913,19 +977,45 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param textView 目标 TextView
      */
     fun into(textView: TextView) {
+        val tvRef = prepareTextView(textView)
+        if (pendingImageLoads.isEmpty()) {
+            textView.text = ssb
+            return
+        }
+        var initialTextSet = false
+        dispatchPendingImageLoads(textView, tvRef) {
+            if (initialTextSet) textView.text = ssb
+        }
+        initialTextSet = true
+        textView.text = ssb
+    }
+
+    private fun prepareTextView(textView: TextView): WeakReference<TextView> {
         textView.movementMethod = LinkMovementMethod.getInstance()
-        // 有 ClickableSpan 时把高亮色设为透明，消除点击时一闪而过的背景色
         if (hasClickable) textView.highlightColor = Color.TRANSPARENT
         applyExtraVerticalPadding(textView)
         if (needsSoftwareLayer && !textView.isInEditMode) {
             textView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
+        val tvRef = WeakReference(textView)
+        animatables.forEach { wireAnimatable(it, tvRef) }
+        attachAnimationLifecycle(textView)
+        return tvRef
+    }
+
+    /**
+     * [into] / [buildAndAttach] 共用的网络图片加载循环。
+     */
+    private fun dispatchPendingImageLoads(
+        textView: TextView,
+        tvRef: WeakReference<TextView>,
+        onResolved: () -> Unit,
+    ) {
         val tagKey = R.id.span_builder_load_token
         textView.setTag(tagKey, ssb)
-        if (pendingImageLoads.isEmpty()) { textView.text = ssb; return }
-        var initialTextSet = false
         pendingImageLoads.forEach { load ->
-            imageLoader.load(context, load.url, load.width, load.height, load.circle) { resource ->
+            val loader = load.loader ?: imageLoader
+            loader.load(context, load.url, load.width, load.height, load.circle) { resource ->
                 if (textView.getTag(tagKey) !== ssb) return@load
                 val curStart = ssb.getSpanStart(load.placeholder)
                 val curEnd = ssb.getSpanEnd(load.placeholder)
@@ -943,12 +1033,82 @@ class SpanBuilder private constructor(private val context: Context) {
                     finalDrawable = transformer(finalDrawable, load.width, load.height)
                     finalDrawable.setBounds(0, 0, load.width, load.height)
                 }
-                ssb.setSpan(CenterAlignImageSpan(finalDrawable), curStart, curEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                if (initialTextSet) textView.text = ssb
+                ssb.setSpan(
+                    CenterAlignImageSpan(finalDrawable), curStart, curEnd,
+                    Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                )
+                registerAsyncAnimatable(resource, finalDrawable, tvRef)
+                onResolved()
             }
         }
-        initialTextSet = true
-        textView.text = ssb
+    }
+
+    /**
+     * 异步加载完成后,如果 drawable 是 Animatable(GifDrawable / WebpDrawable / AnimatedImageDrawable 等),
+     */
+    private fun registerAsyncAnimatable(
+        resource: Drawable,
+        finalDrawable: Drawable,
+        tvRef: WeakReference<TextView>,
+    ) {
+        val animatable = (finalDrawable as? Animatable)
+            ?: (resource as? Animatable)
+            ?: return
+        wireAnimatable(animatable, tvRef)
+        if (!animatables.contains(animatable)) animatables.add(animatable)
+    }
+
+    /**
+     * 把 [Animatable] 的帧刷新转发到 TextView。
+     */
+    private fun wireAnimatable(animatable: Animatable, tvRef: WeakReference<TextView>) {
+        val drawable = animatable as? Drawable ?: return
+        drawable.callback = object : Drawable.Callback {
+            override fun invalidateDrawable(who: Drawable) {
+                tvRef.get()?.invalidate()
+            }
+
+            override fun scheduleDrawable(who: Drawable, what: Runnable, time: Long) {
+                tvRef.get()?.postDelayed(what, time - SystemClock.uptimeMillis())
+            }
+
+            override fun unscheduleDrawable(who: Drawable, what: Runnable) {
+                tvRef.get()?.removeCallbacks(what)
+            }
+        }
+        if (!animatable.isRunning) animatable.start()
+    }
+
+    /**
+     * 给 TextView 挂 attach/detach 监听:detach 时统一 stop 所有动图、attach 时 restart。
+     */
+    private fun attachAnimationLifecycle(textView: TextView) {
+        val listenerTag = R.id.span_builder_anim_listener
+        val animListTag = R.id.span_builder_anim_list
+
+        @Suppress("UNCHECKED_CAST")
+        val previousList = textView.getTag(animListTag) as? MutableList<Animatable>
+        previousList?.forEach { prev ->
+            if (prev.isRunning) prev.stop()
+            (prev as? RoundMaskDrawable)?.release()
+        }
+
+        val previous = textView.getTag(listenerTag) as? View.OnAttachStateChangeListener
+        if (previous != null) textView.removeOnAttachStateChangeListener(previous)
+
+        val animListRef = animatables  // 闭包持有同一个引用,后续异步加载追加的项也能感知
+        val listener = object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                animListRef.forEach { if (!it.isRunning) it.start() }
+            }
+
+            override fun onViewDetachedFromWindow(v: View) {
+                animListRef.forEach { if (it.isRunning) it.stop() }
+            }
+        }
+        textView.addOnAttachStateChangeListener(listener)
+        textView.setTag(listenerTag, listener)
+        textView.setTag(animListTag, animListRef)
     }
 
     private fun transparentPlaceholder(w: Int, h: Int): Drawable =

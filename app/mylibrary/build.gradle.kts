@@ -40,8 +40,10 @@ dependencies {
 
     api("com.squareup.retrofit2:retrofit:3.0.0")
     api("com.squareup.retrofit2:converter-gson:3.0.0")
+    api("com.squareup.okhttp3:okhttp:5.3.2")
     api("com.squareup.okhttp3:logging-interceptor:5.3.2")
     api("com.github.bumptech.glide:glide:5.0.5")
+    api("com.caverock:androidsvg-aar:1.4")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")

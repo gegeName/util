@@ -15,21 +15,23 @@ import com.bumptech.glide.request.transition.Transition
 class GlideSpanImageLoader : SpanImageLoader {
     override fun load(
         context: Context,
-        url: String,
+        url: Any,
         width: Int,
         height: Int,
         circle: Boolean,
         onReady: (Drawable) -> Unit,
     ) {
         var options = RequestOptions().override(width, height)
-        if (circle) options = options.circleCrop()
         Glide.with(context).asDrawable().load(url).apply(options)
             .into(object : CustomTarget<Drawable>() {
                 override fun onResourceReady(
                     resource: Drawable,
                     transition: Transition<in Drawable>?
                 ) {
-                    onReady(resource)
+                    val finalDrawable: Drawable =
+                        if (circle) RoundMaskDrawable(resource, cornerRadius = -1f)
+                        else resource
+                    onReady(finalDrawable)
                 }
 
                 override fun onLoadCleared(placeholder: Drawable?) {}
