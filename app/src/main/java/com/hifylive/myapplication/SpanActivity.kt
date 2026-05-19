@@ -83,6 +83,7 @@ class SpanActivity : AppCompatActivity() {
         demo37GifLocalRemote()
         demo38SvgLocalRemote()
         demo39EmojiRegistry()
+        demo41Svga()
     }
 
     // ============== 小工具 ==============
@@ -576,6 +577,25 @@ class SpanActivity : AppCompatActivity() {
             .replaceEmoji(22.dp(), 22.dp())
             .find("喜欢").color(0xFFE91E63.toInt()).bold()
             .into(tv(R.id.tv_demo_emoji))
+    }
+
+    /**
+     * 41. svga 礼物特效。
+     *
+     * 把 .svga 文件放到 app/src/main/assets/ 根目录,直接传文件名即可。
+     * 如果没有现成文件本 demo 不会显示,SpanBuilder 占位符保持透明,不影响其他文字。
+     *
+     * 远程用法:`.svga("https://your.cdn/gift.svga", 56.dp(), 56.dp())`
+     */
+    private fun demo41Svga() {
+        SpanBuilder.with(this)
+            .append("礼物 ")
+            .svga(
+                "https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/Rocket.svga",
+                160.dp(), 96.dp(),  // Rocket.svga 是 1080:630 横版,按比例放大方便看
+            )
+            .append(" 已发送")
+            .into(tv(R.id.tv_demo_svga))
     }
 
     /**

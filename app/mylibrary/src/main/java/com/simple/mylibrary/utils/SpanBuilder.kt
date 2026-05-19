@@ -38,6 +38,8 @@ import com.simple.mylibrary.span.Releasable
 import com.simple.mylibrary.span.RoundMaskDrawable
 import com.simple.mylibrary.span.RepeatConfig
 import com.simple.mylibrary.span.SpanImageLoader
+import com.simple.mylibrary.span.SvgaSpanDrawable
+import com.simple.mylibrary.span.SvgaSpanLoader
 import com.simple.mylibrary.span.TextDecorationSpan
 import com.simple.mylibrary.span.VerticalShiftSpan
 import android.graphics.Typeface
@@ -151,6 +153,14 @@ class SpanBuilder private constructor(private val context: Context) {
          */
         private var svgLoader: SpanImageLoader = DefaultSvgLoader()
         @JvmStatic fun setSvgLoader(loader: SpanImageLoader) { svgLoader = loader }
+
+        /**
+         * 全局 SVGA 加载器,默认 [SvgaSpanLoader]。SVGA Entity 通过
+         * [com.simple.mylibrary.span.SvgaCache] LRU 共享,RecyclerView 复用同 URL
+         * 不会重复解码。
+         */
+        private var svgaLoader: SpanImageLoader = SvgaSpanLoader()
+        @JvmStatic fun setSvgaLoader(loader: SpanImageLoader) { svgaLoader = loader }
 
         /**
          * 全局文字自定义 Span 工厂。[customTextSpan] 无参版使用此工厂。
@@ -326,6 +336,41 @@ class SpanBuilder private constructor(private val context: Context) {
         ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         pendingImageLoads.add(
             PendingImageLoad(url, placeholderSpan, width, height, circle, loader = svgLoader)
+        )
+        segments = listOf(start to end)
+        return this
+    }
+
+    /**
+     * 添加 SVGA 动效(直播礼物 / 复杂动画首选)。
+     *
+     * **资源类型**:
+     * - `http://` / `https://` URL: 远端 .svga 文件,SVGAParser 自带下载。
+     * - 其他字符串: 当作 assets 根目录文件名(`xxx.svga`)。
+     *
+     * **必须配合 [into] / [buildAndAttach] 使用**;[build] 模式不会触发加载。
+     *
+     * **复用 / 内存说明**:
+     * - SVGA Entity 由 [com.simple.mylibrary.span.SvgaCache] 跨 holder 共享,
+     *   同 URL 在 RecyclerView 滚动复用时不会重复解码,杜绝最大头的内存抖动。
+     * - 每个使用点持有的 [SvgaSpanDrawable] 只是几 KB 的壳子,内部 1 张帧 Bitmap
+     *   随 bounds 变化按需重建,不每帧 new。
+     * - 与 GIF / SVG 一样,detach/attach 通过 [Animatable] 接口自动 pause/start;
+     *   bind 新数据通过 `Releasable.release()` 解引用旧实例(entity 留在缓存)。
+     *
+     * @param url    .svga 远端 URL 或 assets 文件名
+     * @param width  显示宽度 px
+     * @param height 显示高度 px
+     * @param circle 是否裁剪为圆形,默认 false
+     */
+    fun svga(url: String, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder {
+        val start = ssb.length
+        ssb.append(" ")
+        val end = ssb.length
+        val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
+        ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        pendingImageLoads.add(
+            PendingImageLoad(url, placeholderSpan, width, height, circle, loader = svgaLoader)
         )
         segments = listOf(start to end)
         return this
@@ -1126,7 +1171,12 @@ class SpanBuilder private constructor(private val context: Context) {
         }
         var initialTextSet = false
         dispatchPendingImageLoads(textView, tvRef) {
-            if (initialTextSet) textView.text = ssb
+            if (initialTextSet) {
+                // 把同一个 ssb 重新 set 给 textView,Android 内部会判断引用相同跳过重排,
+                // 导致新 setSpan 的 ImageSpan 不刷新。这里先置空再重设,强制 layout。
+                textView.text = ""
+                textView.text = ssb
+            }
         }
         initialTextSet = true
         textView.text = ssb
@@ -1223,6 +1273,12 @@ class SpanBuilder private constructor(private val context: Context) {
         finalDrawable: Drawable,
         tvRef: WeakReference<TextView>,
     ) {
+        // SvgaSpanDrawable 用自己的 Choreographer 抓帧,需要直接持有 textView 弱引用,
+        // 不依赖外层 Drawable.Callback 链路(包了 RoundMask 后 callback 会被覆盖)。
+        val tv = tvRef.get()
+        if (tv != null) {
+            (resource as? SvgaSpanDrawable)?.bindHost(tv)
+        }
         val animatable = (finalDrawable as? Animatable)
             ?: (resource as? Animatable)
             ?: return

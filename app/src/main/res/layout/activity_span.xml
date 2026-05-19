@@ -12,7 +12,14 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp">
+        <!-- 41. svga 礼物特效 -->
+        <TextView
+            style="@style/Section"
+            android:text="41. svga 礼物特效(assets/gift.svga)" />
 
+        <TextView
+            android:id="@+id/tv_demo_svga"
+            style="@style/Demo" />
 
         <!-- 40. 字符级入场动画(放最上面,Activity 启动时就能看到) -->
         <TextView
@@ -486,6 +493,8 @@
         <TextView
             android:id="@+id/tv_demo_emoji"
             style="@style/Demo" />
+
+
 
         <!-- 40. 字符级入场动画 已移到最上面 -->
 

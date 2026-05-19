@@ -25,6 +25,8 @@ dependencyResolutionManagement {
         maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
         google()
         mavenCentral()
+        // SVGAPlayer-Android 发布在 jitpack
+        maven { url = uri("https://jitpack.io") }
     }
 }
 

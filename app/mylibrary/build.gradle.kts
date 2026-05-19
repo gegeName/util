@@ -44,6 +44,7 @@ dependencies {
     api("com.squareup.okhttp3:logging-interceptor:5.3.2")
     api("com.github.bumptech.glide:glide:5.0.5")
     api("com.caverock:androidsvg-aar:1.4")
+    api("com.github.yyued:SVGAPlayer-Android:2.6.1")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
