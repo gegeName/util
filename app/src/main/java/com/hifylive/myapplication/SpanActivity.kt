@@ -589,12 +589,21 @@ class SpanActivity : AppCompatActivity() {
      */
     private fun demo41Svga() {
         SpanBuilder.with(this)
-            .append("礼物 ")
+            .append("天使 ")
             .svga(
-                "https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/Rocket.svga",
-                160.dp(), 96.dp(),  // Rocket.svga 是 1080:630 横版,按比例放大方便看
+                "https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/angel.svga",
+                120.dp(), 120.dp(),
             )
-            .append(" 已发送")
+            .append(" 国王 ")
+            .svga(
+                "https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/kingset.svga",
+                120.dp(), 120.dp(),
+            )
+            .append(" 弹跳 ")
+            .svga(
+                "https://cdn.jsdelivr.net/gh/svga/SVGA-Samples@master/PinJump.svga",
+                64.dp(), 64.dp(),
+            )
             .into(tv(R.id.tv_demo_svga))
     }
 

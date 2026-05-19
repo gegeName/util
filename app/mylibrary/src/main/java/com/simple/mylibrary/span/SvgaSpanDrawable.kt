@@ -1,5 +1,7 @@
 package com.simple.mylibrary.span
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.ColorFilter
@@ -9,81 +11,75 @@ import android.graphics.PorterDuff
 import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.view.Choreographer
+import android.view.View
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.graphics.createBitmap
-import com.opensource.svgaplayer.SVGADrawable
-import com.opensource.svgaplayer.SVGADynamicEntity
+import com.opensource.svgaplayer.SVGAImageView
 import com.opensource.svgaplayer.SVGAVideoEntity
 import java.lang.ref.WeakReference
 
 /**
  * SVGA → ImageSpan 桥接 Drawable。
  *
- * **设计要点**:
+ * **实现思路**:用一个**离屏的 SVGAImageView** 作为渲染引擎,每帧 stepToFrame 后
+ * imageView.draw(离屏 Canvas) 抓帧到 frameBitmap,再 drawBitmap 到外层。
+ * 这样所有 SVGA 内部状态(sprites、drawer、sharedValues、Matrix 等)
+ * 都跟正常 SVGAImageView 一致,避免 internal API 重构带来的破坏。
  *
- * 1. 把 [SVGADrawable] 包一层,适配 [Animatable] / [Releasable] 接口。
- * 2. 用 Choreographer 抓帧:每帧推进 currentFrame 后让外层 invalidate。
- * 3. 内部 Bitmap 复用 —— 不每帧 new。
+ * **RecyclerView 复用 + 内存抖动控制**:
  *
- * **RecyclerView 复用注意**:
- * - 同 URL 的 [SVGAVideoEntity] 由 [SvgaCache] LRU 共享,Drawable 是轻量壳。
- * - 复用 holder 时旧实例 [release] 解引用,entity 仍在缓存中,下次 bind 同 URL 直接命中。
- * - detach 时 [stop] 暂停 Choreographer,attach 回来 [start] 续播。
+ * 1. **Entity 共享**:同 URL entity 由 [SvgaCache] LRU 共享,壳子轻量。
+ * 2. **三态生命周期**:
+ *    - `start` / `pause` 可恢复:detach 走 pause(保留 imageView 和 entity);attach 回 start。
+ *    - `stop` / `release` 终态:bind 新数据走 release,disposed=true 后续 start 拒绝。
+ *      WeakReference + Application context 避免 Activity 泄漏。
+ * 3. **disposed 锁**:防止 RecyclerView 快速复用时 stale runnable 让旧 driver 复活。
+ * 4. **Bitmap 复用**:bounds 不变不重建;detach 时主动 recycle 节省 native 内存。
+ * 5. **Choreographer 严格管理**:doFrame 检测 hostRef 失效立即 stop,不空跑。
  *
- * **内存抖动控制**:
- * - 每个实例只持有 1 张 [frameBitmap],bounds 不变就不重建。
- * - SVGADrawable 内部的 SpriteEntity 列表由 entity 持有(共享),壳子里不复制。
- *
- * @param entity     共享 entity,多个 Drawable 实例可指向同一个。
- * @param widthPx    显示宽度。
- * @param heightPx   显示高度。
+ * **Activity 引用保护**:SVGAImageView 内部需要 Context 拿资源,这里我们尽量取
+ * applicationContext;实在拿不到才回退到传入的 host(用户自己保证传 Activity 时能管理)。
+ * 实际持有的 SVGAImageView 在 [release] 时设为 null,允许 GC 释放 Activity。
  */
 class SvgaSpanDrawable(
     private val entity: SVGAVideoEntity,
     private val widthPx: Int,
     private val heightPx: Int,
+    host: Context,
 ) : Drawable(), Animatable, Releasable {
 
-    private val inner: SVGADrawable = SVGADrawable(entity, SVGADynamicEntity()).apply {
-        // SVGADrawable 默认 scaleType=MATRIX,我们没传 matrix,会导致雪碧图按原始 viewBox
-        // 画到 (0,0),50dp 的 bounds 只能看到左上一小块。改成 FIT_XY 让它填满 bounds
-        // (礼物特效一般是正方形,等比拉伸即可)。需要保持比例改 FIT_CENTER。
-        scaleType = android.widget.ImageView.ScaleType.FIT_XY
-    }
-    private var currentFrame: Int = 0
     private val totalFrames: Int = entity.frames
     private val fps: Int = entity.FPS.coerceAtLeast(1)
     private val frameIntervalMs: Long = (1000L / fps).coerceAtLeast(8L)
 
     /**
-     * 反射拿到 [SVGADrawable.currentFrame] 的 setter。
-     *
-     * SVGA 2.6.x 字节码里实际方法名是 `setCurrentFrame$com_opensource_svgaplayer`,
-     * 参数类型 `(I)V` —— Kotlin internal 在 JVM 上是 public 方法 + 名字 mangling。
-     *
-     * 失败时(SVGA 内部重命名)降级:不推帧 → 显示静态首帧,不会崩。
+     * 离屏 SVGAImageView。`var` 是为了 release 时置 null 让 Activity 引用可被 GC。
+     * 用 applicationContext 优先,避免持有 Activity 的强引用导致复用泄漏。
      */
-    private val currentFrameSetter: java.lang.reflect.Method? by lazy {
-        runCatching {
-            inner.javaClass.declaredMethods.firstOrNull { m ->
-                m.name.startsWith("setCurrentFrame") &&
-                        m.parameterTypes.size == 1 &&
-                        m.parameterTypes[0].let { it == Int::class.javaPrimitiveType || it == Integer.TYPE }
-            }?.also { it.isAccessible = true }
-        }.onFailure {
-            android.util.Log.w("SvgaSpanDrawable", "currentFrame setter reflect failed", it)
-        }.getOrNull().also {
-            if (it == null) {
-                android.util.Log.w("SvgaSpanDrawable", "no setCurrentFrame method found, animation will be static")
-            }
-        }
+    private var imageView: SVGAImageView? = SVGAImageView(host.applicationContextOrSelf()).apply {
+        loops = 0
+        scaleType = ImageView.ScaleType.FIT_XY
+        setVideoItem(entity)
+        measure(
+            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
+        )
+        layout(0, 0, widthPx, heightPx)
     }
 
+    private var currentFrame: Int = 0
     private var frameBitmap: Bitmap? = null
     private var frameCanvas: Canvas? = null
     private var lastFrameTimeMs: Long = 0L
 
-    private var running = false
+    @Volatile private var running = false
+
+    /**
+     * 终态锁。stop 或 release 后置 true,后续 start 直接 noop。
+     * 解决:RecyclerView 快速滚动时 attach listener 的 onAttached 回调可能晚到,
+     * 而 release 已先执行,stale start 不能让 disposed 实例复活。
+     */
     @Volatile private var disposed = false
 
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -96,13 +92,19 @@ class SvgaSpanDrawable(
     private val frameCallback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (!running || disposed) return
+            val iv = imageView ?: run { stop(); return }
             val nowMs = frameTimeNanos / 1_000_000L
-            // 控帧:SVGA 自身 fps 通常 20~30,Choreographer 60+,按 frameIntervalMs 节流
             if (nowMs - lastFrameTimeMs >= frameIntervalMs) {
                 currentFrame = (currentFrame + 1) % totalFrames
-                currentFrameSetter?.invoke(inner, currentFrame)
+                runCatching { iv.stepToFrame(currentFrame, false) }
                 lastFrameTimeMs = nowMs
-                hostRef?.get()?.invalidate() ?: run { stop(); return }
+                val tv = hostRef?.get()
+                if (tv == null) {
+                    // host 已被 GC(holder 回收)→ 主动 pause,等 attach 回来或 release
+                    pause()
+                    return
+                }
+                tv.invalidate()
             }
             Choreographer.getInstance().postFrameCallback(this)
         }
@@ -113,13 +115,12 @@ class SvgaSpanDrawable(
     }
 
     override fun draw(canvas: Canvas) {
+        if (disposed) return
+        val iv = imageView ?: return
         val b = bounds
         val w = b.width()
         val h = b.height()
-        if (w <= 0 || h <= 0) {
-            android.util.Log.w("SvgaSpanDrawable", "draw skipped: bounds=$b")
-            return
-        }
+        if (w <= 0 || h <= 0) return
 
         var bmp = frameBitmap
         var c = frameCanvas
@@ -129,34 +130,32 @@ class SvgaSpanDrawable(
             frameBitmap = bmp
             c = Canvas(bmp)
             frameCanvas = c
+            if (iv.width != w || iv.height != h) {
+                iv.measure(
+                    View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+                    View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY),
+                )
+                iv.layout(0, 0, w, h)
+            }
         }
         c!!.drawColor(0, PorterDuff.Mode.CLEAR)
-        // SVGADrawable 内部按当前 currentFrame 渲染雪碧图;bounds 直接用 0,0,w,h
-        inner.setBounds(0, 0, w, h)
-        inner.draw(c)
+        iv.draw(c)
         canvas.drawBitmap(bmp, b.left.toFloat(), b.top.toFloat(), paint)
     }
 
     /**
-     * 绑定宿主 TextView,并自动 start。SpanBuilder 在 registerAsyncAnimatable 中调用,
-     * 此时 drawable 已经被放进 ssb 设给 textView。
-     *
-     * 为什么 start 放这里而不是 SvgaSpanLoader.onReady:
-     * 在 onReady 里 start 时 hostRef 还没绑,Choreographer 第一次 doFrame 取不到 host
-     * 会立刻 stop(),动画"加载完静止"。把 start 推迟到 bindHost,确保有 host 才跑。
+     * SpanBuilder 在 registerAsyncAnimatable 调,把宿主 TextView 的 WeakReference 存下,
+     * Choreographer 自己 invalidate textView。bindHost 时如果尚未 start 且未 disposed
+     * 自动 start。
      */
     fun bindHost(textView: TextView) {
+        if (disposed) return
         hostRef = WeakReference(textView)
-        if (!running && !disposed) start()
+        start()
     }
 
-    override fun setAlpha(alpha: Int) {
-        paint.alpha = alpha
-    }
-
-    override fun setColorFilter(colorFilter: ColorFilter?) {
-        paint.colorFilter = colorFilter
-    }
+    override fun setAlpha(alpha: Int) { paint.alpha = alpha }
+    override fun setColorFilter(colorFilter: ColorFilter?) { paint.colorFilter = colorFilter }
 
     @Deprecated("Deprecated in Java")
     override fun getOpacity(): Int = PixelFormat.TRANSLUCENT
@@ -164,28 +163,81 @@ class SvgaSpanDrawable(
     override fun getIntrinsicWidth(): Int = widthPx
     override fun getIntrinsicHeight(): Int = heightPx
 
+    /**
+     * 启动渲染。disposed / 已 running / 无帧 直接忽略。
+     * 跟 [pause] 配对使用:detach pause、attach start 可来回切。
+     */
     override fun start() {
         if (running || disposed || totalFrames <= 0) return
+        if (imageView == null) return
         running = true
         lastFrameTimeMs = 0L
         Choreographer.getInstance().postFrameCallback(frameCallback)
     }
 
+    /**
+     * Animatable.stop 默认走 pause 语义(可恢复);终态用 [release]。
+     * 这样 SpanBuilder.attachAnimationLifecycle 中 detach 时调 stop 不会破坏可恢复状态。
+     */
     override fun stop() {
-        if (!running) return
-        running = false
-        Choreographer.getInstance().removeFrameCallback(frameCallback)
+        pause()
     }
 
     override fun isRunning(): Boolean = running
 
+    /**
+     * 暂停渲染,可通过 start 恢复。同时 recycle frameBitmap 释放 native 内存。
+     * RecyclerView 滚出屏幕(detach)→ pause → bitmap 释放;再滚回来 → start → bitmap 按需重建。
+     */
+    fun pause() {
+        if (!running) return
+        running = false
+        Choreographer.getInstance().removeFrameCallback(frameCallback)
+        frameBitmap?.recycle()
+        frameBitmap = null
+        frameCanvas = null
+    }
+
+    /**
+     * 终态释放。bind 新数据 / TextView 永久销毁时调用。
+     * - disposed=true 之后任何 start/draw 都 noop。
+     * - imageView 置 null,断开 Activity 引用,允许 GC。
+     * - **不释放 entity**:它在 SvgaCache 里被多个壳子共享,LRU 自己管生命周期。
+     */
     override fun release() {
+        if (disposed) return
         disposed = true
-        stop()
+        running = false
+        Choreographer.getInstance().removeFrameCallback(frameCallback)
         hostRef = null
         frameBitmap?.recycle()
         frameBitmap = null
         frameCanvas = null
-        // **不释放 entity**:它在 SvgaCache 里被多个壳子共享,LRU 自己管理生命周期。
+        imageView?.let { iv ->
+            runCatching { iv.stopAnimation() }
+            // 解 entity 关联,避免 SVGADrawable 持有 entity 强引用阻止 LRU 驱逐时回收
+            runCatching { iv.setImageDrawable(null) }
+        }
+        imageView = null
+    }
+
+    private companion object {
+        /**
+         * 优先取 applicationContext,避免离屏 SVGAImageView 持有 Activity 引用。
+         * 拿不到(罕见,如 ContextWrapper 包了 mock)就退回原 context。
+         */
+        private fun Context.applicationContextOrSelf(): Context {
+            // applicationContext 在大多数 Activity 下能拿到 Application
+            val app = applicationContext
+            if (app != null) return app
+            // 一层 wrapper 兜底
+            var c: Context = this
+            while (c is ContextWrapper) {
+                val base = c.baseContext ?: break
+                if (base.applicationContext != null) return base.applicationContext
+                c = base
+            }
+            return this
+        }
     }
 }

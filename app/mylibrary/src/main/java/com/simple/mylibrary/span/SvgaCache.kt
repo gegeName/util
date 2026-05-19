@@ -92,5 +92,11 @@ object SvgaCache {
         }
     }
 
+    /** 全部驱逐,业务方在低内存回调里调。 */
     fun trimMemory() = cache.evictAll()
+
+    /** 温和驱逐到当前容量的一半,保留最近常用 entity。适合普通内存压力。 */
+    fun trimMemoryHalf() {
+        cache.trimToSize(cache.maxSize() / 2)
+    }
 }

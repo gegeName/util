@@ -30,8 +30,7 @@ class SvgaSpanLoader : SpanImageLoader {
             context,
             key,
             onReady = { entity ->
-                Log.i("SvgaSpanLoader", "entity ready, build drawable: $key")
-                val drawable = SvgaSpanDrawable(entity, width, height)
+                val drawable = SvgaSpanDrawable(entity, width, height, context)
                 val finalDrawable: Drawable =
                     if (circle) RoundMaskDrawable(drawable, cornerRadius = -1f) else drawable
                 onReady(finalDrawable)
