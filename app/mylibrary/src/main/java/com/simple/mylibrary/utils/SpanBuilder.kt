@@ -27,9 +27,16 @@ import androidx.core.graphics.drawable.toDrawable
 import com.simple.mylibrary.R
 import com.simple.mylibrary.span.BlankWidthSpan
 import com.simple.mylibrary.span.BorderedImageDrawable
+import com.simple.mylibrary.span.CharAnim
+import com.simple.mylibrary.span.CharAnimSpan
+import com.simple.mylibrary.span.CharAnimationDriver
+import com.simple.mylibrary.span.CharAnims
 import com.simple.mylibrary.span.DefaultSvgLoader
+import com.simple.mylibrary.span.EmojiRegistry
 import com.simple.mylibrary.span.GlideSpanImageLoader
+import com.simple.mylibrary.span.Releasable
 import com.simple.mylibrary.span.RoundMaskDrawable
+import com.simple.mylibrary.span.RepeatConfig
 import com.simple.mylibrary.span.SpanImageLoader
 import com.simple.mylibrary.span.TextDecorationSpan
 import com.simple.mylibrary.span.VerticalShiftSpan
@@ -67,6 +74,13 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /** 是否包含 ClickableSpan，[into] / [buildAndAttach] 时把 highlightColor 设为透明，消除点击闪烁。 */
     private var hasClickable = false
+
+    /**
+     * 字符级动画驱动器,[charAnimation] 设置后非 null。
+     * [prepareTextView] 时会调用 driver.start(textView) 开始 Choreographer 循环。
+     */
+    private var charAnimDriver: CharAnimationDriver? = null
+    private var charAnimRange: Pair<Int, Int>? = null
 
     /**
      * 文字片段经 [marginPx] 上下平移后所需的额外行高（px）。
@@ -475,6 +489,122 @@ class SpanBuilder private constructor(private val context: Context) {
             newPositions.add(pos)
         }
         return newPositions.map { it to it + 1 }
+    }
+
+    /**
+     * 扫描当前文本,把所有匹配 [pattern] 的 token(默认 `:smile:` / `[smile]`)
+     * 用 [EmojiRegistry] 里注册的资源(@DrawableRes 或 URL)替换为图片。
+     *
+     * 调用前应先用 [setText] / [append] 装好文本,资源应预先用
+     * [EmojiRegistry.register] / [EmojiRegistry.registerAll] 注册。
+     *
+     * 未在注册表中的 token 原样保留。
+     *
+     * @param width   每个 emoji 的显示宽度 px
+     * @param height  每个 emoji 的显示高度 px
+     * @param pattern token 匹配规则,默认匹配 `:abc:` 与 `[abc]`
+     */
+    fun replaceEmoji(
+        @Px width: Int,
+        @Px height: Int,
+        pattern: Regex = EmojiRegistry.DEFAULT_PATTERN,
+    ): SpanBuilder {
+        if (ssb.isEmpty()) return this
+        // 由后向前替换,避免索引偏移
+        val matches = pattern.findAll(ssb.toString()).toList().asReversed()
+        val placedRanges = mutableListOf<Pair<Int, Int>>()
+        matches.forEach { m ->
+            val token = m.value
+            val resource = EmojiRegistry.resolve(token) ?: return@forEach
+            val start = m.range.first
+            val end = m.range.last + 1
+            ssb.replace(start, end, " ")
+            when (resource) {
+                is Int -> {
+                    val drawable = ContextCompat.getDrawable(context, resource) ?: return@forEach
+                    drawable.setBounds(0, 0, width, height)
+                    ssb.setSpan(
+                        CenterAlignImageSpan(drawable),
+                        start, start + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                    )
+                }
+                is String -> {
+                    val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
+                    ssb.setSpan(
+                        placeholderSpan,
+                        start, start + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+                    )
+                    pendingImageLoads.add(
+                        PendingImageLoad(resource, placeholderSpan, width, height, false)
+                    )
+                }
+            }
+            placedRanges.add(start to start + 1)
+        }
+        segments = placedRanges.sortedBy { it.first }
+        return this
+    }
+
+    /**
+     * 给当前片段每个字符附加逐字动画。需配合 [into] / [buildAndAttach]。
+     *
+     * 动画行为完全由 [anim] 决定,内置 [CharAnims.Fade] / [CharAnims.Rise] /
+     * [CharAnims.Bounce] / [CharAnims.Slide] 可直接传,也可写自己的:
+     * ```
+     * .charAnimation(CharAnim { tp, p, _, _ ->
+     *     tp.alpha = (tp.alpha * p).toInt()
+     *     tp.textSize *= 0.5f + 0.5f * p     // 字体缩放
+     * })
+     * ```
+     *
+     * 循环控制由 [repeat] 决定:[RepeatConfig.ONCE](默认)/ [RepeatConfig.INFINITE_RESTART] /
+     * [RepeatConfig.INFINITE_REVERSE],或用 [RepeatConfig.infiniteReverse(pauseMs)] 等带停顿的工厂。
+     *
+     * ⚠️ **性能注意:控制同屏并发 [CharAnimationDriver] 数量,不限字数。**
+     *
+     * 每次调用 [charAnimation] 会创建一个 [CharAnimationDriver],[CharAnimationDriver]
+     * 内部跑一个 Choreographer 时钟 + 每帧 invalidate 宿主 TextView。
+     * **字数多少几乎不影响开销**(一条 200 字和一条 20 字都只占一个 [CharAnimationDriver]),
+     * 真正的开销是"同屏同时跑了几个 [CharAnimationDriver]":
+     * - 同屏 1~3 个 [CharAnimationDriver](焦点标题 / Banner / 置顶通知 / 礼物特效):
+     *   随便用,无感知。
+     * - 同屏 10+ 个 [CharAnimationDriver](滚动列表每条 item 都加无限循环动画):
+     *   每帧 N 次 invalidate + N 次重绘,主线程容易掉帧。**强烈不推荐**给整个 feed
+     *   列表每条都加,改成只给最新一条或"焦点条目"加。
+     *
+     * RecyclerView 复用时 [attachAnimationLifecycle] 会自动 stop 旧 [CharAnimationDriver],
+     * 无 leak;但如果走 [build] 不走 [into],必须自己 [getCharAnimDriver] 拿到
+     * [CharAnimationDriver],手动 `start` / `stop`,否则 Choreographer 持续空跑。
+     *
+     * @param anim             单帧动画函数,见 [CharAnim]
+     * @param perCharDelayMs   字符之间的入场间隔毫秒
+     * @param charDurationMs   单字符自身入场时长毫秒
+     * @param repeat           循环配置,默认只播一次
+     */
+    @JvmOverloads
+    fun charAnimation(
+        anim: CharAnim = CharAnims.Fade,
+        perCharDelayMs: Long = 60L,
+        charDurationMs: Long = 360L,
+        repeat: RepeatConfig = RepeatConfig.ONCE,
+    ): SpanBuilder {
+        if (segments.isEmpty()) return this
+        val start = segments.first().first
+        val end = segments.last().second
+        val total = end - start
+        if (total <= 0) return this
+        val driver = CharAnimationDriver(total, perCharDelayMs, charDurationMs, anim, repeat)
+        for (i in 0 until total) {
+            ssb.setSpan(
+                CharAnimSpan(i, driver),
+                start + i,
+                start + i + 1,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
+            )
+        }
+        charAnimDriver = driver
+        charAnimRange = start to end
+        return this
     }
 
     // ============================== 样式 ==============================
@@ -938,6 +1068,18 @@ class SpanBuilder private constructor(private val context: Context) {
     fun build(): CharSequence = ssb
 
     /**
+     * 拿到当前 SpanBuilder 持有的字符动画 driver(若调过 [charAnimation])。
+     *
+     * **使用场景**:走 [build] 不走 [into] 的业务方,自己 `textView.text = build()` 后,
+     * 必须手动 `getCharAnimDriver()?.start(textView)`,并在 view detach / RecyclerView
+     * onViewRecycled 时 `stop()`,否则 driver 不会被自动清理 → Choreographer 持续空跑、
+     * WeakReference 持有过期 TextView。
+     *
+     * 走 [into] / [buildAndAttach] 的场景由 SpanBuilder 内部托管,无需调用此方法。
+     */
+    fun getCharAnimDriver(): CharAnimationDriver? = charAnimDriver
+
+    /**
      * 构建 CharSequence 并把点击/发光/图片加载等所需的运行时配置都挂到 [textView] 上，
      * 但**不**直接给 textView 赋值 text，由调用方自行决定何时设置（例如插入到富文本中）。
      *
@@ -992,14 +1134,44 @@ class SpanBuilder private constructor(private val context: Context) {
 
     private fun prepareTextView(textView: TextView): WeakReference<TextView> {
         textView.movementMethod = LinkMovementMethod.getInstance()
-        if (hasClickable) textView.highlightColor = Color.TRANSPARENT
+
+        // hasClickable / needsSoftwareLayer 都是"开关型"状态,RecyclerView 复用时若
+        // 新 builder 不再需要,得**主动恢复**到默认,否则旧设置会泄漏到新内容。
+        // 用 tag 记账上一次是否设置过,bind 新数据时按需还原。
+        val highlightTag = R.id.span_builder_highlight_set
+        val prevHadClickable = textView.getTag(highlightTag) == true
+        if (hasClickable) {
+            textView.highlightColor = Color.TRANSPARENT
+            textView.setTag(highlightTag, true)
+        } else if (prevHadClickable) {
+            // 还原到系统默认 highlightColor(主题里 textColorHighlight 通常是淡蓝)
+            textView.highlightColor = 0x6633B5E5
+            textView.setTag(highlightTag, false)
+        }
+
         applyExtraVerticalPadding(textView)
+
+        val layerTag = R.id.span_builder_software_layer_set
+        val prevHadSoftware = textView.getTag(layerTag) == true
         if (needsSoftwareLayer && !textView.isInEditMode) {
             textView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+            textView.setTag(layerTag, true)
+        } else if (prevHadSoftware && !textView.isInEditMode) {
+            // RecyclerView 复用同一 TextView 在 hardware/software 间反复切换会触发
+            // layer 重建 + Bitmap 分配。这里只在确实需要切回时才切,避免无谓抖动。
+            textView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+            textView.setTag(layerTag, false)
         }
+
         val tvRef = WeakReference(textView)
         animatables.forEach { wireAnimatable(it, tvRef) }
         attachAnimationLifecycle(textView)
+        // driver 必须等 TextView 真的 attach + 即将第一次 draw 时才 start,
+        // 否则 onCreate 阶段 attach 之前就开始计时,前若干百毫秒的进度被首帧上屏吃掉,
+        // 用户感知是动画"瞬间结束"。
+        charAnimDriver?.let { driver ->
+            textView.post { driver.start(textView) }
+        }
         return tvRef
     }
 
@@ -1085,30 +1257,43 @@ class SpanBuilder private constructor(private val context: Context) {
     private fun attachAnimationLifecycle(textView: TextView) {
         val listenerTag = R.id.span_builder_anim_listener
         val animListTag = R.id.span_builder_anim_list
+        val charDriverTag = R.id.span_builder_char_driver
 
         @Suppress("UNCHECKED_CAST")
         val previousList = textView.getTag(animListTag) as? MutableList<Animatable>
         previousList?.forEach { prev ->
             if (prev.isRunning) prev.stop()
+            (prev as? Releasable)?.release()
             (prev as? RoundMaskDrawable)?.release()
         }
+
+        // 旧的字符动画 driver 必须 stop,否则 Choreographer 还在每帧 invalidate
+        // 已经 bind 新数据的 TextView,造成无意义重绘和持有 WeakReference 的轻微浪费。
+        (textView.getTag(charDriverTag) as? CharAnimationDriver)?.stop()
 
         val previous = textView.getTag(listenerTag) as? View.OnAttachStateChangeListener
         if (previous != null) textView.removeOnAttachStateChangeListener(previous)
 
-        val animListRef = animatables  // 闭包持有同一个引用,后续异步加载追加的项也能感知
+        val animListRef = animatables
+        // driver 闭包捕获,避免 listener 持有 SpanBuilder 自身导致 leak
+        val driverRef = charAnimDriver
         val listener = object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) {
                 animListRef.forEach { if (!it.isRunning) it.start() }
+                // attach 回来:driver 重新 start(start 会忽略 disposed,所以只对 pause 过的有效)
+                driverRef?.start(textView)
             }
 
             override fun onViewDetachedFromWindow(v: View) {
                 animListRef.forEach { if (it.isRunning) it.stop() }
+                // detach:pause 而不是 stop,保留 driver 给 attach 回来时复用
+                driverRef?.pause()
             }
         }
         textView.addOnAttachStateChangeListener(listener)
         textView.setTag(listenerTag, listener)
         textView.setTag(animListTag, animListRef)
+        textView.setTag(charDriverTag, charAnimDriver)
     }
 
     private fun transparentPlaceholder(w: Int, h: Int): Drawable =

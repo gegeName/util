@@ -14,6 +14,24 @@
         android:padding="16dp">
 
 
+        <!-- 40. 字符级入场动画(放最上面,Activity 启动时就能看到) -->
+        <TextView
+            style="@style/Section"
+            android:text="40. charAnimation FADE / RISE / BOUNCE(开屏即播)" />
+
+        <TextView
+            android:id="@+id/tv_demo_char_anim_fade"
+            style="@style/Demo" />
+
+        <TextView
+            android:id="@+id/tv_demo_char_anim_rise"
+            style="@style/Demo" />
+
+        <TextView
+            android:id="@+id/tv_demo_char_anim_bounce"
+            style="@style/Demo" />
+
+
         <!-- ========================================================== -->
         <!-- 1. append + color + bold + italic + boldItalic + underline -->
         <!--    + strikethrough                                          -->
@@ -459,6 +477,17 @@
         <TextView
             android:id="@+id/tv_demo_svg_local_remote"
             style="@style/Demo" />
+
+        <!-- 39. emoji 注册表 -->
+        <TextView
+            style="@style/Section"
+            android:text="39. EmojiRegistry + replaceEmoji" />
+
+        <TextView
+            android:id="@+id/tv_demo_emoji"
+            style="@style/Demo" />
+
+        <!-- 40. 字符级入场动画 已移到最上面 -->
 
     </LinearLayout>
 

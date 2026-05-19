@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <circle cx="32" cy="32" r="20" fill="#2196F3">
+    <animate attributeName="r" values="8;26;8" dur="1.4s" repeatCount="indefinite"/>
+    <animate attributeName="fill"
+             values="#2196F3;#E91E63;#FFC107;#4CAF50;#2196F3"
+             dur="2.8s" repeatCount="indefinite"/>
+  </circle>
+</svg>

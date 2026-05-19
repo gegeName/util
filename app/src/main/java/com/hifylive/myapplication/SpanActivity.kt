@@ -18,6 +18,10 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.simple.mylibrary.span.CharAnim
+import com.simple.mylibrary.span.CharAnims
+import com.simple.mylibrary.span.EmojiRegistry
+import com.simple.mylibrary.span.RepeatConfig
 import com.simple.mylibrary.utils.SpanBuilder
 import kotlin.math.min
 
@@ -39,6 +43,7 @@ class SpanActivity : AppCompatActivity() {
             insets
         }
 
+        demo40CharAnimation()
         demo1AppendStyles()
         demo2AppendLine()
         demo3ImageRes()
@@ -77,6 +82,7 @@ class SpanActivity : AppCompatActivity() {
         demo36CustomImageGif()
         demo37GifLocalRemote()
         demo38SvgLocalRemote()
+        demo39EmojiRegistry()
     }
 
     // ============== 小工具 ==============
@@ -543,12 +549,79 @@ class SpanActivity : AppCompatActivity() {
             .svg(R.raw.sample_star, 44.dp(), 44.dp())
             .append("  本地圆形 ")
             .svg(R.raw.sample_star, 44.dp(), 44.dp(), circle = true)
+            .append("  动态 SVG ")
+            .svg(R.raw.sample_pulse, 44.dp(), 44.dp())
             .append("  网络 SVG ")
             .svg(
                 "https://upload.wikimedia.org/wikipedia/commons/0/02/SVG_logo.svg",
                 44.dp(), 44.dp()
             )
             .into(tv(R.id.tv_demo_svg_local_remote))
+    }
+
+    /**
+     * 39. emoji 注册表 + replaceEmoji。
+     * 演示 token 替换:文本里的 `:smile:` / `[heart]` 自动变成图。
+     */
+    private fun demo39EmojiRegistry() {
+        EmojiRegistry.registerAll(
+            mapOf(
+                ":smile:" to R.drawable.ic_launcher_foreground,
+                "[heart]" to R.drawable.ic_launcher_foreground,
+                ":star:" to R.drawable.ic_launcher_foreground,
+            )
+        )
+        SpanBuilder.with(this)
+            .setText("Hi :smile: 喜欢这个 [heart] :star: 表情吗?")
+            .replaceEmoji(22.dp(), 22.dp())
+            .find("喜欢").color(0xFFE91E63.toInt()).bold()
+            .into(tv(R.id.tv_demo_emoji))
+    }
+
+    /**
+     * 40. charAnimation 字符级入场动画。
+     * 演示 FADE / RISE / BOUNCE 三种模式。
+     */
+    private fun demo40CharAnimation() {
+        // 1) 内置 Fade,无限循环 + 每轮停 600ms
+        SpanBuilder.with(this)
+            .setText("逐字淡入循环播放的标题")
+            .all().color(0xFF1976D2.toInt()).bold().sizePx(24.sp())
+            .charAnimation(
+                CharAnims.Fade,
+                perCharDelayMs = 120,
+                charDurationMs = 600,
+                repeat = RepeatConfig.infiniteRestart(pauseMs = 600),
+            )
+            .into(tv(R.id.tv_demo_char_anim_fade))
+
+        // 2) 内置 Rise,无限来回(REVERSE)
+        SpanBuilder.with(this)
+            .setText("从下方升起再回去的标题")
+            .all().color(0xFFE91E63.toInt()).bold().sizePx(24.sp())
+            .charAnimation(
+                CharAnims.Rise,
+                perCharDelayMs = 120,
+                charDurationMs = 600,
+                repeat = RepeatConfig.infiniteReverse(pauseMs = 300),
+            )
+            .into(tv(R.id.tv_demo_char_anim_rise))
+
+        // 3) 用户自定义 anim:字号从 0.4 倍放大到 1 倍 + 颜色从灰过渡到原色
+        val zoomIn = CharAnim { tp, p, _, _ ->
+            tp.alpha = (tp.alpha * p).toInt().coerceIn(0, 255)
+            tp.textSize *= (0.4f + 0.6f * p)
+        }
+        SpanBuilder.with(this)
+            .setText("字号放大入场,自定义 anim")
+            .all().color(0xFF4CAF50.toInt()).bold().sizePx(24.sp())
+            .charAnimation(
+                zoomIn,
+                perCharDelayMs = 130,
+                charDurationMs = 700,
+                repeat = RepeatConfig.INFINITE_RESTART,
+            )
+            .into(tv(R.id.tv_demo_char_anim_bounce))
     }
 
     /**
