@@ -1,4 +1,4 @@
-package com.gzxkwl.library.utils
+package com.lhj.pagingutil
 
 import android.graphics.Rect
 import android.view.View
