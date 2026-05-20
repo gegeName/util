@@ -7,7 +7,10 @@ jdk:
 # 默认 install 命令是 ./gradlew clean install，但 Android Library 没有 install 任务。
 # 这里显式指定发布到 mavenLocal，并只发布需要的子模块。
 install:
-  - ./gradlew :app:mylibrary:clean :app:mylibrary:publishToMavenLocal -PVERSION_NAME=$VERSION
+  - ./gradlew :app:mylibrary:publishToMavenLocal -PVERSION_NAME=$VERSION
+    - ./gradlew :app:pagingutil:publishToMavenLocal -PVERSION_NAME=$VERSION
+    - ./gradlew :app:shapeview:publishToMavenLocal -PVERSION_NAME=$VERSION
+    - ./gradlew :app:spanutil:publishToMavenLocal -PVERSION_NAME=$VERSION
 
 # 多模块仓库的依赖坐标会变成：
 #   com.github.<USER>.<REPO>:mylibrary:<TAG>
