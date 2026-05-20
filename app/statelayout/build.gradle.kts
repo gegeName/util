@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.statelayout"
+    namespace = "com.lhj.statelayout"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1

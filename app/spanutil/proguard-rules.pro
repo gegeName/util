@@ -1,21 +1,15 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# spanutil 自身 release minify 时的混淆规则。
+# AAR 默认不开 minify,这份是为开了 minify 的极端场景兜底。
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+-keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# SpanBuilder 公共 API
+-keep public class com.lhj.spanutil.** { public protected *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Kotlin 元数据 / 协程
+-keep class kotlin.Metadata { *; }
+-dontwarn kotlinx.coroutines.**
+
+# 第三方 SDK 反射入口
+-keep class com.opensource.svgaplayer.drawer.SVGACanvasDrawer { *; }
+-keep class com.bumptech.glide.load.resource.gif.GifDrawable { public *; }

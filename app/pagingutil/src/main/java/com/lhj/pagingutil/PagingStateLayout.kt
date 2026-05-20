@@ -2,7 +2,7 @@ package com.lhj.pagingutil
 
 import android.content.Context
 import android.util.AttributeSet
-import com.example.statelayout.StateLayout
+import com.lhj.statelayout.StateLayout
 
 open class PagingStateLayout @JvmOverloads constructor(
     context: Context,

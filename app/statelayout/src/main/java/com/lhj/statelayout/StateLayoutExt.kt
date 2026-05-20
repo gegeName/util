@@ -1,4 +1,4 @@
-package com.example.statelayout
+package com.lhj.statelayout
 
 import android.app.Activity
 import android.view.View

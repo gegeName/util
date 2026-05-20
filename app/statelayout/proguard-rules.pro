@@ -1,21 +1,23 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# statelayout 自身 release minify 时的混淆规则。
+# AAR 默认不开 minify,这份是为开了 minify 的极端场景兜底。
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+-keepattributes Signature, InnerClasses, EnclosingMethod
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# 自定义 View 4 个构造器
+-keep public class com.lhj.statelayout.** {
+    public <init>(android.content.Context);
+    public <init>(android.content.Context, android.util.AttributeSet);
+    public <init>(android.content.Context, android.util.AttributeSet, int);
+    public <init>(android.content.Context, android.util.AttributeSet, int, int);
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# 自定义属性
+-keepclassmembers class **.R$styleable {
+    public static <fields>;
+}
+
+# 公共 API
+-keep public class com.lhj.statelayout.** { public protected *; }
+
+# Kotlin 元数据
+-keep class kotlin.Metadata { *; }
