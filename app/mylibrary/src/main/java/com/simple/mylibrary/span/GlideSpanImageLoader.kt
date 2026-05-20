@@ -47,9 +47,6 @@ class GlideSpanImageLoader : SpanImageLoader {
     ) {
         val options = RequestOptions()
             .override(width, height)
-            // GIF 必须跳过内存缓存,避免共享 GifFrameLoader 导致"概率性不动"。
-            // 静态图也带上无副作用 —— Glide 5 的磁盘缓存足够快,RESOURCE 策略缓存解码后的结果。
-            .skipMemoryCache(true)
             .diskCacheStrategy(DiskCacheStrategy.RESOURCE)
         Glide.with(context.applicationContext).asDrawable().load(url).apply(options)
             .into(object : CustomTarget<Drawable>() {

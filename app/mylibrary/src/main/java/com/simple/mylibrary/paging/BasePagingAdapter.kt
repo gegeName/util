@@ -35,6 +35,15 @@ abstract class BasePagingAdapter<T : Any, VB : ViewBinding>(
     abstract fun onBind(binding: VB, item: T, position: Int)
 
     /**
+     * 局部刷新回调，业务用 `notifyItemChanged(pos, payload)` 触发。
+     * 默认实现回退到全量 [onBind]，所以不重写也安全。
+     * @param payloads 非空；空 payloads 由 [onBindViewHolder] 拦截直接走全量分支
+     */
+    protected open fun onBind(binding: VB, item: T, position: Int, payloads: MutableList<Any>) {
+        onBind(binding, item, position)
+    }
+
+    /**
      * onCreateViewHolder 创建完 ViewHolder、绑完点击事件之后回调,
      * 整个 holder 生命周期只触发一次(后续复用 / 重 bind 不会再进来).
      *
@@ -80,5 +89,25 @@ abstract class BasePagingAdapter<T : Any, VB : ViewBinding>(
             (holder.binding as ViewDataBinding).executePendingBindings()
         }
         onBind(holder.binding, item, position)
+    }
+
+    /**
+     * 局部刷新分发：payloads 为空时回退到全量 [onBindViewHolder]，
+     * 否则走带 payloads 的 [onBind] 重载。
+     */
+    override fun onBindViewHolder(
+        holder: BindingHolder<VB>,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.isEmpty()) {
+            super.onBindViewHolder(holder, position, payloads)
+            return
+        }
+        val item = getItem(position) ?: return
+        if (holder.binding is ViewDataBinding) {
+            (holder.binding as ViewDataBinding).executePendingBindings()
+        }
+        onBind(holder.binding, item, position, payloads)
     }
 }

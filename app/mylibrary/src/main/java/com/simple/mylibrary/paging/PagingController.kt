@@ -88,6 +88,8 @@ class PagingController<T : Any> internal constructor(
         val p = patcher
         if (p != null) {
             p.removeInsert { true }
+            p.removeTailInsert { true }
+            p.removeTaggedInsert { true }
             adapter.snapshot().items.forEach { p.delete(p.keyOf(it)) }
         } else {
             owner.lifecycleScope.launch { adapter.submitData(PagingData.empty()) }
@@ -226,6 +228,47 @@ class PagingController<T : Any> internal constructor(
         items.asReversed().forEach { requirePatcher().insertHead(it) }
 
     /**
+     * 尾部插入一条:在列表最末端追加 [item]。
+     *
+     * 适用 `[较早, ..., 最新]` 自然时间序场景(聊天 / 时间轴 / 评论列表),
+     * 新消息从底部冒出。多次调用按"最新在最下"排列。
+     */
+    fun insertTail(item: T) = requirePatcher().insertTail(item)
+
+    /**
+     * 尾部批量插入:按 List 顺序追加到末尾,[items] 第 0 条最先入列,最后一条在最底部。
+     */
+    fun insertTail(items: List<T>) = items.forEach { requirePatcher().insertTail(it) }
+
+    /**
+     * 在 [anchorKey] 锚点**之后**插入 [item]。
+     *
+     * 用于在已有 item 旁边塞系统消息 / 时间分隔符 / 子项展开等场景:
+     * ```
+     * // "对方撤回了一条消息" 紧跟在被撤回消息后
+     * controller.insertAfter(recalledMsgId, SystemMsg(text = "对方撤回了一条消息"))
+     * ```
+     *
+     * 行为约束:
+     * - anchorKey 必须当前可见;若已被 [delete],本次插入会被跳过
+     * - 同 anchorKey 连续 [insertAfter],后调用的更靠近 anchor(LIFO 视觉)
+     */
+    fun insertAfter(anchorKey: Any, item: T) = requirePatcher().insertAfter(anchorKey, item)
+
+    /**
+     * 在 [anchorKey] 锚点**之前**插入 [item]。
+     *
+     * 用于在某 item 上方塞分组标题 / 未读分隔线 / 群公告等:
+     * ```
+     * // 第一条未读消息上方插入"以下为未读"分隔
+     * controller.insertBefore(firstUnreadId, UnreadDivider)
+     * ```
+     *
+     * anchor 约束同 [insertAfter]。
+     */
+    fun insertBefore(anchorKey: Any, item: T) = requirePatcher().insertBefore(anchorKey, item)
+
+    /**
      * 撤销某条补丁：让该 item 回到 PagingSource 给的原始值。
      *
      * 只撤销字段级补丁（_patches），不影响 _removed / _inserts 状态。
@@ -350,6 +393,47 @@ class PagingController<T : Any> internal constructor(
         return job
     }
 
+    /**
+     * 乐观尾部插入:先把 item 追加到列表末尾让 UI 立即生效,再发请求;失败自动 removeTailInsert 回退。
+     *
+     * 适用 `[较早, ..., 最新]` 自然时间序的聊天 / 时间轴:点击发送时本地立刻渲染气泡,
+     * 接口成功视为发出,失败把气泡撤掉(或在 [onFailure] 里把它标红 / 加"重发"按钮)。
+     *
+     * 调度 key 自动取自 patcher.keyOf(item),policy 按 item 主键节流 / 串行。
+     *
+     * @param R 服务端响应类型
+     * @param item 要插入的新条目(发送中的消息,通常带一个本地生成的临时 id)
+     * @param request 真正的发送请求
+     * @param policy 请求调度策略,同 [optimisticUpdate]
+     * @param onSuccess 请求成功回调,可在这里把临时 item 替换为服务端返回的正式 item
+     * @param onFailure 请求失败回调(CancellationException 会被吞掉)
+     * @param onIgnored 被 policy 丢弃时回调
+     * @return 启动后的 Job;被 policy 丢弃时返回 null
+     */
+    fun <R> optimisticInsertTail(
+        item: T,
+        request: suspend () -> R,
+        policy: RequestPolicy = RequestPolicy.None,
+        onSuccess: (suspend (R) -> Unit)? = null,
+        onFailure: ((Throwable) -> Unit)? = null,
+        onIgnored: (() -> Unit)? = null
+    ): Job? {
+        val p = requirePatcher()
+        val key = p.keyOf(item)
+        val job = runner.run(key, policy) {
+            p.insertTail(item)
+            runCatching { request() }
+                .onSuccess { resp -> onSuccess?.invoke(resp) }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    p.removeTailInsert { p.keyOf(it) == key }
+                    onFailure?.invoke(e)
+                }
+        }
+        if (job == null) onIgnored?.invoke()
+        return job
+    }
+
     // ───── 先请求成功再改本地（服务端权威值落地） ─────
 
     /**
@@ -466,6 +550,51 @@ class PagingController<T : Any> internal constructor(
             runCatching { request() }
                 .onSuccess { resp ->
                     p.insertHead(mapper(resp))
+                    onSuccess?.invoke(resp)
+                }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    onFailure?.invoke(e)
+                }
+        }
+        if (job == null) onIgnored?.invoke()
+        return job
+    }
+
+    /**
+     * 先请求成功再尾部插入:等接口返回后用 [mapper] 把响应转成 item 再 insertTail。
+     *
+     * 与 [optimisticInsertTail] 对偶:那个先插临时 item 再请求,失败回退;
+     * 本方法等服务端返回真实 item(含真实 id / createTime / 服务端补全的字段)再插。
+     * 适合自然时间序聊天的"严谨发送"模式:不显示发送中状态,直接显示发出成功的消息。
+     *
+     * 调度 key 取自 [scheduleKey](发请求时还没有 item),建议用稳定的串行 key,
+     * 比如 "send_msg_${threadId}" 让同一会话下的发送严格串行,避免乱序。
+     *
+     * @param R 服务端响应类型
+     * @param scheduleKey 请求调度 key,决定 [policy] 的节流 / 串行 / 取消范围
+     * @param request 真正的发送请求
+     * @param mapper 把服务端响应映射为要追加到列表末尾的 item
+     * @param policy 请求调度策略
+     * @param onSuccess 请求成功 + insertTail 完成后回调
+     * @param onFailure 请求失败回调(CancellationException 会被吞掉)
+     * @param onIgnored 被 policy 丢弃时回调
+     * @return 启动后的 Job;被 policy 丢弃时返回 null
+     */
+    fun <R> serverInsertTail(
+        scheduleKey: Any,
+        request: suspend () -> R,
+        mapper: (R) -> T,
+        policy: RequestPolicy = RequestPolicy.None,
+        onSuccess: (suspend (R) -> Unit)? = null,
+        onFailure: ((Throwable) -> Unit)? = null,
+        onIgnored: (() -> Unit)? = null
+    ): Job? {
+        val p = requirePatcher()
+        val job = runner.run(scheduleKey, policy) {
+            runCatching { request() }
+                .onSuccess { resp ->
+                    p.insertTail(mapper(resp))
                     onSuccess?.invoke(resp)
                 }
                 .onFailure { e ->

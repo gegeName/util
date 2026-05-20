@@ -78,7 +78,8 @@ abstract class BaseMultiPagingAdapter<T : Any>(
         val isMine: (T) -> Boolean,
         val bindingClass: Class<out ViewBinding>,
         val onCreate: ((ViewBinding) -> Unit)?,
-        val onBind: (ViewBinding, T, Int) -> Unit
+        val onBind: (ViewBinding, T, Int) -> Unit,
+        val onBindPayloads: ((ViewBinding, T, Int, MutableList<Any>) -> Unit)?
     )
 
     /** 已注册的所有类型代理，按调用 addType 的顺序排列；getItemViewType 按此顺序匹配 */
@@ -94,12 +95,15 @@ abstract class BaseMultiPagingAdapter<T : Any>(
      * @param onCreate 可选；ViewHolder 创建完 + 点击事件绑完之后只调一次，拿到强类型 binding
      *                 做一次性初始化（嵌套 RV 的 layoutManager / addItemDecoration /
      *                 setRecycledViewPool 等），与 item 数据无关
+     * @param onBindPayloads 可选；局部刷新回调（payloads 非空时优先调用）。
+     *                       不传或 payloads 为空时回退到全量 [onBind]。
      * @param onBind 拿到强类型 binding 后做绑定，参数为 binding / item / position
      */
     inline fun <reified VB : ViewBinding> addType(
         noinline isMine: (T) -> Boolean,
         viewType: Int = -1,
         noinline onCreate: ((binding: VB) -> Unit)? = null,
+        noinline onBindPayloads: ((binding: VB, item: T, position: Int, payloads: MutableList<Any>) -> Unit)? = null,
         noinline onBind: (binding: VB, item: T, position: Int) -> Unit
     ) {
         addTypeInternal(
@@ -113,6 +117,12 @@ abstract class BaseMultiPagingAdapter<T : Any>(
             onBind = { binding, item, pos ->
                 @Suppress("UNCHECKED_CAST")
                 onBind(binding as VB, item, pos)
+            },
+            onBindPayloads = onBindPayloads?.let { cb ->
+                { binding, item, pos, payloads ->
+                    @Suppress("UNCHECKED_CAST")
+                    cb(binding as VB, item, pos, payloads)
+                }
             }
         )
     }
@@ -129,11 +139,14 @@ abstract class BaseMultiPagingAdapter<T : Any>(
      * @param onCreate 可选；ViewHolder 创建完 + 点击事件绑完之后只调一次，拿到强类型 binding
      *                 做一次性初始化（嵌套 RV 的 layoutManager / addItemDecoration /
      *                 setRecycledViewPool 等），与 item 数据无关
+     * @param onBindPayloads 可选；局部刷新回调（payloads 非空时优先调用）。
+     *                       不传或 payloads 为空时回退到全量 [onBind]。
      * @param onBind 拿到强类型 binding 后做绑定，参数为 binding / item / position
      */
     inline fun <reified VB : ViewBinding> addType(
         typeValue: Int,
         noinline onCreate: ((binding: VB) -> Unit)? = null,
+        noinline onBindPayloads: ((binding: VB, item: T, position: Int, payloads: MutableList<Any>) -> Unit)? = null,
         noinline onBind: (binding: VB, item: T, position: Int) -> Unit
     ) {
         addTypeInternal(
@@ -149,6 +162,12 @@ abstract class BaseMultiPagingAdapter<T : Any>(
             onBind = { binding, item, pos ->
                 @Suppress("UNCHECKED_CAST")
                 onBind(binding as VB, item, pos)
+            },
+            onBindPayloads = onBindPayloads?.let { cb ->
+                { binding, item, pos, payloads ->
+                    @Suppress("UNCHECKED_CAST")
+                    cb(binding as VB, item, pos, payloads)
+                }
             }
         )
     }
@@ -166,10 +185,11 @@ abstract class BaseMultiPagingAdapter<T : Any>(
         isMine: (T) -> Boolean,
         bindingClass: Class<out ViewBinding>,
         onCreate: ((ViewBinding) -> Unit)? = null,
-        onBind: (ViewBinding, T, Int) -> Unit
+        onBind: (ViewBinding, T, Int) -> Unit,
+        onBindPayloads: ((ViewBinding, T, Int, MutableList<Any>) -> Unit)? = null
     ) {
         val finalType = if (viewType == -1) nextAutoType++ else viewType
-        delegates.add(TypeDelegate(finalType, isMine, bindingClass, onCreate, onBind))
+        delegates.add(TypeDelegate(finalType, isMine, bindingClass, onCreate, onBind, onBindPayloads))
     }
 
     /**
@@ -251,5 +271,34 @@ abstract class BaseMultiPagingAdapter<T : Any>(
             (holder.binding as ViewDataBinding).executePendingBindings()
         }
         delegate.onBind(holder.binding, item, position)
+    }
+
+    /**
+     * 局部刷新分发：
+     * - payloads 非空且对应 type 注册了 [TypeDelegate.onBindPayloads]，走增量回调；
+     * - 否则回退到全量 [onBindViewHolder]（保留 super 的默认转发语义）。
+     *
+     * 业务侧用 `notifyItemChanged(pos, payload)` 触发。
+     */
+    override fun onBindViewHolder(
+        holder: MultiHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if (payloads.isEmpty()) {
+            super.onBindViewHolder(holder, position, payloads)
+            return
+        }
+        val item = getItem(position)
+        val delegate = item?.let { delegates.firstOrNull { d -> d.isMine(it) } }
+        val payloadsCb = delegate?.onBindPayloads
+        if (item == null || delegate == null || payloadsCb == null) {
+            super.onBindViewHolder(holder, position, payloads)
+            return
+        }
+        if (holder.binding is ViewDataBinding) {
+            (holder.binding as ViewDataBinding).executePendingBindings()
+        }
+        payloadsCb(holder.binding, item, position, payloads)
     }
 }

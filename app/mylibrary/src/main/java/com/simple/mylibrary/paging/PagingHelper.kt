@@ -94,6 +94,7 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
     private var itemAnimatorConfigured: Boolean = false
     private var itemAnimator: RecyclerView.ItemAnimator? = PagingItemAnimator()
     private var disableAnimatorOnRefresh: Boolean = true
+    private var chatMode: Boolean = false
 
     companion object {
         /** onHeaderRefresh 的默认超时（10 秒）。超时后 onHeaderRefresh 抛 TimeoutCancellationException，coordinator 按头部失败处理 */
@@ -255,6 +256,31 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
     fun disableAnimatorOnRefresh(disable: Boolean) = apply { disableAnimatorOnRefresh = disable }
 
     /**
+     * 聊天模式:自动给 LinearLayoutManager 设 `reverseLayout=true` + `stackFromEnd=true`,
+     * 业务侧不必再手动写这两行。
+     *
+     * 视觉效果:
+     * - adapter index 0 渲染在屏幕**底部**,index N 渲染在**顶部**
+     * - 数据不满屏时整体贴底(stackFromEnd)
+     * - 用户向上滚动 = 走 Paging 的 APPEND 方向 = 加载更早消息
+     *
+     * 数据约定(配合本模式时):
+     * - PagingSource 返回顺序应当是 **[最新, ..., 较早]**,即 index 0 是最新一条
+     * - REFRESH 拉最新一页, hasMore=true 表示"还有更早历史"
+     * - 此时单向 [BasePagingSource.fetch] 就够用,**不需要** [BasePagingSource.fetchBidirectional] / PREPEND
+     * - 新消息到达调 [PagingController.insertHead] —— index 0 即视觉底部,新消息从底部冒出
+     *
+     * 行为细节:
+     * - 没传 [layoutManager](...) → 自动建一个带 chat 配置的 LinearLayoutManager
+     * - 传了 LinearLayoutManager → 把它的 reverseLayout / stackFromEnd 强制为 true
+     * - 传了 GridLayoutManager / StaggeredGridLayoutManager → **不动**(聊天用 grid 不常见,
+     *   业务想用得自己配 reverseLayout)
+     *
+     * @param enabled 默认 true
+     */
+    fun chatMode(enabled: Boolean = true) = apply { chatMode = enabled }
+
+    /**
      * 启用拖动排序（基于 [androidx.recyclerview.widget.ItemTouchHelper]）。
      *
      * 语义：
@@ -351,6 +377,10 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
         )
 
         val lm = layoutManager ?: LinearLayoutManager(rv.context)
+        if (chatMode && lm is LinearLayoutManager) {
+            lm.reverseLayout = true
+            lm.stackFromEnd = true
+        }
         rv.layoutManager = lm
         when (lm) {
             is GridLayoutManager -> configSpanSize(lm, concat, loadStateFooter, pa)

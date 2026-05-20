@@ -48,6 +48,20 @@ abstract class SingleItemBindingAdapter<T, VB : ViewBinding> :
     abstract fun onBind(binding: VB, data: T)
 
     /**
+     * 局部刷新回调，业务用 [notifyPayload] 或 `notifyItemChanged(0, payload)` 触发。
+     * 默认回退到全量 [onBind]，不重写也安全。
+     * @param payloads 非空；空 payloads 由 [onBindViewHolder] 拦截直接走全量分支
+     */
+    protected open fun onBind(binding: VB, data: T, payloads: MutableList<Any>) {
+        onBind(binding, data)
+    }
+
+    /** 局部刷新单 item；可见且 data 非空才会派发，否则忽略。 */
+    fun notifyPayload(position: Int,payload: Any) {
+        if (visible && data != null) notifyItemChanged(position, payload)
+    }
+
+    /**
      * onCreateViewHolder 创建完 ViewHolder、绑完点击事件之后回调,
      * 整个 holder 生命周期只触发一次(后续 submit / setVisible 都不会再进来).
      *
@@ -139,6 +153,22 @@ abstract class SingleItemBindingAdapter<T, VB : ViewBinding> :
             (holder.binding as ViewDataBinding).executePendingBindings()
         }
         onBind(holder.binding, d)
+    }
+
+    /**
+     * 局部刷新分发：payloads 为空时回退到全量 [onBindViewHolder]，
+     * 否则走带 payloads 的 [onBind] 重载。
+     */
+    override fun onBindViewHolder(holder: VH<VB>, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isEmpty()) {
+            super.onBindViewHolder(holder, position, payloads)
+            return
+        }
+        val d = data ?: return
+        if (holder.binding is ViewDataBinding) {
+            (holder.binding as ViewDataBinding).executePendingBindings()
+        }
+        onBind(holder.binding, d, payloads)
     }
 
     override fun getItemCount(): Int = if (visible && data != null) 1 else 0

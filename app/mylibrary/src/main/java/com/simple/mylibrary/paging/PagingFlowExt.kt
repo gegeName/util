@@ -7,6 +7,8 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.PagingSource
 import androidx.paging.cachedIn
+import com.simple.mylibrary.paging.BasePagingSource.LoadDirection
+import com.simple.mylibrary.paging.BasePagingSource.PageResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 
@@ -139,3 +141,78 @@ fun <T : Any> pagingFlowOf(
     enablePlaceholders = enablePlaceholders,
     maxSize = maxSize
 ) { LambdaPagingSource(startPage, refreshFromStart, fetcher) }
+
+/**
+ * 双向 lambda 版:聊天 / 时间轴等需要"加载更早历史"(PREPEND)的场景。
+ *
+ * 与单向 [pagingFlowOf] 的区别:fetcher 多一个 [LoadDirection] 参数,返回 [PageResult]
+ * (data, hasMore, hasPrev) 而不是 `Pair<List, Boolean>`。`hasPrev=true` 开启 PREPEND 触发,
+ * `hasMore` 在不同方向下含义不同(REFRESH/APPEND 向后看,PREPEND 向前看)。
+ *
+ * Kotlin 按 lambda 形参个数区分单向(2 个)/双向(3 个)重载,业务侧调用时直接写就行,
+ * 不会和单向版冲突。
+ *
+ * 典型聊天用法(ViewModel 内):
+ * ```
+ * class ChatVM(private val api: ChatApi, private val roomId: String) : ViewModel() {
+ *     val pagingFlow = pagingFlowOf { page, size, direction ->
+ *         when (direction) {
+ *              //首屏拉最新一页,告诉 Paging 还有更早历史(开启 PREPEND)
+ *             LoadDirection.REFRESH -> api.latest(roomId, size).run {
+ *                 PageResult(data = list,
+ *                 hasMore = false, //最新页之后没东西
+ *                 hasPrev = hasOlder// ← 关键:开启 PREPEND 的开关
+ *                 )
+ *             }
+ *             // 滚到顶,加载更早:page 已经是上一次返回的 prevKey
+ *             LoadDirection.PREPEND -> api.byPage(roomId, page, size).run {
+ *                 PageResult(data = list, hasMore = hasOlder)
+ *             }
+ *             // 聊天里 REFRESH 已经在最新,通常走不到 APPEND;留个兜底
+ *             LoadDirection.APPEND -> PageResult(emptyList(), hasMore = false)
+ *         }
+ *     }
+ * }
+ * ```
+ *
+ * RecyclerView 配 `LinearLayoutManager(reverseLayout = true, stackFromEnd = true)`,
+ * 用户向上滚动会自动触发 PREPEND 加载更早消息。
+ *
+ * @param fetcher (page, pageSize, direction) -> [PageResult],签名 = [BasePagingSource.fetchBidirectional]
+ */
+fun <T : Any> ViewModel.pagingFlowOf(
+    pageSize: Int = 20,
+    initialLoadSize: Int = pageSize,
+    prefetchDistance: Int = pageSize,
+    enablePlaceholders: Boolean = false,
+    maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
+    startPage: Int = 1,
+    refreshFromStart: Boolean = false,
+    fetcher: suspend (page: Int, pageSize: Int, direction: LoadDirection) -> PageResult<T>
+): Flow<PagingData<T>> = pagingFlowOf(
+    pageSize = pageSize,
+    initialLoadSize = initialLoadSize,
+    prefetchDistance = prefetchDistance,
+    enablePlaceholders = enablePlaceholders,
+    maxSize = maxSize
+) { BidirectionalLambdaPagingSource(startPage, refreshFromStart, fetcher) }
+
+/** 双向 lambda 版的非 ViewModel 重载,业务自己传 [CoroutineScope]。 */
+fun <T : Any> pagingFlowOf(
+    scope: CoroutineScope,
+    pageSize: Int = 20,
+    initialLoadSize: Int = pageSize,
+    prefetchDistance: Int = pageSize,
+    enablePlaceholders: Boolean = false,
+    maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
+    startPage: Int = 1,
+    refreshFromStart: Boolean = false,
+    fetcher: suspend (page: Int, pageSize: Int, direction: LoadDirection) -> PageResult<T>
+): Flow<PagingData<T>> = pagingFlowOf(
+    scope = scope,
+    pageSize = pageSize,
+    initialLoadSize = initialLoadSize,
+    prefetchDistance = prefetchDistance,
+    enablePlaceholders = enablePlaceholders,
+    maxSize = maxSize
+) { BidirectionalLambdaPagingSource(startPage, refreshFromStart, fetcher) }
