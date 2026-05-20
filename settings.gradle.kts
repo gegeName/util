@@ -33,3 +33,5 @@ dependencyResolutionManagement {
 rootProject.name = "My Application"
 include(":app")
 include(":app:mylibrary")
+include(":app:pagingutil")
+include(":app:spanutil")

@@ -65,6 +65,12 @@ class MainActivity : AppCompatActivity() {
         binding.btnZoom.setOnClickListener {
             startActivity(Intent(this@MainActivity, ZoomGestureActivity::class.java))
         }
+        binding.btnChatActivity.setOnClickListener {
+            startActivity(Intent(this@MainActivity, ChatActivity::class.java))
+        }
+        binding.btnChat2Activity.setOnClickListener {
+            startActivity(Intent(this@MainActivity, BidirectionalChatActivity::class.java))
+        }
         val bannerAdapter = BannerHeaderAdapter().apply {
             submit(BannerData("头部 Banner（addHeader）", "下拉刷新会触发 onHeaderRefresh 更新"))
             setOnItemClickListener(throttleMs = 600) { _, data ->

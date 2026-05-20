@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="end|center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="4dp">
+
+    <!--
+        发送中转圈;失败时显示红色感叹号,点击可重发(id 用 tag 关联到具体消息)。
+        tag 默认隐藏,onBind 里按 status 切换可见性。
+    -->
+    <ProgressBar
+        android:id="@+id/pbSending"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginEnd="8dp"
+        android:visibility="gone" />
+
+    <ImageView
+        android:id="@+id/ivFailed"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:layout_marginEnd="8dp"
+        android:contentDescription="重发"
+        android:src="@android:drawable/stat_notify_error"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/tvBubble"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_chat_bubble_me"
+        android:maxWidth="260dp"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:textColor="#FFFFFF"
+        android:textSize="15sp"
+        tools:ignore="UnusedAttribute"
+        xmlns:tools="http://schemas.android.com/tools"
+        tools:text="我说的话" />
+
+</LinearLayout>

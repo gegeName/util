@@ -243,10 +243,10 @@
 
                 <Button
                     android:id="@+id/btnServerUpdate"
-                    android:layout_width="wrap_content"
                     style="?attr/buttonBarButtonStyle"
-                    android:padding="10dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:padding="10dp"
                     android:text="服务端改" />
 
 
@@ -284,28 +284,45 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Span复用测试" />
+
                 <Button
                     android:id="@+id/btnZoom"
-                    android:layout_width="wrap_content"
                     style="?attr/buttonBarButtonStyle"
-                    android:padding="10dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:padding="10dp"
                     android:text="缩放" />
+
+
+                <Button
+                    android:id="@+id/btnChatActivity"
+                    style="?attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chat聊天正规" />
+
+                <Button
+                    android:id="@+id/btnChat2Activity"
+                    style="?attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:text="Chat聊天2使用paging" />
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>
-
 
 
     <com.simple.mylibrary.http.StateLayout
         android:id="@+id/pageState"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:stlStateBackground="@color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnBar" >
+        app:layout_constraintTop_toBottomOf="@id/btnBar"
+        app:stlStateBackground="@color/white">
+
         <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
             android:id="@+id/swipeRefresh"
             android:layout_width="match_parent"
