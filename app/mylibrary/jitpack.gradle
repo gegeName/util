@@ -26,7 +26,7 @@ ext {
     publishArtifactId = 'mylibrary'
     publishVersion    = project.findProperty('VERSION_NAME') ?: '0.1.0-LOCAL'
 
-    publishUrl        = 'https://github.com/gegeName/mylibrary'  // TODO
+    publishUrl        = 'https://github.com/gegeName/util'       // TODO
     publishDeveloperId   = 'gegeName'
     publishDeveloperName = 'util'
 }

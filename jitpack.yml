@@ -6,14 +6,19 @@ jdk:
 
 # 默认 install 命令是 ./gradlew clean install，但 Android Library 没有 install 任务。
 # 这里显式指定发布到 mavenLocal，并只发布需要的子模块。
+# JitPack 会注入 $VERSION 环境变量，把它传给 -PVERSION_NAME 让 jitpack.gradle 取到。
 install:
-  - ./gradlew \
-    :app:mylibrary:publishToMavenLocal \
-    :app:pagingutil:publishToMavenLocal \
-    :app:shapeview:publishToMavenLocal \
+  - ./gradlew
+    :app:mylibrary:publishToMavenLocal
+    :app:pagingutil:publishToMavenLocal
+    :app:shapeview:publishToMavenLocal
     :app:spanutil:publishToMavenLocal
+    -PVERSION_NAME=$VERSION
 
 
 # 多模块仓库的依赖坐标会变成：
 #   com.github.<USER>.<REPO>:mylibrary:<TAG>
+#   com.github.<USER>.<REPO>:pagingutil:<TAG>
+#   com.github.<USER>.<REPO>:shapeview:<TAG>
+#   com.github.<USER>.<REPO>:spanutil:<TAG>
 # （注意是点号，不是冒号）
