@@ -38,6 +38,7 @@ dependencies {
     api("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
     api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
     api("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    api(project(":app:statelayout"))
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")

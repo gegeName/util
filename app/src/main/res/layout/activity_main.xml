@@ -313,7 +313,7 @@
     </LinearLayout>
 
 
-    <com.simple.mylibrary.http.StateLayout
+    <com.lhj.pagingutil.PagingStateLayout
         android:id="@+id/pageState"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -336,6 +336,6 @@
                 android:overScrollMode="never" />
 
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-    </com.simple.mylibrary.http.StateLayout>
+    </com.lhj.pagingutil.PagingStateLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

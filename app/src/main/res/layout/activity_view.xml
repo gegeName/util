@@ -26,7 +26,7 @@
             android:text="Shape 1.1  shape_solidColor_L + shape_radius_L"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -44,7 +44,7 @@
             android:text="Shape 1.2  四角不同圆角 shape_topLeftRadius_L / topRightRadius_L / bottomLeftRadius_L / bottomRightRadius_L"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -63,7 +63,7 @@
             android:text="Shape 1.3  shape_strokeColor_L + shape_strokeSize_L"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -83,7 +83,7 @@
             android:text="Shape 1.4  虚线描边 shape_strokeDashSize_L / shape_strokeDashGap_L"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -105,7 +105,7 @@
             android:text="Shape 1.5  线性渐变 shape_solidGradient*"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -127,7 +127,7 @@
             android:text="Shape 1.6  径向渐变 (gradientType=1)"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeView
+        <com.lhj.shapeview.ShapeView
             android:layout_width="120dp"
             android:layout_height="120dp"
             app:shape_radius_L="60dp"
@@ -146,7 +146,7 @@
             android:text="Shape 1.7  按压/选中态颜色 shape_solidPressedColor_L 等"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeButton
+        <com.lhj.shapeview.ShapeButton
             android:id="@+id/btn_color"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -166,7 +166,7 @@
             android:text="Shape 1.8  椭圆 shape_L=1"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeView
+        <com.lhj.shapeview.ShapeView
             android:layout_width="120dp"
             android:layout_height="60dp"
             app:shape_L="oval"
@@ -183,7 +183,7 @@
             android:text="Shape 1.9  圆环 shape_L=3 + shape_innerRadiusRatio_L / shape_thicknessRatio_L"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeView
+        <com.lhj.shapeview.ShapeView
             android:layout_width="100dp"
             android:layout_height="100dp"
             app:shape_L="ring"
@@ -201,7 +201,7 @@
             android:text="Shape 1.10  线条 shape_L=2 + shape_lineGravity_L"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeView
+        <com.lhj.shapeview.ShapeView
             android:layout_width="match_parent"
             android:layout_height="20dp"
             app:shape_L="line"
@@ -219,7 +219,7 @@
             android:text="Shape 1.11  显式 shape_width_L / shape_height_L"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeView
+        <com.lhj.shapeview.ShapeView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:shape_height_L="48dp"
@@ -246,7 +246,7 @@
             android:text="Shadow 2.1  仅 shape_shadowElevation_L (系统默认黑色阴影，无 ambient 硬边)"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -265,7 +265,7 @@
             android:text="Shadow 2.2  shape_shadowSpotColor_L (主光彩色，ambient 自动透明)"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -284,7 +284,7 @@
             android:text="Shadow 2.3  shape_shadowAmbientColor_L (环境光彩色，spot 自动透明)"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -304,7 +304,7 @@
             android:text="Shadow 2.4  spot + ambient 同时设(各自原值，互不影响)"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -325,7 +325,7 @@
             android:text="Shadow 2.5  shape_shadowMaxElevation_L (兼容计算用的最大阴影高度)"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -346,7 +346,7 @@
             android:text="Shadow 2.10  shape_shadowUseCompatPadding_L / shape_shadowPreventCornerOverlap_L"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeTextView
+        <com.lhj.shapeview.ShapeTextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:gravity="center"
@@ -379,7 +379,7 @@
             android:text="Combo  Shape 渐变 + Shadow 彩色阴影 + 圆角同步到 outline"
             android:textStyle="bold" />
 
-        <com.simple.mylibrary.weiget.ShapeLinearLayout
+        <com.lhj.shapeview.ShapeLinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="24dp"
@@ -411,10 +411,10 @@
                 android:text="渐变背景 + 紫色阴影 + 12dp 圆角，shadow padding 自动留出"
                 android:textColor="#E1BEE7"
                 android:textSize="13sp" />
-        </com.simple.mylibrary.weiget.ShapeLinearLayout>
+        </com.lhj.shapeview.ShapeLinearLayout>
 
 
-        <com.simple.mylibrary.weiget.ShapeEditText
+        <com.lhj.shapeview.ShapeEditText
             android:layout_width="100dp"
             android:layout_height="wrap_content"
             android:padding="10dp"

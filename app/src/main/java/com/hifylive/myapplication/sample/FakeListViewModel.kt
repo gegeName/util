@@ -3,8 +3,8 @@ package com.hifylive.myapplication.sample
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.simple.mylibrary.paging.PagingPatcher
-import com.simple.mylibrary.paging.pagingFlowOf
+import com.lhj.pagingutil.PagingPatcher
+import com.lhj.pagingutil.pagingFlowOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

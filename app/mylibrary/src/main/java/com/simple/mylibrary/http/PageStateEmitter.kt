@@ -1,5 +1,6 @@
 package com.simple.mylibrary.http
 
+import com.example.statelayout.StateLayout
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -38,7 +39,10 @@ class PageStateEmitter(initial: PageState = PageState.Success) {
     private val _state = MutableStateFlow(initial)
     val state: StateFlow<PageState> = _state.asStateFlow()
 
-    fun set(state: PageState) { _state.value = state }
+    fun set(state: PageState) {
+        _state.value = state
+    }
+
     fun showLoading() = set(PageState.Loading)
     fun showEmpty() = set(PageState.Empty)
     fun showSuccess() = set(PageState.Success)
@@ -130,7 +134,7 @@ fun StateLayout.bindPageState(
 ): Job = scope.launch {
     emitter.state.collect { s ->
         when (s) {
-            PageState.Loading -> showLoading()
+            PageState.Loading -> showPageLoading()
             PageState.Empty -> showEmpty()
             PageState.Success -> showSuccess()
             is PageState.Error -> showError()

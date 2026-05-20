@@ -15,9 +15,8 @@ import com.hifylive.myapplication.databinding.ActivityChatBinding
 import com.hifylive.myapplication.sample.BidirectionalChatViewModel
 import com.hifylive.myapplication.sample.ChatAdapter
 import com.hifylive.myapplication.sample.ChatMsg
-import com.simple.mylibrary.paging.CommonLoadStateAdapter
-import com.simple.mylibrary.paging.PagingController
-import com.simple.mylibrary.paging.PagingHelper
+import com.lhj.pagingutil.PagingController
+import com.lhj.pagingutil.PagingHelper
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
@@ -88,8 +87,13 @@ class BidirectionalChatActivity : AppCompatActivity() {
         }
 
         // 监听用户滚动行为, 判断是否停在底部
-        binding.rv.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
-            override fun onScrolled(rv: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
+        binding.rv.addOnScrollListener(object :
+            androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(
+                rv: androidx.recyclerview.widget.RecyclerView,
+                dx: Int,
+                dy: Int
+            ) {
                 stickToBottom = !rv.canScrollVertically(1)   // 1 = 向下,false 即已到底
             }
         })

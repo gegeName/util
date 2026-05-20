@@ -2,7 +2,7 @@ package com.hifylive.myapplication.sample
 
 import com.hifylive.myapplication.R
 import com.hifylive.myapplication.databinding.LayoutHeaderBannerBinding
-import com.simple.mylibrary.paging.SingleItemBindingAdapter
+import com.lhj.pagingutil.SingleItemBindingAdapter
 
 data class BannerData(val title: String, val desc: String)
 

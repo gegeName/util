@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="StateLayout">
+
+        <!-- 加载中状态的布局资源；不传则使用 mylibrary 默认的 layout_state_loading（居中 ProgressBar）。 -->
+        <attr name="stlLoadingLayout" format="reference" />
+
+        <!-- 空数据状态的布局资源；默认 layout_state_empty（含 id=tvPageStateEmpty 的文本）。 -->
+        <attr name="stlEmptyLayout" format="reference" />
+
+        <!-- 加载失败状态的布局资源；默认 layout_state_error（含 tvPageStateError + btnPageStateRetry）。 -->
+        <attr name="stlErrorLayout" format="reference" />
+
+        <!-- 空状态默认文案，写到布局里 id=tvPageStateEmpty 的 TextView。运行时可被 setEmptyText 覆盖。 -->
+        <attr name="stlEmptyText" format="string" />
+
+        <!-- 失败状态默认文案，写到布局里 id=tvPageStateError 的 TextView。运行时被 showError(throwable, text) 覆盖。 -->
+        <attr name="stlErrorText" format="string" />
+
+        <!-- 重试按钮文案，写到布局里 id=btnPageStateRetry 的 TextView。可被 setRetryText 覆盖。 -->
+        <attr name="stlRetryText" format="string" />
+
+        <attr name="stlStateBackground" format="reference|color" />
+
+        <!--
+            状态视图距离容器顶部的 margin。典型用途：topbar 是 StateLayout 的子 view 时，
+            用这个值让出 topbar 区域，使 topbar 在任何状态下都保持可见、可点击。
+        -->
+        <attr name="stlMarginTop" format="dimension" />
+
+        <!-- 状态视图距离容器底部的 margin。例如让出底部 tabbar、悬浮按钮区域。 -->
+        <attr name="stlMarginBottom" format="dimension" />
+
+        <!-- 状态视图距离容器左侧的 margin（LTR 下为左侧）。常用于让出侧边导航条。 -->
+        <attr name="stlMarginStart" format="dimension" />
+
+        <!-- 状态视图距离容器右侧的 margin（LTR 下为右侧）。 -->
+        <attr name="stlMarginEnd" format="dimension" />
+
+        <!--
+            初始状态。仅在 onFinishInflate 时生效一次：
+            - success（默认）：不切换任何状态，直接显示内容子 view
+            - loading / empty / error：进入对应状态视图（首次进入页面想直接显示骨架/loading 的常用做法）
+            后续业务还是通过 setState / showLoading / showEmpty / showError / showContent 切换。
+        -->
+        <attr name="stlDefaultState" format="enum">
+            <enum name="success" value="0" />
+            <enum name="loading" value="1" />
+            <enum name="empty" value="2" />
+            <enum name="error" value="3" />
+        </attr>
+    </declare-styleable>
+</resources>

@@ -3,13 +3,14 @@ package com.hifylive.myapplication.sample
 import androidx.recyclerview.widget.DiffUtil
 import com.hifylive.myapplication.R
 import com.hifylive.myapplication.databinding.ItemFakeBinding
-import com.simple.mylibrary.paging.BasePagingAdapter
+import com.lhj.pagingutil.BasePagingAdapter
 
 class FakeAdapter : BasePagingAdapter<FakeItem, ItemFakeBinding>(DIFF) {
 
     init {
         addChildClickViewIds(R.id.tvTitle)
     }
+
     override fun onBind(binding: ItemFakeBinding, item: FakeItem, position: Int) {
         binding.tvTitle.text = item.title
         binding.tvSubtitle.text = item.subtitle

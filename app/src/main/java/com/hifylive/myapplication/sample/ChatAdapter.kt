@@ -4,7 +4,7 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import com.hifylive.myapplication.databinding.ItemChatMeBinding
 import com.hifylive.myapplication.databinding.ItemChatOtherBinding
-import com.simple.mylibrary.paging.BaseMultiPagingAdapter
+import com.lhj.pagingutil.BaseMultiPagingAdapter
 
 /**
  * 聊天列表 Adapter。

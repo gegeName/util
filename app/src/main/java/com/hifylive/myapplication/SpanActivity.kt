@@ -18,11 +18,11 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.simple.mylibrary.span.CharAnim
-import com.simple.mylibrary.span.CharAnims
-import com.simple.mylibrary.span.EmojiRegistry
-import com.simple.mylibrary.span.RepeatConfig
-import com.simple.mylibrary.utils.SpanBuilder
+import com.lhj.spanutil.SpanBuilder
+import com.lhj.spanutil.span.CharAnim
+import com.lhj.spanutil.span.CharAnims
+import com.lhj.spanutil.span.EmojiRegistry
+import com.lhj.spanutil.span.RepeatConfig
 import kotlin.math.min
 
 /**
@@ -505,7 +505,12 @@ class SpanActivity : AppCompatActivity() {
             .append("  圆角变换 ")
             .image(R.drawable.ic_launcher_foreground, 44.dp(), 44.dp())
             .append("  URL GIF ")
-            .gif("https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3lwNWtqMGdocWpvdWp1Ymtrc2hmeTZnbTI2MG5naHZ6ZnZwbWY3bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/DzFj5QLRs7AZ2/giphy.gif",44.dp(),44.dp(),true)
+            .gif(
+                "https://media0.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3lwNWtqMGdocWpvdWp1Ymtrc2hmeTZnbTI2MG5naHZ6ZnZwbWY3bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/DzFj5QLRs7AZ2/giphy.gif",
+                44.dp(),
+                44.dp(),
+                true
+            )
             .onClick {
                 Toast.makeText(this@SpanActivity, "toast", Toast.LENGTH_SHORT).show()
             }

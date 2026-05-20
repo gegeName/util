@@ -11,7 +11,6 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.GridLayoutManager
-import com.gzxkwl.library.utils.SpacingItemDecoration
 import com.hifylive.myapplication.databinding.ActivityMainBinding
 import com.hifylive.myapplication.sample.BannerData
 import com.hifylive.myapplication.sample.BannerHeaderAdapter
@@ -20,11 +19,12 @@ import com.hifylive.myapplication.sample.FakeItem
 import com.hifylive.myapplication.sample.FakeListViewModel
 import com.hifylive.myapplication.sample.FooterData
 import com.hifylive.myapplication.sample.RecommendFooterAdapter
-import com.simple.mylibrary.paging.CommonLoadStateAdapter
-import com.simple.mylibrary.paging.PagingController
-import com.simple.mylibrary.paging.PagingHelper
-import com.simple.mylibrary.paging.RequestPolicy
-import com.simple.mylibrary.paging.SwipeRefreshAdapter
+import com.lhj.pagingutil.CommonLoadStateAdapter
+import com.lhj.pagingutil.PagingController
+import com.lhj.pagingutil.PagingHelper
+import com.lhj.pagingutil.RequestPolicy
+import com.lhj.pagingutil.SpacingItemDecoration
+import com.lhj.pagingutil.SwipeRefreshAdapter
 import kotlinx.coroutines.delay
 
 /**

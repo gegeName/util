@@ -42,6 +42,9 @@ android {
 
 dependencies {
     implementation(project(":app:mylibrary"))
+    implementation(project(":app:spanutil"))
+    implementation(project(":app:shapeview"))
+    implementation(project(":app:pagingutil"))
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)

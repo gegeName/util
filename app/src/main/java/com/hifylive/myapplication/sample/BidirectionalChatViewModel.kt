@@ -3,10 +3,9 @@ package com.hifylive.myapplication.sample
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.simple.mylibrary.paging.BasePagingSource.LoadDirection
-import com.simple.mylibrary.paging.BasePagingSource.PageResult
-import com.simple.mylibrary.paging.PagingPatcher
-import com.simple.mylibrary.paging.pagingFlowOf
+import com.lhj.pagingutil.BasePagingSource
+import com.lhj.pagingutil.PagingPatcher
+import com.lhj.pagingutil.pagingFlowOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -43,28 +42,30 @@ class BidirectionalChatViewModel : ViewModel() {
      * @return [PageResult] 三件套: data, hasMore, hasPrev
      */
     val pagingFlow = pagingFlowOf(pageSize = 20) { page, size, direction ->
-        Log.e("BidirectionalChatViewModel", ":page=${page} ", )
+        Log.e("BidirectionalChatViewModel", ":page=${page} ")
         when (direction) {
-            LoadDirection.REFRESH -> {
+            BasePagingSource.LoadDirection.REFRESH -> {
                 // 首屏: 拉最新一批, 告诉 Paging 还有更早历史 → 开启 PREPEND
                 val data = api.latest(size)
-                PageResult(
+                BasePagingSource.PageResult(
                     data = data,
                     hasMore = false,                       // 已经在最新, 后面没东西
                     hasPrev = data.size == size            // 拉满一页, 假定还有更早可拉
                 )
             }
-            LoadDirection.PREPEND -> {
+
+            BasePagingSource.LoadDirection.PREPEND -> {
                 // 用户滚到顶部加载更早:
                 // page 的取值: REFRESH 后 prevKey = 0,所以第一次 PREPEND page=0,
                 // 之后 -1, -2... 业务把它翻译成距离 latest 几批的 offset.
                 val offset = -page + 1                     // page=0 → offset=1
                 val (data, hasMoreOlder) = api.olderBatch(offset, size)
-                PageResult(data = data, hasMore = hasMoreOlder)
+                BasePagingSource.PageResult(data = data, hasMore = hasMoreOlder)
             }
-            LoadDirection.APPEND -> {
+
+            BasePagingSource.LoadDirection.APPEND -> {
                 // 聊天里 REFRESH 已经是最新,APPEND 通常走不到,兜底空
-                PageResult(emptyList(), hasMore = false)
+                BasePagingSource.PageResult(emptyList(), hasMore = false)
             }
         }
     }

@@ -1,6 +1,6 @@
 package com.hifylive.myapplication.sample
 
-import com.simple.mylibrary.paging.MultiTypeItem
+import com.lhj.pagingutil.MultiTypeItem
 
 /**
  * 聊天消息。

@@ -37,7 +37,7 @@ dependencies {
     api("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
     api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
     api("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
-
+    api(project(":app:statelayout"))
     api("com.squareup.retrofit2:retrofit:3.0.0")
     api("com.squareup.retrofit2:converter-gson:3.0.0")
     api("com.squareup.okhttp3:okhttp:5.3.2")

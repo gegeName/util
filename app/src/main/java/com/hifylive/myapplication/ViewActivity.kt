@@ -5,7 +5,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.simple.mylibrary.weiget.ShapeButton
+import com.lhj.shapeview.ShapeButton
 
 class ViewActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

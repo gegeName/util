@@ -1,5 +1,7 @@
 package com.simple.mylibrary.http
 
+import com.example.statelayout.StateLayout
+
 /**
  * 页面声明"我有一个 StateLayout"。配合 `autoLoadingViewModel` 委托使用，
  * 当 VM 实现 [com.common.network.base.PageStateOwner] 时，框架在 lifecycle ≥ STARTED 时

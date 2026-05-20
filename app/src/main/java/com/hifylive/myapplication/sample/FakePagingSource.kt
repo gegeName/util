@@ -1,6 +1,6 @@
 package com.hifylive.myapplication.sample
 
-import com.simple.mylibrary.paging.BasePagingSource
+import com.lhj.pagingutil.BasePagingSource
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicLong
 
@@ -19,6 +19,7 @@ class FakePagingSource : BasePagingSource<FakeItem>() {
     }
 
     private val refreshSeed = seed.incrementAndGet()
+
     // 记录已尝试过的页码：第一次抛错制造失败态，之后再加载（也就是重试）就走正常流程
     private val attemptedPages = mutableSetOf<Int>()
 
