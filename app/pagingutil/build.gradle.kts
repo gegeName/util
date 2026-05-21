@@ -4,16 +4,10 @@ plugins {
 
 android {
     namespace = "com.lhj.pagingutil"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
     compileOptions {
@@ -25,23 +19,22 @@ android {
         viewBinding = true
         dataBinding = true
     }
-
 }
 
 dependencies {
+    // 内部实现
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.core:core-ktx:1.18.0")
     implementation("com.google.android.material:material:1.13.0")
-    api("androidx.constraintlayout:constraintlayout:2.2.1")
+
+    // 出现在 public API 签名(基类 / 函数参数 / 返回值),必须 api
     api("androidx.recyclerview:recyclerview:1.4.0")
     api("androidx.paging:paging-runtime-ktx:3.5.0")
     api("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
-    api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
-    api("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
+    // PagingStateLayout extends StateLayout,业务方使用时需直接持有 StateLayout 类型
     api(project(":app:statelayout"))
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
 apply(from = "jitpack.gradle")

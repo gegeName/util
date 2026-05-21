@@ -4,16 +4,10 @@ plugins {
 
 android {
     namespace = "com.simple.mylibrary"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 24
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
     compileOptions {
@@ -28,27 +22,17 @@ android {
 }
 
 dependencies {
+    // 基础(只在内部用,不暴露到公共 API)
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.core:core-ktx:1.18.0")
     implementation("com.google.android.material:material:1.13.0")
-    api("androidx.constraintlayout:constraintlayout:2.2.1")
-    api("androidx.recyclerview:recyclerview:1.4.0")
-    api("androidx.paging:paging-runtime-ktx:3.5.0")
-    api("androidx.swiperefreshlayout:swiperefreshlayout:1.2.0")
-    api("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
-    api("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     api(project(":app:statelayout"))
+    // 在 public API 签名里出现 → 必须 api,业务方继承时能拿到类型
+    implementation("androidx.recyclerview:recyclerview:1.4.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    // ApiErrorHandler 用到 retrofit2.HttpException;HttpResult / 网络层 public API
     api("com.squareup.retrofit2:retrofit:3.0.0")
-    api("com.squareup.retrofit2:converter-gson:3.0.0")
-    api("com.squareup.okhttp3:okhttp:5.3.2")
-    api("com.squareup.okhttp3:logging-interceptor:5.3.2")
-    api("com.github.bumptech.glide:glide:5.0.5")
-    api("com.caverock:androidsvg-aar:1.4")
-    api("com.github.yyued:SVGAPlayer-Android:2.6.1")
-
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
 apply(from = "jitpack.gradle")
