@@ -17,8 +17,8 @@ android {
 }
 
 dependencies {
-    implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core-ktx:1.15.0")
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("com.github.bumptech.glide:glide:5.0.5")
     implementation("com.caverock:androidsvg-aar:1.4")

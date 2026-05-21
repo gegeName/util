@@ -23,9 +23,9 @@ android {
 
 dependencies {
     // 内部实现
-    implementation("androidx.appcompat:appcompat:1.7.1")
-    implementation("androidx.core:core-ktx:1.18.0")
-    implementation("com.google.android.material:material:1.13.0")
+    implementation("androidx.appcompat:appcompat:1.7.0")
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("com.google.android.material:material:1.12.0")
 
     // 出现在 public API 签名(基类 / 函数参数 / 返回值),必须 api
     api("androidx.recyclerview:recyclerview:1.4.0")
