@@ -7,4 +7,5 @@
     <item type="id" name="span_builder_char_driver"/>
     <item type="id" name="span_builder_highlight_set"/>
     <item type="id" name="span_builder_software_layer_set"/>
+    <item type="id" name="span_builder_click_holders"/>
 </resources>

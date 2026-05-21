@@ -78,6 +78,8 @@ class SpanBuilder private constructor(private val context: Context) {
     /** 是否包含 ClickableSpan，[into] / [buildAndAttach] 时把 highlightColor 设为透明，消除点击闪烁。 */
     private var hasClickable = false
 
+    private val clickHolders = mutableListOf<ClickListenerHolder>()
+
     /**
      * 字符级动画驱动器,[charAnimation] 设置后非 null。
      * [prepareTextView] 时会调用 driver.start(textView) 开始 Choreographer 循环。
@@ -253,7 +255,6 @@ class SpanBuilder private constructor(private val context: Context) {
         ssb.append(" ")
         val end = ssb.length
         ssb.setSpan(CenterAlignImageSpan(drawable), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        // 动图(GIF / AnimatedImageDrawable 等)登记到 animatables, 由 into() 统一驱动播放
         if (drawable is Animatable) animatables.add(drawable)
         segments = listOf(start to end)
         return this
@@ -325,14 +326,6 @@ class SpanBuilder private constructor(private val context: Context) {
     /**
      * 添加 SVG 矢量图,统一入口,支持:
      *
-     * - **远程 URL**: `http://` / `https://` 开头,异步下载 → AndroidSVG 解析。
-     * - **本地文件**: 绝对路径或 `file://` URI,同步读盘 → 解析。
-     *
-     * 必须配合 [into] / [buildAndAttach] 使用,[build] 模式不会触发加载。
-     * SVG 解析失败 / 网络失败时占位符保持透明,不破坏文字布局。
-     *
-     * 如果 SVG 已在 build 时转成 VectorDrawable,直接用 [image] (@DrawableRes) 即可。
-     *
      * @param url    SVG 资源地址(URL 或本地路径)
      * @param width  显示宽度 px
      * @param height 显示高度 px
@@ -372,20 +365,6 @@ class SpanBuilder private constructor(private val context: Context) {
 
     /**
      * 添加 SVGA 动效(直播礼物 / 复杂动画首选)。
-     *
-     * **资源类型**:
-     * - `http://` / `https://` URL: 远端 .svga 文件,SVGAParser 自带下载。
-     * - 其他字符串: 当作 assets 根目录文件名(`xxx.svga`)。
-     *
-     * **必须配合 [into] / [buildAndAttach] 使用**;[build] 模式不会触发加载。
-     *
-     * **复用 / 内存说明**:
-     * - SVGA Entity 由 [com.simple.mylibrary.span.SvgaCache] 跨 holder 共享,
-     *   同 URL 在 RecyclerView 滚动复用时不会重复解码,杜绝最大头的内存抖动。
-     * - 每个使用点持有的 [SvgaSpanDrawable] 只是几 KB 的壳子,内部 1 张帧 Bitmap
-     *   随 bounds 变化按需重建,不每帧 new。
-     * - 与 GIF / SVG 一样,detach/attach 通过 [Animatable] 接口自动 pause/start;
-     *   bind 新数据通过 `Releasable.release()` 解引用旧实例(entity 留在缓存)。
      *
      * @param url    .svga 远端 URL 或 assets 文件名
      * @param width  显示宽度 px
@@ -578,11 +557,6 @@ class SpanBuilder private constructor(private val context: Context) {
      * 扫描当前文本,把所有匹配 [pattern] 的 token(默认 `:smile:` / `[smile]`)
      * 用 [EmojiRegistry] 里注册的资源(@DrawableRes 或 URL)替换为图片。
      *
-     * 调用前应先用 [setText] / [append] 装好文本,资源应预先用
-     * [EmojiRegistry.register] / [EmojiRegistry.registerAll] 注册。
-     *
-     * 未在注册表中的 token 原样保留。
-     *
      * @param width   每个 emoji 的显示宽度 px
      * @param height  每个 emoji 的显示高度 px
      * @param pattern token 匹配规则,默认匹配 `:abc:` 与 `[abc]`
@@ -593,7 +567,6 @@ class SpanBuilder private constructor(private val context: Context) {
         pattern: Regex = EmojiRegistry.DEFAULT_PATTERN,
     ): SpanBuilder {
         if (ssb.isEmpty()) return this
-        // 由后向前替换,避免索引偏移
         val matches = pattern.findAll(ssb.toString()).toList().asReversed()
         val placedRanges = mutableListOf<Pair<Int, Int>>()
         matches.forEach { m ->
@@ -1192,9 +1165,13 @@ class SpanBuilder private constructor(private val context: Context) {
         underline: Boolean = false, @ColorInt overrideColor: Int? = null, listener: (View) -> Unit,
     ): SpanBuilder {
         hasClickable = true
+        val holder = ClickListenerHolder(listener)
+        clickHolders.add(holder)
         return applyEach { s, e ->
             ssb.setSpan(object : ClickableSpan() {
-                override fun onClick(widget: View) = listener(widget)
+                override fun onClick(widget: View) {
+                    holder.listener?.invoke(widget)
+                }
                 override fun updateDrawState(ds: TextPaint) {
                     overrideColor?.let { ds.color = it }
                     ds.isUnderlineText = underline
@@ -1202,6 +1179,11 @@ class SpanBuilder private constructor(private val context: Context) {
             }, s, e, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
+
+    /**
+     * 装 [onClick] 回调的可清空容器，置空 [listener] 即可断开外部引用。
+     */
+    private class ClickListenerHolder(var listener: ((View) -> Unit)?)
 
     private inline fun applyEach(block: (Int, Int) -> Unit): SpanBuilder {
         segments.forEach { (s, e) -> if (s < e) block(s, e) }
@@ -1289,8 +1271,6 @@ class SpanBuilder private constructor(private val context: Context) {
         var initialTextSet = false
         dispatchPendingImageLoads(textView, tvRef) {
             if (initialTextSet) {
-                // 把同一个 ssb 重新 set 给 textView,Android 内部会判断引用相同跳过重排,
-                // 导致新 setSpan 的 ImageSpan 不刷新。这里先置空再重设,强制 layout。
                 textView.text = ""
                 textView.text = ssb
             }
@@ -1302,16 +1282,21 @@ class SpanBuilder private constructor(private val context: Context) {
     private fun prepareTextView(textView: TextView): WeakReference<TextView> {
         textView.movementMethod = LinkMovementMethod.getInstance()
 
-        // hasClickable / needsSoftwareLayer 都是"开关型"状态,RecyclerView 复用时若
-        // 新 builder 不再需要,得**主动恢复**到默认,否则旧设置会泄漏到新内容。
-        // 用 tag 记账上一次是否设置过,bind 新数据时按需还原。
+        @Suppress("UNCHECKED_CAST")
+        val previousHolders =
+            textView.getTag(R.id.span_builder_click_holders) as? MutableList<ClickListenerHolder>
+        previousHolders?.forEach { it.listener = null }
+        textView.setTag(
+            R.id.span_builder_click_holders,
+            clickHolders.ifEmpty { null },
+        )
+
         val highlightTag = R.id.span_builder_highlight_set
         val prevHadClickable = textView.getTag(highlightTag) == true
         if (hasClickable) {
             textView.highlightColor = Color.TRANSPARENT
             textView.setTag(highlightTag, true)
         } else if (prevHadClickable) {
-            // 还原到系统默认 highlightColor(主题里 textColorHighlight 通常是淡蓝)
             textView.highlightColor = 0x6633B5E5
             textView.setTag(highlightTag, false)
         }
@@ -1324,8 +1309,6 @@ class SpanBuilder private constructor(private val context: Context) {
             textView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
             textView.setTag(layerTag, true)
         } else if (prevHadSoftware && !textView.isInEditMode) {
-            // RecyclerView 复用同一 TextView 在 hardware/software 间反复切换会触发
-            // layer 重建 + Bitmap 分配。这里只在确实需要切回时才切,避免无谓抖动。
             textView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
             textView.setTag(layerTag, false)
         }
@@ -1333,9 +1316,6 @@ class SpanBuilder private constructor(private val context: Context) {
         val tvRef = WeakReference(textView)
         animatables.forEach { wireAnimatable(it, tvRef) }
         attachAnimationLifecycle(textView)
-        // driver 必须等 TextView 真的 attach + 即将第一次 draw 时才 start,
-        // 否则 onCreate 阶段 attach 之前就开始计时,前若干百毫秒的进度被首帧上屏吃掉,
-        // 用户感知是动画"瞬间结束"。
         charAnimDriver?.let { driver ->
             textView.post { driver.start(textView) }
         }
@@ -1390,8 +1370,6 @@ class SpanBuilder private constructor(private val context: Context) {
         finalDrawable: Drawable,
         tvRef: WeakReference<TextView>,
     ) {
-        // SvgaSpanDrawable 用自己的 Choreographer 抓帧,需要直接持有 textView 弱引用,
-        // 不依赖外层 Drawable.Callback 链路(包了 RoundMask 后 callback 会被覆盖)。
         val tv = tvRef.get()
         if (tv != null) {
             (resource as? SvgaSpanDrawable)?.bindHost(tv)
@@ -1448,26 +1426,21 @@ class SpanBuilder private constructor(private val context: Context) {
             (prev as? RoundMaskDrawable)?.release()
         }
 
-        // 旧的字符动画 driver 必须 stop,否则 Choreographer 还在每帧 invalidate
-        // 已经 bind 新数据的 TextView,造成无意义重绘和持有 WeakReference 的轻微浪费。
         (textView.getTag(charDriverTag) as? CharAnimationDriver)?.stop()
 
         val previous = textView.getTag(listenerTag) as? View.OnAttachStateChangeListener
         if (previous != null) textView.removeOnAttachStateChangeListener(previous)
 
         val animListRef = animatables
-        // driver 闭包捕获,避免 listener 持有 SpanBuilder 自身导致 leak
         val driverRef = charAnimDriver
         val listener = object : View.OnAttachStateChangeListener {
             override fun onViewAttachedToWindow(v: View) {
                 animListRef.forEach { if (!it.isRunning) it.start() }
-                // attach 回来:driver 重新 start(start 会忽略 disposed,所以只对 pause 过的有效)
                 driverRef?.start(textView)
             }
 
             override fun onViewDetachedFromWindow(v: View) {
                 animListRef.forEach { if (it.isRunning) it.stop() }
-                // detach:pause 而不是 stop,保留 driver 给 attach 回来时复用
                 driverRef?.pause()
             }
         }
