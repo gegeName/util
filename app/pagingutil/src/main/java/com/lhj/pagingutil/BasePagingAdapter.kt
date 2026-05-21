@@ -47,11 +47,6 @@ abstract class BasePagingAdapter<T : Any, VB : ViewBinding>(
      * onCreateViewHolder 创建完 ViewHolder、绑完点击事件之后回调,
      * 整个 holder 生命周期只触发一次(后续复用 / 重 bind 不会再进来).
      *
-     * 用来做"与 item 数据无关、只跟 View 有关"的一次性配置:
-     * - 嵌套 RecyclerView 设 layoutManager / addItemDecoration / setRecycledViewPool
-     * - 给某个 View 挂 setOnTouchListener 等长期监听
-     * - 给 holder.itemView 上挂 tag、自定义属性
-     *
      * 与 [onBind] 区分:
      * - onBind 每次滚动复用 / 数据变更都会被调,适合写"数据 → 视图"的映射
      * - onViewHolderCreated 只调一次,适合写"View 自身的结构 / 行为初始化"

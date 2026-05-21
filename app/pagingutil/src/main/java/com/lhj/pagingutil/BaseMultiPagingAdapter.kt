@@ -59,10 +59,6 @@ abstract class BaseMultiPagingAdapter<T : Any>(
     diff: DiffUtil.ItemCallback<T>
 ) : BaseClickPagingAdapter<T, BaseMultiPagingAdapter.MultiHolder>(diff) {
 
-    /**
-     * 通用 ViewHolder：持有任意 ViewBinding；onBind 时由 Adapter 按注册类型回调，业务侧拿到强类型 binding。
-     * @property binding 当前 item 对应的 ViewBinding 实例（可能是 ViewBinding 也可能是 ViewDataBinding）
-     */
     class MultiHolder(val binding: ViewBinding) : RecyclerView.ViewHolder(binding.root)
 
     /**
@@ -224,12 +220,6 @@ abstract class BaseMultiPagingAdapter<T : Any>(
             Boolean::class.javaPrimitiveType
         )
     }
-
-    /**
-     * 派发 itemType。按 delegates 注册顺序找首个 isMine 命中的代理；找不到时抛错并提示业务用哪种 addType。
-     * @param position 列表位置
-     * @return 注册时给定的 viewType（typeValue 重载即数据 itemType；isMine 重载为显式或自动分配值）
-     */
     override fun getItemViewType(position: Int): Int {
         val item = getItem(position) ?: return super.getItemViewType(position)
         return delegates.firstOrNull { it.isMine(item) }?.viewType
@@ -240,11 +230,6 @@ abstract class BaseMultiPagingAdapter<T : Any>(
             )
     }
 
-    /**
-     * 创建 ViewHolder。按 viewType 反查 delegates，反射 inflate 出对应 ViewBinding，并把点击事件挂上。
-     * @param parent RecyclerView 父容器
-     * @param viewType getItemViewType 返回的整数值
-     */
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MultiHolder {
         val delegate = delegates.firstOrNull { it.viewType == viewType }
             ?: error("BaseMultiPagingAdapter: 未注册的 viewType=$viewType")
@@ -258,12 +243,6 @@ abstract class BaseMultiPagingAdapter<T : Any>(
         return holder
     }
 
-    /**
-     * 绑定数据。再次按 isMine 找到代理（不依赖 viewType，避免占位 / 局部刷新边界情况）。
-     * ViewDataBinding 自动 executePendingBindings；普通 ViewBinding 走业务 onBind。
-     * @param holder 创建好的 ViewHolder
-     * @param position 列表位置
-     */
     override fun onBindViewHolder(holder: MultiHolder, position: Int) {
         val item = getItem(position) ?: return
         val delegate = delegates.firstOrNull { it.isMine(item) } ?: return
@@ -273,13 +252,6 @@ abstract class BaseMultiPagingAdapter<T : Any>(
         delegate.onBind(holder.binding, item, position)
     }
 
-    /**
-     * 局部刷新分发：
-     * - payloads 非空且对应 type 注册了 [TypeDelegate.onBindPayloads]，走增量回调；
-     * - 否则回退到全量 [onBindViewHolder]（保留 super 的默认转发语义）。
-     *
-     * 业务侧用 `notifyItemChanged(pos, payload)` 触发。
-     */
     override fun onBindViewHolder(
         holder: MultiHolder,
         position: Int,

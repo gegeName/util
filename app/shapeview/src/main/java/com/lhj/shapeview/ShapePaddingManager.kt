@@ -1,5 +1,6 @@
 package com.lhj.shapeview
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
 import android.view.View
@@ -23,6 +24,7 @@ internal object ShapePaddingManager {
         android.R.attr.paddingBottom,
     )
 
+    @SuppressLint("ResourceType")
     fun applyDefaultZeroPadding(view: View, context: Context, attrs: AttributeSet?) {
         val ta = context.obtainStyledAttributes(attrs, PADDING_ATTRS)
         val allPad     = ta.getDimensionPixelSize(0, -1)

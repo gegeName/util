@@ -15,23 +15,6 @@ import java.io.IOException
 
 /**
  * 默认 SVG 加载器。url 参数支持三种形式:
- *
- * - `Int`: `@RawRes` 资源 ID,从 res/raw 读取。同步加载。
- * - `String` 以 `http://` / `https://` 开头: OkHttp 异步下载,主线程回调。
- * - `String` 其他形式(本地文件绝对路径或 `file://` URI): 同步读文件并解析。
- *
- * **静态 vs 动态**:加载到字节流后会先用 [looksAnimated] 探测是否包含
- * SMIL `<animate*>` / `<set>` / CSS `animation:` / `@keyframes` / `<script>`。
- * 含动画特征则走 [AnimatedSvgDrawable](WebView 引擎,逐帧抓帧),否则走
- * [SvgRenderer](AndroidSVG → 单帧 PictureDrawable)。
- *
- * 解析失败 / 文件不存在 / 网络失败时静默丢弃 onReady,但会通过 [Log] 打 warn,
- * 便于排查;SpanBuilder 占位符会保留为透明区域,不破坏文字布局。
- *
- * `circle` 参数会在加载完成后用 [RoundMaskDrawable] 包装,与 GIF 走相同流程。
- *
- * 远程下载共享一个 OkHttpClient 单例(预设浏览器风格 UA + 跟随重定向),
- * 避免每次新建连接池造成内存抖动,同时避开部分服务器对默认 okhttp UA 的 403。
  */
 class DefaultSvgLoader(
     private val client: OkHttpClient = sharedClient,

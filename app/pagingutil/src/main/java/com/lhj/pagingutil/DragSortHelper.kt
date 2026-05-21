@@ -11,32 +11,6 @@ import androidx.recyclerview.widget.RecyclerView
 
 /**
  * Paging 列表的拖动排序辅助器。
- *
- * 设计取舍：
- * - 只在"当前已加载"的 paging item 范围内拖动（业务 header / footer / loadStateFooter 不参与）
- * - 拖动只触发可视层 [PagingDataAdapter.notifyItemMoved]，不修改 PagingData 流
- *   （因为 PagingData 不可变；要跨刷新保留顺序，业务必须在 [onMoved] 里调服务端接口）
- * - 长按手柄触发 / 拖动结束触发回调；其它行为（加 elevation / 挑战回弹等）业务自己写
- *
- * 用法：
- * ```
- * PagingHelper.with<UserItem>(this)
- *     ...
- *     .enableDragSort(longPressEnabled = true) { fromKey, toKey, fromPos, toPos ->
- *         vm.reorder(fromKey, toKey)        // 1. 调服务端
- *     }
- *     .start()
- * ```
- *
- * 不需要长按触发（自定义手柄）：
- * ```
- * .enableDragSort(longPressEnabled = false) { ... }
- * // 然后在 ViewHolder 的拖动手柄上：
- * holder.itemView.setOnTouchListener { _, e ->
- *     if (e.action == MotionEvent.ACTION_DOWN) controller.startDrag(holder)
- *     false
- * }
- * ```
  */
 class DragSortHelper<T : Any> internal constructor(
     private val pagingAdapter: PagingDataAdapter<T, *>,

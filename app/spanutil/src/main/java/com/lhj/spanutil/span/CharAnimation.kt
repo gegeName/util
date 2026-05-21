@@ -100,13 +100,6 @@ data class RepeatConfig(
 /**
  * 字符级动画驱动器。每个被 [com.simple.mylibrary.utils.SpanBuilder.charAnimation]
  * 标记的字符绑定一个 [CharAnimSpan],共享同一 driver,driver 负责跑时钟、算进度。
- *
- * 工作流程:
- * 1. SpanBuilder.into 给 segment 内每个字符 setSpan 一个 [CharAnimSpan]。
- * 2. driver [start] 后用 Choreographer 每帧 `textView.invalidate()`,
- *    TextView 重绘时各 Span 调 [progressFor] 拉进度,然后由 [anim] 改 paint。
- * 3. 单轮跑完后根据 [repeat] 决定继续 / 反向 / 暂停 / 停止。
- * 4. RecyclerView 复用时由 SpanBuilder.attachAnimationLifecycle 调 [stop]。
  */
 class CharAnimationDriver(
     val totalChars: Int,
@@ -116,35 +109,20 @@ class CharAnimationDriver(
     val repeat: RepeatConfig = RepeatConfig.ONCE,
 ) : Releasable {
     private var loopStartMs: Long = 0L
-    private var loopIndex: Int = 0   // 当前是第几轮(从 0 开始)
+    private var loopIndex: Int = 0
     @Volatile private var stopped: Boolean = false
-
-    /**
-     * 一次性终态。stop / release 后置为 true,后续 [start] 全部忽略。
-     *
-     * 解决场景:RecyclerView 快速滚动时,SpanBuilder 用 `textView.post { driver.start() }`
-     * 延迟启动 driver。若同一 holder 在 post 消费前又被 bind,旧 driver 已经被
-     * `attachAnimationLifecycle` stop,但消息队列里仍有 stale runnable 持有它。
-     * 没有 disposed 锁的话,stale runnable 会让旧 driver "复活"重新挂 Choreographer,
-     * 持续空跑直到下一次 bind 才真停。
-     */
     @Volatile private var disposed: Boolean = false
     private var tvRef: WeakReference<TextView>? = null
 
     /** 单轮跑完所需毫秒(不含 pause)。 */
     private val loopDurationMs: Long = totalChars * perCharDelayMs + charDurationMs
 
-    /**
-     * 暂停期(progress 已稳定在 0/1)期间不需要每帧 invalidate,
-     * 直接 skipFrames 减少 RecyclerView 滚动时多 driver 叠加的主线程压力。
-     */
     private val callback = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             val tv = tvRef?.get() ?: run { stop(); return }
             if (stopped) return
             advanceLoopIfNeeded()
             if (stopped) return
-            // 进入 pause 阶段时进度恒定,无需 invalidate
             if (!isInPausePhase()) tv.invalidate()
             Choreographer.getInstance().postFrameCallback(this)
         }
@@ -217,8 +195,6 @@ class CharAnimationDriver(
             elapsed >= charStart + charDurationMs -> 1f
             else -> (elapsed - charStart).toFloat() / charDurationMs
         }
-        // 暂停期:rawProgress 必然已经到 1,继续按 1 输出
-        // REVERSE 模式下偶数轮 0→1,奇数轮 1→0
         return when (repeat.direction) {
             RepeatConfig.Direction.RESTART -> rawProgress
             RepeatConfig.Direction.REVERSE ->
