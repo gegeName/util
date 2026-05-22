@@ -9,7 +9,3 @@
 # Kotlin 元数据 / 协程
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlinx.coroutines.**
-
-# 第三方 SDK 反射入口
--keep class com.opensource.svgaplayer.drawer.SVGACanvasDrawer { *; }
--keep class com.bumptech.glide.load.resource.gif.GifDrawable { public *; }

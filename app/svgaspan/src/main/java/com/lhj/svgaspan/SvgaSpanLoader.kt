@@ -1,11 +1,19 @@
-package com.lhj.spanutil.span
+package com.lhj.svgaspan
 
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.util.Log
+import com.lhj.spanutil.SpanBuilder
+import com.lhj.spanutil.span.LoaderType
+import com.lhj.spanutil.span.RoundMaskDrawable
+import com.lhj.spanutil.span.SpanImageLoader
 
 /**
- * SVGA 加载器,实现 [SpanImageLoader] 接口,接入 SpanBuilder 已有的异步图片通道。
+ * SpanBuilder 的 SVGA 加载器实现。在 Application 中通过 [install] 一键注入：
+ * ```
+ * SvgaSpanLoader.install()
+ * ```
+ * 之后即可在 [SpanBuilder] 上调用 svga(...) 链式 API。
  */
 class SvgaSpanLoader : SpanImageLoader {
 
@@ -33,5 +41,15 @@ class SvgaSpanLoader : SpanImageLoader {
             },
         )
     }
-}
 
+    companion object {
+        /**
+         * 把当前实现注入到 [SpanBuilder] 全局 svga 加载器，等价于：
+         * `SpanBuilder.setLoader(LoaderType.Svga, SvgaSpanLoader())`。
+         */
+        @JvmStatic
+        fun install() {
+            SpanBuilder.setLoader(LoaderType.Svga, SvgaSpanLoader())
+        }
+    }
+}

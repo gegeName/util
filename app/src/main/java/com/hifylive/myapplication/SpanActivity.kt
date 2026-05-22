@@ -23,6 +23,9 @@ import com.lhj.spanutil.span.CharAnim
 import com.lhj.spanutil.span.CharAnims
 import com.lhj.spanutil.span.EmojiRegistry
 import com.lhj.spanutil.span.RepeatConfig
+import com.lhj.glidespan.GlideSpanImageLoader
+import com.lhj.svgspan.DefaultSvgLoader
+import com.lhj.svgaspan.SvgaSpanLoader
 import kotlin.math.min
 
 /**
@@ -35,6 +38,9 @@ class SpanActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        GlideSpanImageLoader.install()
+        DefaultSvgLoader.install()
+        SvgaSpanLoader.install()
         enableEdgeToEdge()
         setContentView(R.layout.activity_span)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->

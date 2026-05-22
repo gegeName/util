@@ -1,12 +1,9 @@
-package com.lhj.spanutil.span
+package com.lhj.svgspan
 
 import android.graphics.drawable.PictureDrawable
 import com.caverock.androidsvg.SVG
 import java.io.InputStream
 
-/**
- * 用 AndroidSVG 把 SVG 输入流解析成 [PictureDrawable]。
- */
 internal object SvgRenderer {
 
     fun render(input: InputStream, w: Int, h: Int): PictureDrawable {

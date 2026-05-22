@@ -1,4 +1,4 @@
-package com.lhj.spanutil.span
+package com.lhj.glidespan
 
 import android.content.Context
 import android.graphics.drawable.Drawable
@@ -8,11 +8,16 @@ import com.bumptech.glide.load.resource.gif.GifDrawable
 import com.bumptech.glide.request.RequestOptions
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-
+import com.lhj.spanutil.SpanBuilder
+import com.lhj.spanutil.span.LoaderType
+import com.lhj.spanutil.span.RoundMaskDrawable
+import com.lhj.spanutil.span.SpanImageLoader
 
 /**
- * 默认图片加载器实现（Glide）。
- * 项目依赖 Glide 时开箱即用；如需替换为其他框架，调用 [com.lhj.spanutil.SpanBuilder.setImageLoader] 即可。
+ * 基于 Glide 的 [SpanImageLoader] 实现。Application 中通过 [install] 一键注入：
+ * ```
+ * GlideSpanImageLoader.install()
+ * ```
  */
 class GlideSpanImageLoader : SpanImageLoader {
 
@@ -24,13 +29,12 @@ class GlideSpanImageLoader : SpanImageLoader {
         circle: Boolean,
         onReady: (Drawable) -> Unit,
     ) {
-        val options = RequestOptions()
-            .override(width, height)
+        val options = RequestOptions().override(width, height)
         Glide.with(context).asDrawable().load(url).apply(options)
             .into(object : CustomTarget<Drawable>() {
                 override fun onResourceReady(
                     resource: Drawable,
-                    transition: Transition<in Drawable>?
+                    transition: Transition<in Drawable>?,
                 ) {
                     if (resource is GifDrawable) {
                         configureGif(resource)
@@ -55,5 +59,15 @@ class GlideSpanImageLoader : SpanImageLoader {
         gif.stop()
         gif.start()
     }
-}
 
+    companion object {
+        /**
+         * 把当前实现注入到 [SpanBuilder] 全局图片加载器，等价于：
+         * `SpanBuilder.setLoader(LoaderType.Image, GlideSpanImageLoader())`。
+         */
+        @JvmStatic
+        fun install() {
+            SpanBuilder.setLoader(LoaderType.Image, GlideSpanImageLoader())
+        }
+    }
+}

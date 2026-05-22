@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.spanutil"
+    namespace = "com.lhj.glidespan"
     compileSdk = 35
 
     defaultConfig {
@@ -19,6 +19,8 @@ android {
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.core:core-ktx:1.15.0")
+    api(project(":app:spanutil"))
+    implementation("com.github.bumptech.glide:glide:5.0.5")
 }
 
 apply(from = "jitpack.gradle")

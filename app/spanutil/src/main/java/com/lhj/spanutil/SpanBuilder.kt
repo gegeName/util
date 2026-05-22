@@ -27,9 +27,7 @@ import androidx.annotation.Px
 import androidx.annotation.RawRes
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toDrawable
-import com.lhj.spanutil.SpanBuilder.Companion.setImageLoader
 import com.lhj.spanutil.SpanBuilder.Companion.setImageTransformer
-import com.lhj.spanutil.SpanBuilder.Companion.setSvgLoader
 import com.lhj.spanutil.SpanBuilder.Companion.setTextSpanFactory
 import com.lhj.spanutil.span.BlankWidthSpan
 import com.lhj.spanutil.span.BorderedImageDrawable
@@ -38,18 +36,17 @@ import com.lhj.spanutil.span.CharAnim
 import com.lhj.spanutil.span.CharAnimSpan
 import com.lhj.spanutil.span.CharAnimationDriver
 import com.lhj.spanutil.span.CharAnims
-import com.lhj.spanutil.span.DefaultSvgLoader
 import com.lhj.spanutil.span.EmojiRegistry
-import com.lhj.spanutil.span.GlideSpanImageLoader
+import com.lhj.spanutil.span.HostAware
+import com.lhj.spanutil.span.LoaderType
 import com.lhj.spanutil.span.Releasable
 import com.lhj.spanutil.span.RepeatConfig
 import com.lhj.spanutil.span.RoundMaskDrawable
 import com.lhj.spanutil.span.SpanImageLoader
-import com.lhj.spanutil.span.SvgaSpanDrawable
-import com.lhj.spanutil.span.SvgaSpanLoader
 import com.lhj.spanutil.span.TextDecorationSpan
 import com.lhj.spanutil.span.VerticalShiftSpan
 import java.lang.ref.WeakReference
+import java.util.EnumMap
 import kotlin.math.abs
 
 /**
@@ -102,7 +99,7 @@ class SpanBuilder private constructor(private val context: Context) {
         val width: Int,
         val height: Int,
         val circle: Boolean,
-        /** 该 load 使用的加载器;null 表示用全局 [imageLoader](默认 Glide)。 */
+        /** 该 load 使用的加载器;null 表示用 [LoaderType.Image] 全局加载器。 */
         val loader: SpanImageLoader? = null,
     )
 
@@ -144,38 +141,31 @@ class SpanBuilder private constructor(private val context: Context) {
         @JvmStatic
         fun with(context: Context): SpanBuilder = SpanBuilder(context)
 
-        /**
-         * 全局图片加载器，默认使用 Glide。
-         * 在 Application.onCreate 中调用 [setImageLoader] 替换为其他框架。
-         */
-        private var imageLoader: SpanImageLoader = GlideSpanImageLoader()
+        private val loaders = EnumMap<LoaderType, SpanImageLoader>(LoaderType::class.java)
 
+        /**
+         * 注册指定类型的全局加载器。spanutil 本身不绑任何具体实现，
+         * 由独立扩展库(glidespan / svgspan / svgaspan)在初始化时调用此方法注入。
+         *
+         * @param type   加载器类型（[LoaderType.Image] / [LoaderType.Svg] / [LoaderType.Svga]）
+         * @param loader 对应类型的 [SpanImageLoader] 实现
+         */
         @JvmStatic
-        fun setImageLoader(loader: SpanImageLoader) {
-            imageLoader = loader
+        fun setLoader(type: LoaderType, loader: SpanImageLoader) {
+            loaders[type] = loader
         }
 
-        /**
-         * 全局 SVG 加载器,默认 [DefaultSvgLoader](OkHttp + AndroidSVG)。
-         * 项目想换实现(例如复用业务侧 OkHttpClient / Coil)调 [setSvgLoader] 即可。
-         */
-        private var svgLoader: SpanImageLoader = DefaultSvgLoader()
-
-        @JvmStatic
-        fun setSvgLoader(loader: SpanImageLoader) {
-            svgLoader = loader
-        }
-
-        /**
-         * 全局 SVGA 加载器,默认 [SvgaSpanLoader]。SVGA Entity 通过
-         * [com.simple.mylibrary.span.SvgaCache] LRU 共享,RecyclerView 复用同 URL
-         * 不会重复解码。
-         */
-        private var svgaLoader: SpanImageLoader = SvgaSpanLoader()
-
-        @JvmStatic
-        fun setSvgaLoader(loader: SpanImageLoader) {
-            svgaLoader = loader
+        internal fun requireLoader(type: LoaderType): SpanImageLoader? {
+            val loader = loaders[type]
+            if (loader == null) {
+                android.util.Log.e(
+                    "SpanBuilder",
+                    "${type.name} loader not registered, skip. " +
+                            "Call SpanBuilder.setLoader(${type.name}, ...) first " +
+                            "(e.g. from ${type.suggestedModule} 库)"
+                )
+            }
+            return loader
         }
 
         /**
@@ -351,13 +341,14 @@ class SpanBuilder private constructor(private val context: Context) {
         addSvgLoad(resId, width, height, circle)
 
     private fun addSvgLoad(url: Any, width: Int, height: Int, circle: Boolean): SpanBuilder {
+        val loader = requireLoader(LoaderType.Svg) ?: return this
         val start = ssb.length
         ssb.append(" ")
         val end = ssb.length
         val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
         ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         pendingImageLoads.add(
-            PendingImageLoad(url, placeholderSpan, width, height, circle, loader = svgLoader)
+            PendingImageLoad(url, placeholderSpan, width, height, circle, loader = loader)
         )
         segments = listOf(start to end)
         return this
@@ -372,13 +363,14 @@ class SpanBuilder private constructor(private val context: Context) {
      * @param circle 是否裁剪为圆形,默认 false
      */
     fun svga(url: String, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder {
+        val loader = requireLoader(LoaderType.Svga) ?: return this
         val start = ssb.length
         ssb.append(" ")
         val end = ssb.length
         val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
         ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         pendingImageLoads.add(
-            PendingImageLoad(url, placeholderSpan, width, height, circle, loader = svgaLoader)
+            PendingImageLoad(url, placeholderSpan, width, height, circle, loader = loader)
         )
         segments = listOf(start to end)
         return this
@@ -1172,6 +1164,7 @@ class SpanBuilder private constructor(private val context: Context) {
                 override fun onClick(widget: View) {
                     holder.listener?.invoke(widget)
                 }
+
                 override fun updateDrawState(ds: TextPaint) {
                     overrideColor?.let { ds.color = it }
                     ds.isUnderlineText = underline
@@ -1333,7 +1326,7 @@ class SpanBuilder private constructor(private val context: Context) {
         val tagKey = R.id.span_builder_load_token
         textView.setTag(tagKey, ssb)
         pendingImageLoads.forEach { load ->
-            val loader = load.loader ?: imageLoader
+            val loader = load.loader ?: requireLoader(LoaderType.Image) ?: return@forEach
             loader.load(context, load.url, load.width, load.height, load.circle) { resource ->
                 if (textView.getTag(tagKey) !== ssb) return@load
                 val curStart = ssb.getSpanStart(load.placeholder)
@@ -1372,7 +1365,7 @@ class SpanBuilder private constructor(private val context: Context) {
     ) {
         val tv = tvRef.get()
         if (tv != null) {
-            (resource as? SvgaSpanDrawable)?.bindHost(tv)
+            (resource as? HostAware)?.bindHost(tv)
         }
         val animatable = (finalDrawable as? Animatable)
             ?: (resource as? Animatable)

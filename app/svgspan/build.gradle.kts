@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.spanutil"
+    namespace = "com.lhj.svgspan"
     compileSdk = 35
 
     defaultConfig {
@@ -19,6 +19,11 @@ android {
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.core:core-ktx:1.15.0")
+    api(project(":app:spanutil"))
+    implementation("com.squareup.okhttp3:okhttp:5.3.2")
+    implementation("com.caverock:androidsvg-aar:1.4") {
+        exclude("org.jetbrains.kotlin", "kotlin-android-extensions-runtime")
+    }
 }
 
 apply(from = "jitpack.gradle")

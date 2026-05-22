@@ -1,10 +1,14 @@
-package com.lhj.spanutil.span
+package com.lhj.svgspan
 
 import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.lhj.spanutil.SpanBuilder
+import com.lhj.spanutil.span.LoaderType
+import com.lhj.spanutil.span.RoundMaskDrawable
+import com.lhj.spanutil.span.SpanImageLoader
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -14,7 +18,15 @@ import java.io.File
 import java.io.IOException
 
 /**
- * 默认 SVG 加载器。url 参数支持三种形式:
+ * 默认 SVG 加载器：支持 raw 资源 / 本地文件 / http(s) 远端；静态用 AndroidSVG，
+ * 动态(含 <animate> 等)用 [AnimatedSvgDrawable] WebView 渲染。
+ *
+ * Application 中通过 [install] 一键注入：
+ * ```
+ * DefaultSvgLoader.install()
+ * ```
+ *
+ * @param client 可选 OkHttpClient，默认使用内置共享实例
  */
 class DefaultSvgLoader(
     private val client: OkHttpClient = sharedClient,
@@ -93,10 +105,6 @@ class DefaultSvgLoader(
         })
     }
 
-    /**
-     * 拿到完整 SVG 字节后:静态走 AndroidSVG;动态走 WebView。
-     * 动态路径需要 Activity Context 用来挂 WebView,如果传进来的不是 Activity,降级成静态。
-     */
     private fun renderBytes(
         context: Context,
         bytes: ByteArray,
@@ -129,14 +137,9 @@ class DefaultSvgLoader(
     private fun maybeWrap(drawable: Drawable, circle: Boolean): Drawable =
         if (circle) RoundMaskDrawable(drawable, cornerRadius = -1f) else drawable
 
-    /**
-     * 朴素文本探测:看头部 4KB 是否含 SVG 动画 / 脚本 / CSS 动画特征。
-     * 这是个快速判断,只用来路由到 WebView;误判成动画最多只是性能浪费,
-     * 误判成静态会丢掉动画,所以宁可宽松一点。
-     */
     private fun looksAnimated(bytes: ByteArray): Boolean {
         val sample = String(bytes, 0, minOf(bytes.size, 4096), Charsets.UTF_8).lowercase()
-        return sample.contains("<animate") ||           // <animate>, <animateTransform>, <animateMotion>
+        return sample.contains("<animate") ||
                 sample.contains("<set ") ||
                 sample.contains("<script") ||
                 sample.contains("@keyframes") ||
@@ -154,6 +157,15 @@ class DefaultSvgLoader(
                 .followRedirects(true)
                 .followSslRedirects(true)
                 .build()
+        }
+
+        /**
+         * 把当前实现注入到 [SpanBuilder] 全局 SVG 加载器，等价于：
+         * `SpanBuilder.setLoader(LoaderType.Svg, DefaultSvgLoader())`。
+         */
+        @JvmStatic
+        fun install() {
+            SpanBuilder.setLoader(LoaderType.Svg, DefaultSvgLoader())
         }
     }
 }

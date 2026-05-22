@@ -1,4 +1,4 @@
-package com.lhj.spanutil.span
+package com.lhj.svgaspan
 
 import android.content.Context
 import android.content.ContextWrapper
@@ -15,19 +15,26 @@ import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.graphics.createBitmap
+import com.lhj.spanutil.span.HostAware
+import com.lhj.spanutil.span.Releasable
 import com.opensource.svgaplayer.SVGAImageView
 import com.opensource.svgaplayer.SVGAVideoEntity
 import java.lang.ref.WeakReference
 
 /**
- * SVGA → ImageSpan 桥接 Drawable。
+ * 把 SVGA Entity 渲染成 ImageSpan 可用的 Drawable。
+ *
+ * @param entity   已解析好的 SVGA Entity（建议来自 [SvgaCache]，跨 TextView 共享）
+ * @param widthPx  显示宽度（px）
+ * @param heightPx 显示高度（px）
+ * @param host     用于构建离屏 SVGAImageView 的 Context；内部会优先取 applicationContext
  */
 class SvgaSpanDrawable(
     private val entity: SVGAVideoEntity,
     private val widthPx: Int,
     private val heightPx: Int,
     host: Context,
-) : Drawable(), Animatable, Releasable {
+) : Drawable(), Animatable, Releasable, HostAware {
 
     private val totalFrames: Int = entity.frames
     private val fps: Int = entity.FPS.coerceAtLeast(1)
@@ -114,11 +121,12 @@ class SvgaSpanDrawable(
     }
 
     /**
-     * SpanBuilder 在 registerAsyncAnimatable 调,把宿主 TextView 的 WeakReference 存下,
-     * Choreographer 自己 invalidate textView。bindHost 时如果尚未 start 且未 disposed
-     * 自动 start。
+     * 绑定宿主 [TextView]，保存其 WeakReference 用于 Choreographer 帧驱动 invalidate。
+     * 若尚未 disposed 且未 running，会自动 [start]。
+     *
+     * @param textView 承载该 SVGA Drawable 的 TextView
      */
-    fun bindHost(textView: TextView) {
+    override fun bindHost(textView: TextView) {
         if (disposed) return
         hostRef = WeakReference(textView)
         start()
@@ -135,7 +143,6 @@ class SvgaSpanDrawable(
 
     /**
      * 启动渲染。disposed / 已 running / 无帧 直接忽略。
-     * 跟 [pause] 配对使用:detach pause、attach start 可来回切。
      */
     override fun start() {
         if (running || disposed || totalFrames <= 0) return
@@ -146,8 +153,7 @@ class SvgaSpanDrawable(
     }
 
     /**
-     * Animatable.stop 默认走 pause 语义(可恢复);终态用 [release]。
-     * 这样 SpanBuilder.attachAnimationLifecycle 中 detach 时调 stop 不会破坏可恢复状态。
+     * 走 [pause] 语义，可通过 [start] 恢复；终态用 [release]。
      */
     override fun stop() {
         pause()
@@ -156,8 +162,7 @@ class SvgaSpanDrawable(
     override fun isRunning(): Boolean = running
 
     /**
-     * 暂停渲染,可通过 start 恢复。同时 recycle frameBitmap 释放 native 内存。
-     * RecyclerView 滚出屏幕(detach)→ pause → bitmap 释放;再滚回来 → start → bitmap 按需重建。
+     * 暂停渲染并 recycle frameBitmap，可由 [start] 恢复。
      */
     fun pause() {
         if (!running) return
@@ -169,10 +174,8 @@ class SvgaSpanDrawable(
     }
 
     /**
-     * 终态释放。bind 新数据 / TextView 永久销毁时调用。
-     * - disposed=true 之后任何 start/draw 都 noop。
-     * - imageView 置 null,断开 Activity 引用,允许 GC。
-     * - **不释放 entity**:它在 SvgaCache 里被多个壳子共享,LRU 自己管生命周期。
+     * 终态释放：清掉 imageView / frameBitmap / 回调，之后 start/draw 全部 noop。
+     * 注意不释放 [entity]：它由 [SvgaCache] LRU 共享。
      */
     override fun release() {
         if (disposed) return
@@ -191,10 +194,6 @@ class SvgaSpanDrawable(
     }
 
     private companion object {
-        /**
-         * 优先取 applicationContext,避免离屏 SVGAImageView 持有 Activity 引用。
-         * 拿不到(罕见,如 ContextWrapper 包了 mock)就退回原 context。
-         */
         private fun Context.applicationContextOrSelf(): Context {
             val app = applicationContext
             if (app != null) return app

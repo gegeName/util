@@ -1,4 +1,4 @@
-package com.lhj.spanutil.span
+package com.lhj.svgspan
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -19,15 +19,15 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.widget.FrameLayout
 import androidx.core.graphics.createBitmap
+import com.lhj.spanutil.span.Releasable
 
 /**
- * 动态 SVG 渲染:用一个屏外 [WebView] 当 SVG 渲染引擎,逐帧抓帧成 [Bitmap] 输出。
+ * 动态 SVG 渲染：用屏外 [WebView] 当 SVG 引擎，逐帧抓帧成 [Bitmap] 输出。
  *
- * @param svgBytes 原始 SVG 字节流,会被 base64 包成 data: URI 注入 WebView。
- * @param widthPx  绘制宽度,与外层 ImageSpan bounds 一致。
- * @param heightPx 绘制高度。
- * @param host     用于挂载 WebView 的宿主 Context;必须是 Activity Context,
- *                 因为需要拿到 decor view。
+ * @param svgBytes 原始 SVG 字节流（会以 base64 注入 WebView）
+ * @param widthPx  绘制宽度（px）
+ * @param heightPx 绘制高度（px）
+ * @param host     用于挂载 WebView 的宿主 Context；必须是 Activity Context
  */
 @SuppressLint("SetJavaScriptEnabled")
 class AnimatedSvgDrawable(
@@ -163,11 +163,8 @@ class AnimatedSvgDrawable(
         private fun buildHtml(svgBytes: ByteArray, w: Int, h: Int): String {
             val b64 = Base64.encodeToString(svgBytes, Base64.NO_WRAP)
             val svgText = String(svgBytes, Charsets.UTF_8)
-            val safe = if (svgText.contains(
-                    "<svg",
-                    ignoreCase = true
-                )
-            ) svgText else "<img src=\"data:image/svg+xml;base64,$b64\" width=\"$w\" height=\"$h\"/>"
+            val safe = if (svgText.contains("<svg", ignoreCase = true)) svgText
+            else "<img src=\"data:image/svg+xml;base64,$b64\" width=\"$w\" height=\"$h\"/>"
             return """
                 <!DOCTYPE html>
                 <html><head>
