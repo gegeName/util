@@ -14,6 +14,9 @@ install:
     :app:pagingutil:publishToMavenLocal
     :app:shapeview:publishToMavenLocal
     :app:spanutil:publishToMavenLocal
+    :app:glidespan:publishToMavenLocal
+    :app:svgspan:publishToMavenLocal
+    :app:svgaspan:publishToMavenLocal
     -PVERSION_NAME=$VERSION
 
 
@@ -23,4 +26,7 @@ install:
 #   com.github.<USER>.<REPO>:pagingutil:<TAG>
 #   com.github.<USER>.<REPO>:shapeview:<TAG>
 #   com.github.<USER>.<REPO>:spanutil:<TAG>
+#   com.github.<USER>.<REPO>:glidespan:<TAG>
+#   com.github.<USER>.<REPO>:svgspan:<TAG>
+#   com.github.<USER>.<REPO>:svgaspan:<TAG>
 # （注意是点号，不是冒号）
