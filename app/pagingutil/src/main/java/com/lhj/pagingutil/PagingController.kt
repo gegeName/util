@@ -73,8 +73,10 @@ class PagingController<T : Any> internal constructor(
     /** 取当前 adapter 的快照（包含 patcher 应用后的可见 item），用于读取当前列表状态 */
     fun snapshot() = adapter.snapshot()
 
-    /** 当前 adapter 的 itemCount（不含 ConcatAdapter 的 header / footer / loadState 尾部） */
-    fun itemCount() = adapter.itemCount
+    /**
+     * RecyclerView 当前总 itemCount,**包含** ConcatAdapter 拼装的 header / footer / loadState 尾部。
+     */
+    fun itemCount() = recyclerView.adapter?.itemCount ?: adapter.itemCount
 
     /**
      * 切账号 / 退出页面常用：清空整个列表。

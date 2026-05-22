@@ -60,8 +60,6 @@ object CharAnims {
     /** 横向偏移入场:整段从左侧滑入。需要 [CharAnim] 支持 charIndex 才能错位。 */
     val Slide = CharAnim { tp, p, i, n ->
         tp.alpha = (tp.alpha * p).toInt().coerceIn(0, 255)
-        // baselineShift 只能改 y;水平方向 Span 无法直接 translate,
-        // 此处用 textSkewX 模拟一点动感
         tp.textSkewX = (1f - p) * -0.3f
     }
 }
@@ -97,10 +95,6 @@ data class RepeatConfig(
     }
 }
 
-/**
- * 字符级动画驱动器。每个被 [com.simple.mylibrary.utils.SpanBuilder.charAnimation]
- * 标记的字符绑定一个 [CharAnimSpan],共享同一 driver,driver 负责跑时钟、算进度。
- */
 class CharAnimationDriver(
     val totalChars: Int,
     val perCharDelayMs: Long,

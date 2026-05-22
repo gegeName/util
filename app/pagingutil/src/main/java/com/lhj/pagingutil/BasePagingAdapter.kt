@@ -86,10 +86,6 @@ abstract class BasePagingAdapter<T : Any, VB : ViewBinding>(
         onBind(holder.binding, item, position)
     }
 
-    /**
-     * 局部刷新分发：payloads 为空时回退到全量 [onBindViewHolder]，
-     * 否则走带 payloads 的 [onBind] 重载。
-     */
     override fun onBindViewHolder(
         holder: BindingHolder<VB>,
         position: Int,

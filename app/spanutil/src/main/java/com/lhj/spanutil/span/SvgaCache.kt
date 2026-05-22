@@ -11,12 +11,6 @@ import java.net.URL
 
 /**
  * SVGA Entity 共享缓存。
- *
- * 同 URL 在 RecyclerView 复用 / 多 holder 同屏时,通过 LRU 复用同一份 entity,
- * 避免重复解码导致的内存抖动。
- *
- * 远端走 SVGAParser 自带的 `decodeFromURL`(2.6.x 起内部已经支持重定向和缓存),
- * 调用前确保用 jsdelivr 等国内可达的镜像 URL,GitHub raw 直链国内常 read timeout。
  */
 object SvgaCache {
 

@@ -322,15 +322,14 @@ class ZoomGestureHelper private constructor(
 
                 override fun onDoubleTap(e: MotionEvent): Boolean {
 
-                    if (currentScale > config.minScale + 0.001f) {
+                    val nextScale = currentScale * config.doubleTapScaleFactor
+
+                    if (nextScale > config.maxScale + 0.001f) {
                         reset()
                         return true
                     }
 
-                    val targetScale = min(
-                        currentScale * config.doubleTapScaleFactor,
-                        config.maxScale
-                    )
+                    val targetScale = min(nextScale, config.maxScale)
 
                     if (abs(targetScale - currentScale) < 0.001f) {
                         return true

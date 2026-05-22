@@ -107,8 +107,6 @@ abstract class BasePagingSource<T : Any>(
         return PageResult(
             data = data,
             hasMore = hasMore,
-            // 单向兼容:只要不是初始 startPage,认为往回能"重新"加载(用于 paging 缓存淘汰回填),
-            // 但 REFRESH 永远 hasPrev=false → prevKey=null,不会触发真实 PREPEND
             hasPrev = false
         )
     }

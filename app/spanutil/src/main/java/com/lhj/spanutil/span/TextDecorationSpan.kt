@@ -13,29 +13,19 @@ import androidx.annotation.Px
 
 /**
  * 统一文字装饰 Span：渐变填充 + 描边 + 发光 + 阴影，可单独或任意组合使用。
- *
- * 绘制顺序：发光 → 描边 → 填充（渐变 / 原色，叠加阴影）
- *
- * 复用安全：字段全部为 var，由 SpanBuilder.applyOrMergeDecoration 就地修改复用，
- * 不在 RecyclerView bind 时重新创建，无内存抖动。
- * BlurMaskFilter / LinearGradient 均有缓存，参数不变时不重建。
  */
 class TextDecorationSpan : ReplacementSpan() {
 
-    // 渐变填充
     var gradientColors: IntArray? = null
     var gradientPositions: FloatArray? = null
     var gradientVertical: Boolean = false
 
-    // 描边
     @ColorInt var strokeColor: Int = Color.TRANSPARENT
     @Px var strokeWidthPx: Float = 0f
 
-    // 发光（BlurMaskFilter）
     @ColorInt var glowColor: Int = Color.TRANSPARENT
     @Px var glowRadiusPx: Float = 0f
 
-    // 文字阴影（setShadowLayer）
     @ColorInt var shadowColor: Int = Color.TRANSPARENT
     @Px var shadowRadius: Float = 0f
     @Px var shadowDx: Float = 0f
@@ -90,7 +80,6 @@ class TextDecorationSpan : ReplacementSpan() {
         val savedStrokeWidth = paint.strokeWidth
         val savedMaskFilter = paint.maskFilter
 
-        // 1. 发光层
         if (glowRadiusPx > 0f) {
             if (cachedBlurRadius != glowRadiusPx) {
                 cachedBlurFilter = BlurMaskFilter(glowRadiusPx, BlurMaskFilter.Blur.NORMAL)
@@ -104,7 +93,6 @@ class TextDecorationSpan : ReplacementSpan() {
             paint.maskFilter = null
         }
 
-        // 2. 描边层
         if (strokeWidthPx > 0f) {
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = strokeWidthPx
@@ -113,7 +101,6 @@ class TextDecorationSpan : ReplacementSpan() {
             canvas.drawText(text, s, e, x, y.toFloat(), paint)
         }
 
-        // 3. 填充层（渐变或原色，叠加阴影）
         paint.style = Paint.Style.FILL
         paint.strokeWidth = savedStrokeWidth
         paint.maskFilter = null
@@ -133,7 +120,6 @@ class TextDecorationSpan : ReplacementSpan() {
         }
         canvas.drawText(text, s, e, x, y.toFloat(), paint)
 
-        // 还原 paint
         paint.style = savedStyle
         paint.color = savedColor
         paint.shader = savedShader
@@ -164,7 +150,6 @@ class TextDecorationSpan : ReplacementSpan() {
         return shader
     }
 
-    // ── 就地更新方法（避免 RecyclerView bind 时重复 new 对象） ──────────────
 
     fun withGradient(colors: IntArray, positions: FloatArray?, vertical: Boolean): TextDecorationSpan {
         if (gradientColors !== colors) cachedShader = null

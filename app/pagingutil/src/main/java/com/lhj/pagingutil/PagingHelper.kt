@@ -181,7 +181,7 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
      *
      * 框架只通过接口的 4 个方法操作业务的 View，不绑死任何具体实现。
      * 业务可以：
-     * - 直接用项目自带的 [com.simple.mylibrary.http.StateLayout]（最简单）
+     * - 直接用项目自带的 [PagingStateLayout]（最简单）
      * - 让自家通用空页 / 错误页 View 实现 [PageStateHandler]，保持原有 UI 资产
      * - 写一个轻适配器把第三方库（如 LoadSir / MultipleStatusView 等）包成 [PageStateHandler]
      *

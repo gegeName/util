@@ -26,10 +26,10 @@ class PagingItemAnimator : DefaultItemAnimator() {
         postLayoutInfo: ItemHolderInfo
     ): Boolean {
         if (oldHolder === newHolder) {
-            dispatchChangeFinished(oldHolder, /*oldItem=*/ true)
+            dispatchChangeFinished(oldHolder, true)
         } else {
-            dispatchChangeFinished(oldHolder, /*oldItem=*/ true)
-            dispatchChangeFinished(newHolder, /*oldItem=*/ false)
+            dispatchChangeFinished(oldHolder,  true)
+            dispatchChangeFinished(newHolder,  false)
         }
         return false
     }

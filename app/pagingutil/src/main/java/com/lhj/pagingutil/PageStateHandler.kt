@@ -7,7 +7,7 @@ package com.lhj.pagingutil
  * [PagingHelper.pageState] 注入；helper 在 LoadState 切换时只调下面这 4 个方法，
  * 不关心你的 View 长什么样。
  *
- * 提供的默认实现 [PageStateView] 是 4 状态切换的 FrameLayout，开箱即用，业务也可不用。
+ * 提供的默认实现 [PagingStateLayout] 是 4 状态切换的 FrameLayout，开箱即用，业务也可不用。
  *
  * 4 个方法的语义：
  * - [showLoading]：列表为空 + refresh = Loading
@@ -16,7 +16,7 @@ package com.lhj.pagingutil
  * - [showContent]：有数据，应隐藏占位
  *
  * [bindRetry] 由 helper 在 start() 时调一次，把"重试"按钮的回调注入进来；
- * 业务需要在自家 View 的"点击重试"控件上调用该回调即可触发 [PagingDataAdapter.retry]。
+ * 业务需要在自家 View 的"点击重试"控件上调用该回调即可触发 [androidx.paging.PagingDataAdapter.retry]。
  *
  * 接入案例（如 LoadSir）
  * ```

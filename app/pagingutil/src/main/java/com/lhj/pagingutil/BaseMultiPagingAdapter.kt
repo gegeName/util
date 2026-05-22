@@ -204,7 +204,6 @@ abstract class BaseMultiPagingAdapter<T : Any>(
         viewType: Int
     ) = Unit
 
-    /** 反射 inflate 方法缓存，每种 ViewBinding 类只在首次 onCreateViewHolder 时反射一次 */
     private val inflateCache = mutableMapOf<Class<out ViewBinding>, Method>()
 
     /**
