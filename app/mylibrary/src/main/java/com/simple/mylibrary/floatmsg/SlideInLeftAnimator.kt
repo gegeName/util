@@ -16,7 +16,6 @@ class SlideInLeftAnimator(
 ) : FloatMessageAnimator {
 
     override fun animateIn(view: View, onEnd: () -> Unit) {
-        // alpha=0 期间完成测量,避免 view 在自然位置闪一帧
         view.alpha = 0f
         view.translationX = 0f
         view.post {
@@ -47,7 +46,6 @@ class SlideInLeftAnimator(
     private fun computeFlyDistance(view: View): Float {
         val coords = IntArray(2)
         view.getLocationOnScreen(coords)
-        // coords 已包含当前 translationX,需要反推自然位置
         val naturalX = coords[0] - view.translationX
         return (naturalX + view.width).coerceAtLeast(1f)
     }

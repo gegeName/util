@@ -17,16 +17,6 @@ import java.util.ArrayDeque
  * 再消费下一条。同一个容器可以承载多种消息类型(进场/系统通告/PK 等),
  * 每种类型自定义 layout,只共享队列状态机和动画策略。
  *
- * 线程安全:
- * - 状态机读写一律在主线程,[enqueue]/[release] 自动派发到主线程。
- * - 动画 withEndAction、view.postDelayed 本身就在主线程触发,与上述入口串行。
- *
- * 生命周期安全(防"动画跑一半 Activity 被销毁"崩溃):
- * - 传入 [lifecycle] 后会在 ON_DESTROY 自动 release,无需调用方手动调用,
- *   而且时机早于 onDestroy() 内手写的 recycle 代码,关掉所有正在跑的回调链。
- * - [consumeNext] 进 [onCreateView] 之前会再次校验宿主 Activity 是否还活着,
- *   防御因 lifecycle 派发顺序差异导致的极端竞态(如自定义 BaseActivity 改了销毁时序)。
- *
  * @param T 消息载荷类型
  * @param container 已经在父布局中定位好的空容器(如 FrameLayout)
  * @param onCreateView 工厂:根据 T 创建并绑定一个 View,每次入场都会被调用
@@ -77,7 +67,7 @@ class FloatMessageQueue<T>(
         if (queue.size >= maxQueue) {
             val tail = queue.pollLast() ?: return
             val merged = onMerge?.invoke(tail, item)
-            queue.addLast(merged ?: tail) // 合并失败/无策略 = 丢弃新消息,恢复原队尾
+            queue.addLast(merged ?: tail)
         } else {
             queue.addLast(item)
         }
@@ -100,11 +90,8 @@ class FloatMessageQueue<T>(
 
     private fun consumeNext() {
         if (released) return
-        // 用循环消费,onCreateView/addView/animateIn 任何一步抛异常时
-        // 跳过当前条目继续下一条,不让一条坏数据卡死整个队列
         while (true) {
             if (isHostDying()) {
-                // Activity 在销毁路径上,不再 inflate / 加载图片,避免触发 Glide / 资源访问崩溃
                 releaseInternal()
                 return
             }

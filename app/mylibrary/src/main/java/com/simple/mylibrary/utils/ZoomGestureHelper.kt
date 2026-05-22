@@ -91,7 +91,6 @@ class ZoomGestureHelper private constructor(
 
     private val baseMatrix = Matrix()
 
-    // 保存 drawable 引用，用于检测切图（ViewPager2 + Glide 场景）
     private var lastDrawable: Drawable? = null
 
     private val preDrawListener = ViewTreeObserver.OnPreDrawListener {
@@ -657,7 +656,6 @@ class ZoomGestureHelper private constructor(
         var dx = 0f
         var dy = 0f
 
-        // 横向
         if (rect.width() >= viewWidth) {
 
             if (rect.left > 0) {
@@ -674,7 +672,6 @@ class ZoomGestureHelper private constructor(
                 viewWidth / 2f - rect.centerX()
         }
 
-        // 纵向
         if (rect.height() >= viewHeight) {
 
             if (rect.top > 0) {
