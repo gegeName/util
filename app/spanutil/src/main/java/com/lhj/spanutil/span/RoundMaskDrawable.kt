@@ -113,7 +113,6 @@ class RoundMaskDrawable(
 
     override fun getIntrinsicHeight(): Int = inner.intrinsicHeight
 
-    // Animatable 代理:让外层 SpanBuilder 把它当作动图统一管理。
     override fun start() {
         (inner as? Animatable)?.start()
     }
@@ -125,7 +124,6 @@ class RoundMaskDrawable(
     override fun isRunning(): Boolean =
         (inner as? Animatable)?.isRunning == true
 
-    // Drawable.Callback 转发:内部每一帧的 invalidate 都向外冒泡。
     override fun invalidateDrawable(who: Drawable) {
         invalidateSelf()
     }
