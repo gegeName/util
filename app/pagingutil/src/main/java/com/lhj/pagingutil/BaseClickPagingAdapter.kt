@@ -99,9 +99,15 @@ abstract class BaseClickPagingAdapter<T : Any, VH : RecyclerView.ViewHolder>(
             val pos = holder.bindingAdapterPosition
             if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
             val item = getItem(pos) ?: return@setOnClickListener
-            val key = itemClickKeyOf?.invoke(item) ?: pos
-            if (!throttle(itemClickLastTs, itemClickThrottleMs, key)) return@setOnClickListener
-            onItemClick?.invoke(v, item, pos)
+            val keyOf = itemClickKeyOf
+            val originalKey = keyOf?.invoke(item)
+            val throttleKey = originalKey ?: pos
+            if (!throttle(itemClickLastTs, itemClickThrottleMs, throttleKey)) return@setOnClickListener
+            val curPos = holder.bindingAdapterPosition
+            if (curPos == RecyclerView.NO_POSITION) return@setOnClickListener
+            val curItem = getItem(curPos) ?: return@setOnClickListener
+            if (keyOf != null && keyOf.invoke(curItem) != originalKey) return@setOnClickListener
+            onItemClick?.invoke(v, curItem, curPos)
         }
         holder.itemView.setOnLongClickListener { v ->
             val pos = holder.bindingAdapterPosition
@@ -114,10 +120,16 @@ abstract class BaseClickPagingAdapter<T : Any, VH : RecyclerView.ViewHolder>(
                 val pos = holder.bindingAdapterPosition
                 if (pos == RecyclerView.NO_POSITION) return@setOnClickListener
                 val item = getItem(pos) ?: return@setOnClickListener
-                val itemKey = itemChildClickKeyOf?.invoke(item) ?: pos
-                val key = "$itemKey@${v.id}"
-                if (!throttle(childClickLastTs, itemChildClickThrottleMs, key)) return@setOnClickListener
-                onItemChildClick?.invoke(v, item, pos)
+                val keyOf = itemChildClickKeyOf
+                val originalItemKey = keyOf?.invoke(item)
+                val itemKey = originalItemKey ?: pos
+                val throttleKey = "$itemKey@${v.id}"
+                if (!throttle(childClickLastTs, itemChildClickThrottleMs, throttleKey)) return@setOnClickListener
+                val curPos = holder.bindingAdapterPosition
+                if (curPos == RecyclerView.NO_POSITION) return@setOnClickListener
+                val curItem = getItem(curPos) ?: return@setOnClickListener
+                if (keyOf != null && keyOf.invoke(curItem) != originalItemKey) return@setOnClickListener
+                onItemChildClick?.invoke(v, curItem, curPos)
             }
         }
         childLongClickIds.forEach { id ->

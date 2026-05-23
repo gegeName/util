@@ -2,7 +2,7 @@ package com.lhj.pagingutil
 
 /**
  * 多布局数据项的可选契约：data class 实现该接口暴露 [itemType]，
- * 即可在 [BaseMultiPagingAdapter] 构造时不需手写 typeOf 提取器，直接：
+ * 即可在 [BaseMultiPagingAdapter] 里直接用 `addType(typeValue = ...)` 派发。
  *
  * ```
  * data class FeedItem(
@@ -12,18 +12,15 @@ package com.lhj.pagingutil
  *     val imageUrl: String?
  * ) : MultiTypeItem
  *
- * class FeedAdapter : BaseMultiPagingAdapter<FeedItem>(DIFF, typeOf = { it.itemType }) {
+ * class FeedAdapter : BaseMultiPagingAdapter<FeedItem>(DIFF) {
  *     init {
- *         addType<ItemTextBinding>(typeValue = 1) { b, item, _ -> b.tv.text = item.content }
- *         addType<ItemImageBinding>(typeValue = 2) { b, item, _ -> Glide... }
+ *         addType(typeValue = 1, inflate = ItemTextBinding::inflate) { b, item, _ -> b.tv.text = item.content }
+ *         addType(typeValue = 2, inflate = ItemImageBinding::inflate) { b, item, _ -> Glide... }
  *     }
  * }
  * ```
  *
- * 不实现该接口也可以——任意字段做派发依据，只要在构造里传 typeOf：
- * ```
- * class FeedAdapter : BaseMultiPagingAdapter<FeedItem>(DIFF, typeOf = { it.style })
- * ```
+ * 不想实现该接口时改用谓词版：`addType(isMine = { ... }, inflate = ItemXxxBinding::inflate) { ... }`
  */
 interface MultiTypeItem {
     val itemType: Int

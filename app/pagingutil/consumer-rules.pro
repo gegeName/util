@@ -13,17 +13,5 @@
     public <init>(android.content.Context, android.util.AttributeSet, int, int);
 }
 
-# BasePagingAdapter / BaseMultiPagingAdapter 用反射调 ViewBinding.inflate(LayoutInflater, ViewGroup, boolean)
-# 必须保留所有 ViewBinding 实现类不被裁剪/改名,以及那个静态 inflate 三参版本。
--keep class * implements androidx.viewbinding.ViewBinding {
-    public static *** inflate(android.view.LayoutInflater, android.view.ViewGroup, boolean);
-}
-# DataBinding 类继承 ViewDataBinding 而非直接实现 ViewBinding,单独覆盖
--keep class * extends androidx.databinding.ViewDataBinding {
-    public static *** inflate(android.view.LayoutInflater, android.view.ViewGroup, boolean);
-}
-
-# Kotlin Metadata：BaseMultiPagingAdapter.addType 等 inline reified 函数依赖。
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlinx.coroutines.**
-

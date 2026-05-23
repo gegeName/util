@@ -112,7 +112,7 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
     /** 通用：传入任意实现了 [PagingRefreshAdapter] 的刷新适配器（接入自家或第三方框架时用） */
     fun refreshAdapter(adapter: PagingRefreshAdapter?) = apply { refreshAdapter = adapter }
 
-    /** 必填：业务自己的 PagingDataAdapter，推荐继承 [BasePagingAdapter]（已封装反射 inflate 与点击事件） */
+    /** 必填：业务自己的 PagingDataAdapter，推荐继承 [BasePagingAdapter] / [BaseMultiPagingAdapter] */
     fun pagingAdapter(a: PagingDataAdapter<T, *>) = apply { pagingAdapter = a }
     /** 必填：ViewModel 暴露的 `Flow<PagingData<T>>`，必须在 VM 内 `cachedIn(viewModelScope)`，避免重订阅时重新拉首页 */
     fun pagingFlow(f: Flow<PagingData<T>>) = apply { pagingFlow = f }

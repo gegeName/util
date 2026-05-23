@@ -5,7 +5,7 @@ import com.hifylive.myapplication.R
 import com.hifylive.myapplication.databinding.ItemFakeBinding
 import com.lhj.pagingutil.BasePagingAdapter
 
-class FakeAdapter : BasePagingAdapter<FakeItem, ItemFakeBinding>(DIFF) {
+class FakeAdapter : BasePagingAdapter<FakeItem, ItemFakeBinding>(DIFF, ItemFakeBinding::inflate) {
 
     init {
         addChildClickViewIds(R.id.tvTitle)
