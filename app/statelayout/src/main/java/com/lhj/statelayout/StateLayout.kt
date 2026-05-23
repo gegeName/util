@@ -71,7 +71,7 @@ open class StateLayout @JvmOverloads constructor(
                     getDimensionPixelSize(R.styleable.StateLayout_stlMarginStart, 0)
                 mStateMarginEnd = getDimensionPixelSize(R.styleable.StateLayout_stlMarginEnd, 0)
                 mPendingDefaultState =
-                    State.entries[getInt(R.styleable.StateLayout_stlDefaultState, 0)]
+                    State.values()[getInt(R.styleable.StateLayout_stlDefaultState, 0)]
             }
         }
     }

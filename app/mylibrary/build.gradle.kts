@@ -21,6 +21,13 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+    }
+}
+
 dependencies {
     // 基础(只在内部用,不暴露到公共 API)
     implementation("androidx.appcompat:appcompat:1.7.0")

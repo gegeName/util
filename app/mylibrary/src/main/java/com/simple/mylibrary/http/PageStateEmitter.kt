@@ -19,9 +19,9 @@ import kotlinx.coroutines.launch
  * 两者可同页共存：一些操作要弹窗（如提交支付），一些操作要页面状态（如首屏拉列表）。
  */
 sealed interface PageState {
-    data object Loading : PageState
-    data object Empty : PageState
-    data object Success : PageState
+    object Loading : PageState
+    object Empty : PageState
+    object Success : PageState
     data class Error(val cause: Throwable? = null) : PageState
 }
 
