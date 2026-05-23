@@ -6,7 +6,7 @@ import com.lhj.pagingutil.SingleItemBindingAdapter
 
 data class BannerData(val title: String, val desc: String)
 
-class BannerHeaderAdapter : SingleItemBindingAdapter<BannerData, LayoutHeaderBannerBinding>() {
+class BannerHeaderAdapter : SingleItemBindingAdapter<BannerData, LayoutHeaderBannerBinding>(LayoutHeaderBannerBinding::inflate) {
     init {
         addChildClickViewIds(R.id.tvBannerDesc)
     }
