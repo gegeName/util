@@ -33,6 +33,14 @@ class DragSortHelper<T : Any> internal constructor(
         return predicate(item, local)
     }
 
+    private fun hasLockedBetween(a: Int, b: Int): Boolean {
+        val lo = minOf(a, b)
+        val hi = maxOf(a, b)
+        for (i in lo..hi) {
+            if (!isDraggable(i)) return true
+        }
+        return false
+    }
     private val callback = object : ItemTouchHelper.SimpleCallback(
         ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.START or ItemTouchHelper.END,
         0
@@ -64,15 +72,29 @@ class DragSortHelper<T : Any> internal constructor(
             val fromLocal = localPos(from)
             val toLocal = localPos(to)
             if (!isDraggable(fromLocal) || !isDraggable(toLocal)) return false
+            if (hasLockedBetween(fromLocal, toLocal)) return false
 
             val snapshot = pagingAdapter.snapshot()
             val fromItem = snapshot[fromLocal] ?: return false
             val toItem = snapshot[toLocal] ?: return false
 
             pagingAdapter.notifyItemMoved(fromLocal, toLocal)
-
             onMoved(keyOf(fromItem), keyOf(toItem), fromLocal, toLocal)
             return true
+        }
+
+        override fun chooseDropTarget(
+            selected: RecyclerView.ViewHolder,
+            dropTargets: MutableList<RecyclerView.ViewHolder>,
+            curX: Int,
+            curY: Int
+        ): RecyclerView.ViewHolder? {
+            val selectedLocal = localPos(selected)
+            val filtered = dropTargets.filter {
+                val tl = localPos(it)
+                isDraggable(tl) && !hasLockedBetween(selectedLocal, tl)
+            }.toMutableList()
+            return super.chooseDropTarget(selected, filtered, curX, curY)
         }
 
         override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) = Unit
@@ -88,6 +110,7 @@ class DragSortHelper<T : Any> internal constructor(
                 } else {
                     HapticFeedbackConstants.LONG_PRESS
                 }
+
                 @Suppress("DEPRECATION")
                 val didFeedback = view.performHapticFeedback(
                     constant,
