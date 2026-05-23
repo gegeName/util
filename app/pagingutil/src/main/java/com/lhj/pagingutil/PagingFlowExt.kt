@@ -117,8 +117,9 @@ fun <T : Any> ViewModel.pagingFlowOf(
     initialLoadSize = initialLoadSize,
     prefetchDistance = prefetchDistance,
     enablePlaceholders = enablePlaceholders,
-    maxSize = maxSize
-) { LambdaPagingSource(startPage, refreshFromStart, fetcher) }
+    maxSize = maxSize,
+    sourceFactory = { LambdaPagingSource(startPage, refreshFromStart, fetcher) }
+)
 
 /**
  * [pagingFlowOf] lambda 版的非 ViewModel 重载，业务自己传 [CoroutineScope]。
@@ -139,8 +140,9 @@ fun <T : Any> pagingFlowOf(
     initialLoadSize = initialLoadSize,
     prefetchDistance = prefetchDistance,
     enablePlaceholders = enablePlaceholders,
-    maxSize = maxSize
-) { LambdaPagingSource(startPage, refreshFromStart, fetcher) }
+    maxSize = maxSize,
+    sourceFactory = { LambdaPagingSource(startPage, refreshFromStart, fetcher) }
+)
 
 /**
  * 双向 lambda 版:聊天 / 时间轴等需要"加载更早历史"(PREPEND)的场景。
@@ -194,8 +196,9 @@ fun <T : Any> ViewModel.pagingFlowOf(
     initialLoadSize = initialLoadSize,
     prefetchDistance = prefetchDistance,
     enablePlaceholders = enablePlaceholders,
-    maxSize = maxSize
-) { BidirectionalLambdaPagingSource(startPage, refreshFromStart, fetcher) }
+    maxSize = maxSize,
+    sourceFactory = { BidirectionalLambdaPagingSource(startPage, refreshFromStart, fetcher) }
+)
 
 /** 双向 lambda 版的非 ViewModel 重载,业务自己传 [CoroutineScope]。 */
 fun <T : Any> pagingFlowOf(
@@ -214,5 +217,6 @@ fun <T : Any> pagingFlowOf(
     initialLoadSize = initialLoadSize,
     prefetchDistance = prefetchDistance,
     enablePlaceholders = enablePlaceholders,
-    maxSize = maxSize
-) { BidirectionalLambdaPagingSource(startPage, refreshFromStart, fetcher) }
+    maxSize = maxSize,
+    sourceFactory = { BidirectionalLambdaPagingSource(startPage, refreshFromStart, fetcher) }
+)
