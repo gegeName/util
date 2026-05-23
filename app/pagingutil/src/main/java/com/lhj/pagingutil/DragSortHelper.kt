@@ -33,14 +33,26 @@ class DragSortHelper<T : Any> internal constructor(
         return predicate(item, local)
     }
 
-    private fun hasLockedBetween(a: Int, b: Int): Boolean {
-        val lo = minOf(a, b)
-        val hi = maxOf(a, b)
-        for (i in lo..hi) {
-            if (!isDraggable(i)) return true
+    /**
+     * 计算 `notifyItemMoved(from, to)` 之后，需要把哪些 locked 项 move 回原位。
+     * 返回 `(shiftedIndex, originalIndex)` 列表：locked 在整体平移后落到 shiftedIndex,
+     * 需要再发一次 notifyItemMoved(shiftedIndex, originalIndex) 让它视觉上保持不动。
+     *
+     * @param from 被拖项原位置
+     * @param to   被拖项目标位置
+     */
+    private fun collectLockedBetween(from: Int, to: Int): List<Pair<Int, Int>> {
+        if (from == to) return emptyList()
+        val lo = minOf(from, to)
+        val hi = maxOf(from, to)
+        val step = if (from < to) -1 else 1
+        val result = mutableListOf<Pair<Int, Int>>()
+        for (i in (lo + 1) until hi) {
+            if (!isDraggable(i)) result.add((i + step) to i)
         }
-        return false
+        return result
     }
+
     private val callback = object : ItemTouchHelper.SimpleCallback(
         ItemTouchHelper.UP or ItemTouchHelper.DOWN or ItemTouchHelper.START or ItemTouchHelper.END,
         0
@@ -72,13 +84,16 @@ class DragSortHelper<T : Any> internal constructor(
             val fromLocal = localPos(from)
             val toLocal = localPos(to)
             if (!isDraggable(fromLocal) || !isDraggable(toLocal)) return false
-            if (hasLockedBetween(fromLocal, toLocal)) return false
 
             val snapshot = pagingAdapter.snapshot()
             val fromItem = snapshot[fromLocal] ?: return false
             val toItem = snapshot[toLocal] ?: return false
 
+            val lockedShift = collectLockedBetween(fromLocal, toLocal)
             pagingAdapter.notifyItemMoved(fromLocal, toLocal)
+            lockedShift.forEach { (shifted, original) ->
+                pagingAdapter.notifyItemMoved(shifted, original)
+            }
             onMoved(keyOf(fromItem), keyOf(toItem), fromLocal, toLocal)
             return true
         }
@@ -89,11 +104,7 @@ class DragSortHelper<T : Any> internal constructor(
             curX: Int,
             curY: Int
         ): RecyclerView.ViewHolder? {
-            val selectedLocal = localPos(selected)
-            val filtered = dropTargets.filter {
-                val tl = localPos(it)
-                isDraggable(tl) && !hasLockedBetween(selectedLocal, tl)
-            }.toMutableList()
+            val filtered = dropTargets.filter { isDraggable(localPos(it)) }.toMutableList()
             return super.chooseDropTarget(selected, filtered, curX, curY)
         }
 
