@@ -108,7 +108,6 @@ class CharAnimationDriver(
     @Volatile private var disposed: Boolean = false
     private var tvRef: WeakReference<TextView>? = null
 
-    /** 单轮跑完所需毫秒(不含 pause)。 */
     private val loopDurationMs: Long = totalChars * perCharDelayMs + charDurationMs
 
     private val callback = object : Choreographer.FrameCallback {
@@ -166,7 +165,6 @@ class CharAnimationDriver(
     private fun advanceLoopIfNeeded() {
         val now = SystemClock.uptimeMillis()
         val elapsed = now - loopStartMs
-        // 单轮 + pause 还没结束,继续等
         if (elapsed < loopDurationMs + repeat.pauseMs) return
         loopIndex++
         if (loopIndex >= repeat.count) {

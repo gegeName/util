@@ -34,18 +34,6 @@ abstract class BasePagingSource<T : Any>(
         PREPEND
     }
 
-    /**
-     * 双向版返回值。
-     *
-     * @property data 本页数据
-     * @property hasMore "沿当前请求方向"是否还能继续:
-     *  - REFRESH / APPEND 时:本页之后(下一页 / 更老 / 翻页方向)还能加载 → true
-     *  - PREPEND 时:本页之前(更早历史 / 反翻页方向)还能继续向前加载 → true
-     * @property hasPrev 仅 REFRESH 时有意义:首屏返回的位置之前是否还有历史。
-     *  - true → prevKey 被设为 page-1,后续滚到顶部会触发 PREPEND
-     *  - false(默认)→ prevKey=null,Paging 永不调用 PREPEND
-     *  APPEND / PREPEND 时本字段被忽略。
-     */
     data class PageResult<T>(
         val data: List<T>,
         val hasMore: Boolean,
@@ -122,21 +110,6 @@ abstract class BasePagingSource<T : Any>(
             val result = fetchBidirectional(page, params.loadSize, direction)
             val hasData = result.data.isNotEmpty()
 
-            /**
-             * prevKey / nextKey 分方向计算:
-             *
-             * - REFRESH:
-             *     prevKey 由业务的 hasPrev 决定 → 控制"是否允许 PREPEND 触发"
-             *     nextKey 由业务的 hasMore 决定 → 控制"是否允许 APPEND 触发"
-             *
-             * - APPEND(已经在向后翻):
-             *     prevKey = page - 1,让 Paging 能在缓存淘汰场景下回填前一页
-             *     nextKey 跟 hasMore 走
-             *
-             * - PREPEND(已经在向前翻):
-             *     prevKey 跟 hasMore 走(hasMore 在 PREPEND 语义下 = "更早还有没有")
-             *     nextKey = page + 1,让 Paging 能回填后一页
-             */
             val prevKey: Int? = when (direction) {
                 LoadDirection.REFRESH -> if (result.hasPrev) page - 1 else null
                 LoadDirection.APPEND -> page - 1

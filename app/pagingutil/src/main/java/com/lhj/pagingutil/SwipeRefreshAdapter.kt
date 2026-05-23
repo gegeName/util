@@ -17,7 +17,6 @@ class SwipeRefreshAdapter(private val srl: SwipeRefreshLayout) : PagingRefreshAd
     }
 
     override fun setLoadMoreEnabled(enabled: Boolean) {
-        // SwipeRefreshLayout 不支持上拉加载，忽略即可
     }
 
     override fun setRefreshEnabled(enabled: Boolean) {

@@ -29,23 +29,19 @@ abstract class BaseClickPagingAdapter<T : Any, VH : RecyclerView.ViewHolder>(
     diff: DiffUtil.ItemCallback<T>
 ) : PagingDataAdapter<T, VH>(diff) {
 
-    // ───── 监听器 ─────
     private var onItemClick: ((View, T, Int) -> Unit)? = null
     private var onItemLongClick: ((View, T, Int) -> Boolean)? = null
     private var onItemChildClick: ((View, T, Int) -> Unit)? = null
     private var onItemChildLongClick: ((View, T, Int) -> Boolean)? = null
 
-    // ───── 节流配置 ─────
     private var itemClickThrottleMs: Long = 0L
     private var itemClickKeyOf: ((T) -> Any)? = null
     private var itemChildClickThrottleMs: Long = 0L
     private var itemChildClickKeyOf: ((T) -> Any)? = null
 
-    // ───── 子 View id ─────
     private val childClickIds = mutableSetOf<Int>()
     private val childLongClickIds = mutableSetOf<Int>()
 
-    // ───── 节流时间戳表（按 key） ─────
     private val throttleLock = Any()
     private val itemClickLastTs = mutableMapOf<Any, Long>()
     private val childClickLastTs = mutableMapOf<Any, Long>()

@@ -97,7 +97,6 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
     private var chatMode: Boolean = false
 
     companion object {
-        /** onHeaderRefresh 的默认超时（10 秒）。超时后 onHeaderRefresh 抛 TimeoutCancellationException，coordinator 按头部失败处理 */
         const val DEFAULT_HEADER_REFRESH_TIMEOUT_MS: Long = 10_000L
 
         /** 创建 Helper 实例；[owner] 用于驱动生命周期与 coroutineScope，通常传 Fragment 的 viewLifecycleOwner 或 Activity 自身 */

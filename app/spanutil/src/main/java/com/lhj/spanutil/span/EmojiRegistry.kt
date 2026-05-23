@@ -17,10 +17,8 @@ import androidx.annotation.DrawableRes
  */
 object EmojiRegistry {
 
-    /** token → Int(@DrawableRes) | String(url) */
     private val table = HashMap<String, Any>()
 
-    /** 默认匹配 `:abc:` 或 `[abc]` 这两种格式。 */
     val DEFAULT_PATTERN: Regex = Regex(
         ":[A-Za-z0-9_+\\-\\u4e00-\\u9fa5]+:|\\[[A-Za-z0-9_+\\-\\u4e00-\\u9fa5]+\\]"
     )

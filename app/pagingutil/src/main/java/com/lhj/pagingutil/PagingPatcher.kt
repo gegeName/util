@@ -27,26 +27,14 @@ import kotlinx.coroutines.flow.update
  */
 class PagingPatcher<K : Any, T : Any>(val keyOf: (T) -> K) {
 
-    /** 相对位置插入的方向 */
     enum class InsertPosition { BEFORE, AFTER }
 
-    /**
-     * 相对位置插入的描述。
-     *
-     * @property anchorKey 锚点 item 的 key,插入位置以它为参照
-     * @property position 在 anchor 之前还是之后插入
-     * @property item 要插入的新 item
-     */
     data class TaggedInsert<K : Any, T : Any>(
         val anchorKey: K,
         val position: InsertPosition,
         val item: T
     )
 
-    /**
-     * 内部用:把三种 insert 列表聚合在一个 state 里,
-     * 避免 combine 超过 5 个 flow 的上限。
-     */
     private data class InsertState<K : Any, T : Any>(
         val heads: List<T> = emptyList(),
         val tails: List<T> = emptyList(),
@@ -110,8 +98,6 @@ class PagingPatcher<K : Any, T : Any>(val keyOf: (T) -> K) {
         _removed.update { it - key }
     }
 
-    // ───── 头部插入 ─────
-
     /** 头部插入;多次调用按"最新在最上"排列 */
     fun insertHead(item: T) {
         _inserts.update { it.copy(heads = listOf(item) + it.heads) }
@@ -121,8 +107,6 @@ class PagingPatcher<K : Any, T : Any>(val keyOf: (T) -> K) {
     fun removeInsert(predicate: (T) -> Boolean) {
         _inserts.update { it.copy(heads = it.heads.filterNot(predicate)) }
     }
-
-    // ───── 尾部插入 ─────
 
     /**
      * 尾部插入;多次调用按"最新在最下"排列。
@@ -137,8 +121,6 @@ class PagingPatcher<K : Any, T : Any>(val keyOf: (T) -> K) {
     fun removeTailInsert(predicate: (T) -> Boolean) {
         _inserts.update { it.copy(tails = it.tails.filterNot(predicate)) }
     }
-
-    // ───── 相对位置插入 ─────
 
     /**
      * 在 [anchorKey] 锚点**之后**插入 [item]。

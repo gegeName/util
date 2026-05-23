@@ -28,20 +28,17 @@ abstract class SingleItemBindingAdapter<T, VB : ViewBinding> :
     private var data: T? = null
     private var visible: Boolean = true
 
-    // ───── 监听器 ─────
     private var onItemClick: ((View, T) -> Unit)? = null
     private var onItemLongClick: ((View, T) -> Boolean)? = null
     private var onItemChildClick: ((View, T) -> Unit)? = null
     private var onItemChildLongClick: ((View, T) -> Boolean)? = null
 
-    // ───── 节流 ─────
     private var itemClickThrottleMs: Long = 0L
     private var itemChildClickThrottleMs: Long = 0L
     private val throttleLock = Any()
     private var itemClickLastTs: Long = 0L
     private val childClickLastTs = mutableMapOf<Int, Long>()
 
-    // ───── 子 View id ─────
     private val childClickIds = mutableSetOf<Int>()
     private val childLongClickIds = mutableSetOf<Int>()
 

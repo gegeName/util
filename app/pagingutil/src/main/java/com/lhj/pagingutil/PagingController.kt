@@ -38,8 +38,6 @@ class PagingController<T : Any> internal constructor(
     private val dragSortHelper: DragSortHelper<T>? = null
 ) {
 
-    // ───── 控制类 ─────
-
     /**
      * 重新走一遍 PagingSource。
      *
@@ -127,8 +125,6 @@ class PagingController<T : Any> internal constructor(
     fun startDrag(holder: RecyclerView.ViewHolder) {
         dragSortHelper?.startDrag(holder)
     }
-
-    // ───── 直接更新（不走网络） ─────
 
     /**
      * 改字段：对某条 item 打字段级补丁。
@@ -282,8 +278,6 @@ class PagingController<T : Any> internal constructor(
     /** 清空所有本地修改：补丁 / 删除 / 插入全部清空，等价于 patcher.clearAll() */
     fun clearLocalChanges() = patcher?.clearAll()
 
-    // ───── 乐观更新（自动回退 + 策略调度） ─────
-
     /**
      * 乐观字段更新：先打补丁让 UI 立即生效，再发请求；失败自动 unpatch 回退。
      *
@@ -435,8 +429,6 @@ class PagingController<T : Any> internal constructor(
         if (job == null) onIgnored?.invoke()
         return job
     }
-
-    // ───── 先请求成功再改本地（服务端权威值落地） ─────
 
     /**
      * 先发请求拿到服务端返回，再用 [transform] 把响应映射到 item 上 patch。

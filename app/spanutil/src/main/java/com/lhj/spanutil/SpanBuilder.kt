@@ -66,32 +66,18 @@ class SpanBuilder private constructor(private val context: Context) {
     private val pendingImageTransforms =
         mutableMapOf<CenterAlignImageSpan, (Drawable, Int, Int) -> Drawable>()
 
-    /**
-     * 已知的 Animatable Drawable 集合（GIF / WebP 动图 / AnimatedImageDrawable）。
-     */
     private val animatables = mutableListOf<Animatable>()
     private var needsSoftwareLayer = false
 
-    /** 是否包含 ClickableSpan，[into] / [buildAndAttach] 时把 highlightColor 设为透明，消除点击闪烁。 */
     private var hasClickable = false
 
     private val clickHolders = mutableListOf<ClickListenerHolder>()
 
-    /**
-     * 字符级动画驱动器,[charAnimation] 设置后非 null。
-     * [prepareTextView] 时会调用 driver.start(textView) 开始 Choreographer 循环。
-     */
     private var charAnimDriver: CharAnimationDriver? = null
     private var charAnimRange: Pair<Int, Int>? = null
 
-    /**
-     * 文字片段经 [marginPx] 上下平移后所需的额外行高（px）。
-     * [into] 会自动累加到 TextView.lineSpacingExtra，使用者无需手动处理。
-     */
     var extraVerticalPaddingPx: Int = 0
         private set
-
-    // ── 内部数据类 ─────────────────────────────────────────────────────────
 
     private data class PendingImageLoad(
         val url: Any,
@@ -99,14 +85,9 @@ class SpanBuilder private constructor(private val context: Context) {
         val width: Int,
         val height: Int,
         val circle: Boolean,
-        /** 该 load 使用的加载器;null 表示用 [LoaderType.Image] 全局加载器。 */
         val loader: SpanImageLoader? = null,
     )
 
-    /**
-     * 图片边框配置，gradientColors 非空时使用渐变边框。
-     * equals/hashCode 手动实现以正确对比 IntArray。
-     */
     private data class ImageBorderConfig(
         val borderWidth: Float,
         val borderColor: Int,
@@ -135,21 +116,12 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
-    // ── companion（全局配置） ───────────────────────────────────────────────
-
     companion object {
         @JvmStatic
         fun with(context: Context): SpanBuilder = SpanBuilder(context)
 
         private val loaders = EnumMap<LoaderType, SpanImageLoader>(LoaderType::class.java)
 
-        /**
-         * 注册指定类型的全局加载器。spanutil 本身不绑任何具体实现，
-         * 由独立扩展库(glidespan / svgspan / svgaspan)在初始化时调用此方法注入。
-         *
-         * @param type   加载器类型（[LoaderType.Image] / [LoaderType.Svg] / [LoaderType.Svga]）
-         * @param loader 对应类型的 [SpanImageLoader] 实现
-         */
         @JvmStatic
         fun setLoader(type: LoaderType, loader: SpanImageLoader) {
             loaders[type] = loader
@@ -168,9 +140,6 @@ class SpanBuilder private constructor(private val context: Context) {
             return loader
         }
 
-        /**
-         * 全局文字自定义 Span 工厂。[customTextSpan] 无参版使用此工厂。
-         */
         private var textSpanFactory: ((start: Int, end: Int, text: CharSequence) -> Any)? = null
 
         @JvmStatic
@@ -178,9 +147,6 @@ class SpanBuilder private constructor(private val context: Context) {
             textSpanFactory = factory
         }
 
-        /**
-         * 全局图片 Drawable 变换器。[customImageTransform] 无参版使用此变换器。
-         */
         private var imageTransformer: ((drawable: Drawable, width: Int, height: Int) -> Drawable)? =
             null
 
@@ -189,8 +155,6 @@ class SpanBuilder private constructor(private val context: Context) {
             imageTransformer = transformer
         }
     }
-
-    // ============================== 拼接模式 ==============================
 
     /**
      * 追加一段文字，后续样式方法仅对该片段生效。
@@ -375,8 +339,6 @@ class SpanBuilder private constructor(private val context: Context) {
         segments = listOf(start to end)
         return this
     }
-
-    // ============================== 服务端文案模式 ==============================
 
     /**
      * 装载整段文字（清空之前内容），后续可用 [find]/[findAll]/[findRegex]/[range] 定位片段再施加样式。
@@ -595,42 +557,6 @@ class SpanBuilder private constructor(private val context: Context) {
         return this
     }
 
-    /**
-     * 给当前片段每个字符附加逐字动画。需配合 [into] / [buildAndAttach]。
-     *
-     * 动画行为完全由 [anim] 决定,内置 [CharAnims.Fade] / [CharAnims.Rise] /
-     * [CharAnims.Bounce] / [CharAnims.Slide] 可直接传,也可写自己的:
-     * ```
-     * .charAnimation(CharAnim { tp, p, _, _ ->
-     *     tp.alpha = (tp.alpha * p).toInt()
-     *     tp.textSize *= 0.5f + 0.5f * p     // 字体缩放
-     * })
-     * ```
-     *
-     * 循环控制由 [repeat] 决定:[RepeatConfig.ONCE](默认)/ [RepeatConfig.INFINITE_RESTART] /
-     * [RepeatConfig.INFINITE_REVERSE],或用 [RepeatConfig.infiniteReverse(pauseMs)] 等带停顿的工厂。
-     *
-     * ⚠️ **性能注意:控制同屏并发 [CharAnimationDriver] 数量,不限字数。**
-     *
-     * 每次调用 [charAnimation] 会创建一个 [CharAnimationDriver],[CharAnimationDriver]
-     * 内部跑一个 Choreographer 时钟 + 每帧 invalidate 宿主 TextView。
-     * **字数多少几乎不影响开销**(一条 200 字和一条 20 字都只占一个 [CharAnimationDriver]),
-     * 真正的开销是"同屏同时跑了几个 [CharAnimationDriver]":
-     * - 同屏 1~3 个 [CharAnimationDriver](焦点标题 / Banner / 置顶通知 / 礼物特效):
-     *   随便用,无感知。
-     * - 同屏 10+ 个 [CharAnimationDriver](滚动列表每条 item 都加无限循环动画):
-     *   每帧 N 次 invalidate + N 次重绘,主线程容易掉帧。**强烈不推荐**给整个 feed
-     *   列表每条都加,改成只给最新一条或"焦点条目"加。
-     *
-     * RecyclerView 复用时 [attachAnimationLifecycle] 会自动 stop 旧 [CharAnimationDriver],
-     * 无 leak;但如果走 [build] 不走 [into],必须自己 [getCharAnimDriver] 拿到
-     * [CharAnimationDriver],手动 `start` / `stop`,否则 Choreographer 持续空跑。
-     *
-     * @param anim             单帧动画函数,见 [CharAnim]
-     * @param perCharDelayMs   字符之间的入场间隔毫秒
-     * @param charDurationMs   单字符自身入场时长毫秒
-     * @param repeat           循环配置,默认只播一次
-     */
     @JvmOverloads
     fun charAnimation(
         anim: CharAnim = CharAnims.Fade,
@@ -656,8 +582,6 @@ class SpanBuilder private constructor(private val context: Context) {
         charAnimRange = start to end
         return this
     }
-
-    // ============================== 样式 ==============================
 
     /**
      * 设置当前片段的文字颜色（前景色）。
@@ -1173,17 +1097,12 @@ class SpanBuilder private constructor(private val context: Context) {
         }
     }
 
-    /**
-     * 装 [onClick] 回调的可清空容器，置空 [listener] 即可断开外部引用。
-     */
     private class ClickListenerHolder(var listener: ((View) -> Unit)?)
 
     private inline fun applyEach(block: (Int, Int) -> Unit): SpanBuilder {
         segments.forEach { (s, e) -> if (s < e) block(s, e) }
         return this
     }
-
-    // ============================== 输出 ==============================
 
     /**
      * 返回构建好的 [CharSequence]（SpannableStringBuilder）。
