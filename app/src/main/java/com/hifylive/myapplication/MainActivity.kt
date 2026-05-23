@@ -166,7 +166,7 @@ class MainActivity : AppCompatActivity() {
                 longPressEnabled = true,
                 vibrateOnDragStart = true,
                 canDrag = { item, pos ->
-                    pos != 1
+                    pos != 4
                 }) { fromKey, toKey, fromLocal, toLocal ->
                 // 拖动后，pagingAdapter.snapshot() 是"原始顺序"，但视图层已经 notifyItemMoved 过；
                 // 我们要的是拖完后的最终顺序，自己根据 fromLocal/toLocal 在快照上模拟一次 move 即可。
