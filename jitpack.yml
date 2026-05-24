@@ -17,6 +17,7 @@ install:
     :app:glidespan:publishToMavenLocal
     :app:svgspan:publishToMavenLocal
     :app:svgaspan:publishToMavenLocal
+    :app:effect:publishToMavenLocal
     -PVERSION_NAME=$VERSION
 
 
@@ -29,4 +30,5 @@ install:
 #   com.github.<USER>.<REPO>:glidespan:<TAG>
 #   com.github.<USER>.<REPO>:svgspan:<TAG>
 #   com.github.<USER>.<REPO>:svgaspan:<TAG>
+#   com.github.<USER>.<REPO>:effect:<TAG>
 # （注意是点号，不是冒号）
