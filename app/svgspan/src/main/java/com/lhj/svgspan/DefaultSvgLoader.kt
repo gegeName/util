@@ -4,11 +4,13 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
+import android.util.LruCache
 import com.lhj.spanutil.SpanBuilder
 import com.lhj.spanutil.SpanLog
 import com.lhj.spanutil.span.LoaderType
 import com.lhj.spanutil.span.RoundMaskDrawable
 import com.lhj.spanutil.span.SpanImageLoader
+import com.lhj.svgspan.DefaultSvgLoader.Companion.install
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -16,6 +18,7 @@ import okhttp3.Request
 import okhttp3.Response
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.Executors
 
 /**
  * 默认 SVG 加载器：支持 raw 资源 / 本地文件 / http(s) 远端；静态用 AndroidSVG，
@@ -40,34 +43,75 @@ class DefaultSvgLoader(
         circle: Boolean,
         onReady: (Drawable) -> Unit,
     ) {
+        val cacheKey = "$url|${width}x${height}"
+        pictureCache.get(cacheKey)?.let {
+            onReady(maybeWrap(it.constantState?.newDrawable() ?: it, circle))
+            return
+        }
         when (url) {
             is Int -> {
-                runCatching {
-                    context.resources.openRawResource(url).use { it.readBytes() }
-                }.onFailure { SpanLog.w(TAG, it) { "raw svg read failed: $url" } }
-                    .getOrNull()?.let { bytes ->
-                        renderBytes(context, bytes, width, height, circle, onReady)
-                    }
+                ioExecutor.execute {
+                    val bytes = runCatching {
+                        context.resources.openRawResource(url).use { it.readBytes() }
+                    }.onFailure { SpanLog.w(TAG, it) { "raw svg read failed: $url" } }
+                        .getOrNull() ?: return@execute
+                    handleBytes(context, cacheKey, bytes, width, height, circle, onReady)
+                }
             }
 
             is String -> {
                 if (url.startsWith("http://", true) || url.startsWith("https://", true)) {
-                    loadRemote(context, url, width, height, circle, onReady)
+                    loadRemote(context, cacheKey, url, width, height, circle, onReady)
                 } else {
                     val path = if (url.startsWith("file://")) url.removePrefix("file://") else url
-                    runCatching {
-                        File(path).readBytes()
-                    }.onFailure { SpanLog.w(TAG, it) { "file svg read failed: $path" } }
-                        .getOrNull()?.let { bytes ->
-                            renderBytes(context, bytes, width, height, circle, onReady)
-                        }
+                    ioExecutor.execute {
+                        val bytes = runCatching {
+                            File(path).readBytes()
+                        }.onFailure { SpanLog.w(TAG, it) { "file svg read failed: $path" } }
+                            .getOrNull() ?: return@execute
+                        handleBytes(context, cacheKey, bytes, width, height, circle, onReady)
+                    }
                 }
             }
         }
     }
 
+    private fun handleBytes(
+        context: Context,
+        cacheKey: String,
+        bytes: ByteArray,
+        width: Int,
+        height: Int,
+        circle: Boolean,
+        onReady: (Drawable) -> Unit,
+    ) {
+        val animated = looksAnimated(bytes) && context is android.app.Activity
+        if (animated) {
+            mainHandler.post {
+                val animDrawable = runCatching {
+                    AnimatedSvgDrawable(bytes, width, height, context).also { it.start() }
+                }.onFailure { SpanLog.w(TAG, it) { "animated svg failed, fallback to static" } }
+                    .getOrNull()
+                if (animDrawable != null) {
+                    onReady(maybeWrap(animDrawable, circle))
+                } else {
+                    ioExecutor.execute {
+                        val staticPic = renderStatic(bytes, width, height) ?: return@execute
+                        pictureCache.put(cacheKey, staticPic)
+                        mainHandler.post { onReady(maybeWrap(staticPic, circle)) }
+                    }
+                }
+            }
+            return
+        }
+        val staticPic = renderStatic(bytes, width, height) ?: return
+        pictureCache.put(cacheKey, staticPic)
+        mainHandler.post { onReady(maybeWrap(staticPic, circle)) }
+    }
+
     private fun loadRemote(
         context: Context,
+        cacheKey: String,
         url: String,
         width: Int,
         height: Int,
@@ -97,35 +141,10 @@ class DefaultSvgLoader(
                     val bytes = runCatching { body.bytes() }
                         .onFailure { SpanLog.w(TAG, it) { "remote svg body read failed: $url" } }
                         .getOrNull() ?: return
-                    mainHandler.post {
-                        renderBytes(context, bytes, width, height, circle, onReady)
-                    }
+                    handleBytes(context, cacheKey, bytes, width, height, circle, onReady)
                 }
             }
         })
-    }
-
-    private fun renderBytes(
-        context: Context,
-        bytes: ByteArray,
-        width: Int,
-        height: Int,
-        circle: Boolean,
-        onReady: (Drawable) -> Unit,
-    ) {
-        val animated = looksAnimated(bytes) && context is android.app.Activity
-        val drawable: Drawable? = if (animated) {
-            runCatching {
-                AnimatedSvgDrawable(bytes, width, height, context).also {
-                    it.start()
-                }
-            }.onFailure { SpanLog.w(TAG, it) { "animated svg failed, fallback to static" } }
-                .getOrNull()
-                ?: renderStatic(bytes, width, height)
-        } else {
-            renderStatic(bytes, width, height)
-        }
-        drawable?.let { onReady(maybeWrap(it, circle)) }
     }
 
     private fun renderStatic(bytes: ByteArray, width: Int, height: Int): Drawable? =
@@ -152,6 +171,10 @@ class DefaultSvgLoader(
         private const val DEFAULT_UA =
             "Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36"
         private val mainHandler = Handler(Looper.getMainLooper())
+        private val ioExecutor = Executors.newSingleThreadExecutor { r ->
+            Thread(r, "svg-loader").apply { isDaemon = true }
+        }
+        private val pictureCache = LruCache<String, Drawable>(64)
         private val sharedClient by lazy {
             OkHttpClient.Builder()
                 .followRedirects(true)

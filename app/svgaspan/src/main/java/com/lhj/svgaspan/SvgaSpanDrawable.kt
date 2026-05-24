@@ -44,12 +44,8 @@ class SvgaSpanDrawable(
         loops = 0
         scaleType = ImageView.ScaleType.FIT_XY
         setVideoItem(entity)
-        measure(
-            View.MeasureSpec.makeMeasureSpec(widthPx, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(heightPx, View.MeasureSpec.EXACTLY),
-        )
-        layout(0, 0, widthPx, heightPx)
     }
+    @Volatile private var prepared = false
 
     private var currentFrame: Int = 0
     private var frameBitmap: Bitmap? = null
@@ -98,26 +94,28 @@ class SvgaSpanDrawable(
         val w = b.width()
         val h = b.height()
         if (w <= 0 || h <= 0) return
-
-        var bmp = frameBitmap
-        var c = frameCanvas
-        if (bmp == null || bmp.width != w || bmp.height != h) {
-            bmp?.recycle()
-            bmp = createBitmap(w, h)
-            frameBitmap = bmp
-            c = Canvas(bmp)
-            frameCanvas = c
-            if (iv.width != w || iv.height != h) {
-                iv.measure(
-                    View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
-                    View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY),
-                )
-                iv.layout(0, 0, w, h)
-            }
-        }
-        c!!.drawColor(0, PorterDuff.Mode.CLEAR)
+        if (!prepared) return
+        val bmp = frameBitmap ?: return
+        val c = frameCanvas ?: return
+        c.drawColor(0, PorterDuff.Mode.CLEAR)
         iv.draw(c)
         canvas.drawBitmap(bmp, b.left.toFloat(), b.top.toFloat(), paint)
+    }
+
+    private fun prepareIfNeeded() {
+        if (prepared || disposed) return
+        val iv = imageView ?: return
+        val w = widthPx.coerceAtLeast(1)
+        val h = heightPx.coerceAtLeast(1)
+        iv.measure(
+            View.MeasureSpec.makeMeasureSpec(w, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(h, View.MeasureSpec.EXACTLY),
+        )
+        iv.layout(0, 0, w, h)
+        val bmp = createBitmap(w, h)
+        frameBitmap = bmp
+        frameCanvas = Canvas(bmp)
+        prepared = true
     }
 
     /**
@@ -129,7 +127,12 @@ class SvgaSpanDrawable(
     override fun bindHost(textView: TextView) {
         if (disposed) return
         hostRef = WeakReference(textView)
-        start()
+        textView.post {
+            if (disposed) return@post
+            prepareIfNeeded()
+            start()
+            textView.invalidate()
+        }
     }
 
     override fun setAlpha(alpha: Int) { paint.alpha = alpha }
@@ -171,6 +174,7 @@ class SvgaSpanDrawable(
         frameBitmap?.recycle()
         frameBitmap = null
         frameCanvas = null
+        prepared = false
     }
 
     /**
@@ -181,6 +185,7 @@ class SvgaSpanDrawable(
         if (disposed) return
         disposed = true
         running = false
+        prepared = false
         Choreographer.getInstance().removeFrameCallback(frameCallback)
         hostRef = null
         frameBitmap?.recycle()
