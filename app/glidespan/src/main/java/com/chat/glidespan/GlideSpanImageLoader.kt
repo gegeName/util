@@ -33,7 +33,7 @@ class GlideSpanImageLoader : SpanImageLoader {
     ) {
         val options = RequestOptions()
             .override(width, height)
-            .format(DecodeFormat.PREFER_ARGB_8888)
+            .format(DecodeFormat.PREFER_RGB_565)
         Glide.with(context).asDrawable().load(url).apply(options)
             .into(object : CustomTarget<Drawable>() {
                 override fun onResourceReady(
