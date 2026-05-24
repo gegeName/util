@@ -1,6 +1,6 @@
 package com.simple.mylibrary.http
 
-import android.util.Log
+import com.simple.mylibrary.utils.SLog
 import com.simple.mylibrary.utils.ToastUtils
 import retrofit2.HttpException
 import java.net.ConnectException
@@ -118,7 +118,7 @@ object ApiErrorHandler {
     fun handle(throwable: Throwable) {
         val apiTag = (throwable as? ApiException)?.apiTag.orEmpty()
         val logTag = if (apiTag.isNotEmpty()) "ApiError[$apiTag]" else "ApiError"
-        Log.e(logTag, "", throwable)
+        SLog.e(logTag, throwable) { "" }
         val m = messages
         when (throwable) {
             is ApiException -> dispatchBusiness(throwable, m)

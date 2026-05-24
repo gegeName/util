@@ -130,12 +130,11 @@ class SpanBuilder private constructor(private val context: Context) {
         internal fun requireLoader(type: LoaderType): SpanImageLoader? {
             val loader = loaders[type]
             if (loader == null) {
-                android.util.Log.e(
-                    "SpanBuilder",
+                SpanLog.e("SpanBuilder") {
                     "${type.name} loader not registered, skip. " +
                             "Call SpanBuilder.setLoader(${type.name}, ...) first " +
                             "(e.g. from ${type.suggestedModule} 库)"
-                )
+                }
             }
             return loader
         }
@@ -1326,15 +1325,7 @@ class SpanBuilder private constructor(private val context: Context) {
                 tvRef.get()?.removeCallbacks(what)
             }
         }
-        android.util.Log.d(
-            "SpanBuilder",
-            "wireAnimatable: $animatable isRunning=${animatable.isRunning} tv=${tvRef.get()}"
-        )
         if (!animatable.isRunning) animatable.start()
-        android.util.Log.d(
-            "SpanBuilder",
-            "wireAnimatable after start: $animatable isRunning=${animatable.isRunning}"
-        )
     }
 
     /**

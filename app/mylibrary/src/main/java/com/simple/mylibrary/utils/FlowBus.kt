@@ -1,6 +1,5 @@
 package com.simple.mylibrary.utils
 
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.DefaultLifecycleObserver
@@ -84,7 +83,7 @@ object FlowBus {
                         action(it)
                     } catch (e: Exception) {
                         e.printStackTrace()
-                        Log.e(TAG, "FlowBus - Error:$e")
+                        SLog.e(TAG) { "FlowBus - Error:$e" }
                     }
                 }
             }
@@ -109,7 +108,7 @@ object FlowBus {
         }
 
         override fun onDestroy(owner: LifecycleOwner) {
-            Log.d(TAG, "FlowBus - 自动onDestroy")
+            SLog.d(TAG) { "FlowBus - 自动onDestroy" }
             observers.remove(owner)
             if (_events.subscriptionCount.value <= 0) {
                 dispose()
@@ -147,7 +146,7 @@ object FlowBus {
                             action(env.value)
                         } catch (e: Exception) {
                             e.printStackTrace()
-                            Log.e(TAG, "FlowBus - Error:$e")
+                            SLog.e(TAG) { "FlowBus - Error:$e" }
                         }
                     }
                 }
@@ -182,7 +181,7 @@ object FlowBus {
         }
 
         override fun onDestroy(owner: LifecycleOwner) {
-            Log.d(TAG, "FlowBus - 自动onDestroy (stick)")
+            SLog.d(TAG) { "FlowBus - 自动onDestroy (stick)" }
             observers.remove(owner)
             if (_events.subscriptionCount.value <= 0) {
                 dispose()

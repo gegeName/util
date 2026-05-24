@@ -3,8 +3,8 @@ package com.lhj.svgaspan
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.util.LruCache
+import com.lhj.spanutil.SpanLog
 import com.opensource.svgaplayer.SVGAParser
 import com.opensource.svgaplayer.SVGAVideoEntity
 import java.net.URL
@@ -51,25 +51,24 @@ object SvgaCache {
         onError: (() -> Unit)? = null,
     ) {
         cache.get(key)?.let {
-            Log.i(TAG, "cache hit: $key")
+            SpanLog.i(TAG) { "cache hit: $key" }
             mainHandler.post { onReady(it) }
             return
         }
-        Log.i(TAG, "cache miss, start parse: $key")
+        SpanLog.i(TAG) { "cache miss, start parse: $key" }
         val parser = SVGAParser.shareParser().apply { init(context) }
         val callback = object : SVGAParser.ParseCompletion {
             override fun onComplete(videoItem: SVGAVideoEntity) {
-                Log.i(
-                    TAG,
+                SpanLog.i(TAG) {
                     "parse complete: $key  frames=${videoItem.frames} fps=${videoItem.FPS} " +
                             "size=${videoItem.videoSize.width}x${videoItem.videoSize.height}"
-                )
+                }
                 cache.put(key, videoItem)
                 mainHandler.post { onReady(videoItem) }
             }
 
             override fun onError() {
-                Log.w(TAG, "parse error: $key")
+                SpanLog.w(TAG) { "parse error: $key" }
                 onError?.let { mainHandler.post(it) }
             }
         }
@@ -79,7 +78,7 @@ object SvgaCache {
                 runCatching {
                     parser.decodeFromURL(URL(key), callback)
                 }.onFailure {
-                    Log.w(TAG, "decodeFromURL threw: $key", it)
+                    SpanLog.w(TAG, it) { "decodeFromURL threw: $key" }
                     onError?.let { cb -> mainHandler.post(cb) }
                 }
             }
@@ -87,7 +86,7 @@ object SvgaCache {
             else -> {
                 runCatching { parser.decodeFromAssets(key, callback) }
                     .onFailure {
-                        Log.w(TAG, "decodeFromAssets failed: $key", it)
+                        SpanLog.w(TAG, it) { "decodeFromAssets failed: $key" }
                         onError?.let { cb -> mainHandler.post(cb) }
                     }
             }

@@ -4,8 +4,8 @@ import android.content.Context
 import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import com.lhj.spanutil.SpanBuilder
+import com.lhj.spanutil.SpanLog
 import com.lhj.spanutil.span.LoaderType
 import com.lhj.spanutil.span.RoundMaskDrawable
 import com.lhj.spanutil.span.SpanImageLoader
@@ -44,7 +44,7 @@ class DefaultSvgLoader(
             is Int -> {
                 runCatching {
                     context.resources.openRawResource(url).use { it.readBytes() }
-                }.onFailure { Log.w(TAG, "raw svg read failed: $url", it) }
+                }.onFailure { SpanLog.w(TAG, it) { "raw svg read failed: $url" } }
                     .getOrNull()?.let { bytes ->
                         renderBytes(context, bytes, width, height, circle, onReady)
                     }
@@ -57,7 +57,7 @@ class DefaultSvgLoader(
                     val path = if (url.startsWith("file://")) url.removePrefix("file://") else url
                     runCatching {
                         File(path).readBytes()
-                    }.onFailure { Log.w(TAG, "file svg read failed: $path", it) }
+                    }.onFailure { SpanLog.w(TAG, it) { "file svg read failed: $path" } }
                         .getOrNull()?.let { bytes ->
                             renderBytes(context, bytes, width, height, circle, onReady)
                         }
@@ -81,21 +81,21 @@ class DefaultSvgLoader(
             .build()
         client.newCall(req).enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
-                Log.w(TAG, "remote svg failed: $url", e)
+                SpanLog.w(TAG, e) { "remote svg failed: $url" }
             }
 
             override fun onResponse(call: Call, response: Response) {
                 response.use { resp ->
                     if (!resp.isSuccessful) {
-                        Log.w(TAG, "remote svg http ${resp.code}: $url")
+                        SpanLog.w(TAG) { "remote svg http ${resp.code}: $url" }
                         return
                     }
                     val body = resp.body ?: run {
-                        Log.w(TAG, "remote svg empty body: $url")
+                        SpanLog.w(TAG) { "remote svg empty body: $url" }
                         return
                     }
                     val bytes = runCatching { body.bytes() }
-                        .onFailure { Log.w(TAG, "remote svg body read failed: $url", it) }
+                        .onFailure { SpanLog.w(TAG, it) { "remote svg body read failed: $url" } }
                         .getOrNull() ?: return
                     mainHandler.post {
                         renderBytes(context, bytes, width, height, circle, onReady)
@@ -119,7 +119,7 @@ class DefaultSvgLoader(
                 AnimatedSvgDrawable(bytes, width, height, context).also {
                     it.start()
                 }
-            }.onFailure { Log.w(TAG, "animated svg failed, fallback to static", it) }
+            }.onFailure { SpanLog.w(TAG, it) { "animated svg failed, fallback to static" } }
                 .getOrNull()
                 ?: renderStatic(bytes, width, height)
         } else {
@@ -131,7 +131,7 @@ class DefaultSvgLoader(
     private fun renderStatic(bytes: ByteArray, width: Int, height: Int): Drawable? =
         runCatching {
             SvgRenderer.render(bytes.inputStream(), width, height)
-        }.onFailure { Log.w(TAG, "static svg parse failed", it) }
+        }.onFailure { SpanLog.w(TAG, it) { "static svg parse failed" } }
             .getOrNull()
 
     private fun maybeWrap(drawable: Drawable, circle: Boolean): Drawable =

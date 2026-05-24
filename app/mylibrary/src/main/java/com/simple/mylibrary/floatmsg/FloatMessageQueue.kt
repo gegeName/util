@@ -3,12 +3,12 @@ package com.simple.mylibrary.floatmsg
 import android.app.Activity
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
+import com.simple.mylibrary.utils.SLog
 import java.util.ArrayDeque
 
 /**
@@ -103,14 +103,14 @@ class FloatMessageQueue<T>(
             val view = try {
                 onCreateView(item)
             } catch (e: Exception) {
-                Log.e(TAG, "onCreateView failed, skip this item", e)
+                SLog.e(TAG, e) { "onCreateView failed, skip this item" }
                 continue
             }
             val added = try {
                 container.addView(view)
                 true
             } catch (e: Exception) {
-                Log.e(TAG, "addView failed, skip this item", e)
+                SLog.e(TAG, e) { "addView failed, skip this item" }
                 false
             }
             if (!added) continue
@@ -129,7 +129,7 @@ class FloatMessageQueue<T>(
                 }
                 true
             } catch (e: Exception) {
-                Log.e(TAG, "animateIn failed, skip this item", e)
+                SLog.e(TAG, e) { "animateIn failed, skip this item" }
                 detachView(view)
                 false
             }

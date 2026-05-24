@@ -116,7 +116,16 @@ class CharAnimationDriver(
             if (stopped) return
             advanceLoopIfNeeded()
             if (stopped) return
-            if (!isInPausePhase()) tv.invalidate()
+            if (isInPausePhase()) {
+                val elapsed = SystemClock.uptimeMillis() - loopStartMs
+                val resumeDelayMs =
+                    (loopDurationMs + repeat.pauseMs - elapsed).coerceAtLeast(16L)
+                tv.postDelayed({
+                    if (!stopped) Choreographer.getInstance().postFrameCallback(this)
+                }, resumeDelayMs)
+                return
+            }
+            tv.invalidate()
             Choreographer.getInstance().postFrameCallback(this)
         }
     }

@@ -2,8 +2,8 @@ package com.lhj.svgaspan
 
 import android.content.Context
 import android.graphics.drawable.Drawable
-import android.util.Log
 import com.lhj.spanutil.SpanBuilder
+import com.lhj.spanutil.SpanLog
 import com.lhj.spanutil.span.LoaderType
 import com.lhj.spanutil.span.RoundMaskDrawable
 import com.lhj.spanutil.span.SpanImageLoader
@@ -26,7 +26,7 @@ class SvgaSpanLoader : SpanImageLoader {
         onReady: (Drawable) -> Unit,
     ) {
         val key = url.toString()
-        Log.i("SvgaSpanLoader", "load: $key  size=${width}x${height} circle=$circle")
+        SpanLog.i("SvgaSpanLoader") { "load: $key  size=${width}x${height} circle=$circle" }
         SvgaCache.load(
             context,
             key,
@@ -37,7 +37,7 @@ class SvgaSpanLoader : SpanImageLoader {
                 onReady(finalDrawable)
             },
             onError = {
-                Log.w("SvgaSpanLoader", "svga load error: $key")
+                SpanLog.w("SvgaSpanLoader") { "svga load error: $key" }
             },
         )
     }
