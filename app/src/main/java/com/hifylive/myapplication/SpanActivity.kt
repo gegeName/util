@@ -23,6 +23,7 @@ import com.lhj.spanutil.span.CharAnim
 import com.lhj.spanutil.span.CharAnims
 import com.lhj.spanutil.span.EmojiRegistry
 import com.lhj.spanutil.span.RepeatConfig
+import com.lhj.glidespan.GlideSpanGifLoader
 import com.lhj.glidespan.GlideSpanImageLoader
 import com.lhj.svgspan.DefaultSvgLoader
 import com.lhj.svgaspan.SvgaSpanLoader
@@ -39,6 +40,7 @@ class SpanActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         GlideSpanImageLoader.install()
+        GlideSpanGifLoader.install()
         DefaultSvgLoader.install()
         SvgaSpanLoader.install()
         enableEdgeToEdge()

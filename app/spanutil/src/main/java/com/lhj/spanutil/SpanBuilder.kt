@@ -261,21 +261,36 @@ class SpanBuilder private constructor(private val context: Context) {
         @Px height: Int,
         circle: Boolean = false
     ): SpanBuilder {
+        val loader = requireLoader(LoaderType.Gif) ?: return this
         val start = ssb.length
         ssb.append(" ")
         val end = ssb.length
         val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
         ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-        pendingImageLoads.add(PendingImageLoad(resId, placeholderSpan, width, height, circle))
+        pendingImageLoads.add(PendingImageLoad(resId, placeholderSpan, width, height, circle, loader = loader))
         segments = listOf(start to end)
         return this
     }
 
     /**
-     * 添加远程 GIF / WebP 动图。语义等同于 [image] 的 URL 版,仅为可读性而提供。
+     * 添加远程 GIF / WebP 动图。
+     *
+     * @param url    远端 URL
+     * @param width  显示宽度 px
+     * @param height 显示高度 px
+     * @param circle 是否裁剪为圆形，默认 false
      */
-    fun gif(url: String, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder =
-        image(url, width, height, circle)
+    fun gif(url: String, @Px width: Int, @Px height: Int, circle: Boolean = false): SpanBuilder {
+        val loader = requireLoader(LoaderType.Gif) ?: return this
+        val start = ssb.length
+        ssb.append(" ")
+        val end = ssb.length
+        val placeholderSpan = CenterAlignImageSpan(transparentPlaceholder(width, height))
+        ssb.setSpan(placeholderSpan, start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        pendingImageLoads.add(PendingImageLoad(url, placeholderSpan, width, height, circle, loader = loader))
+        segments = listOf(start to end)
+        return this
+    }
 
     /**
      * 添加 SVG 矢量图,统一入口,支持:
