@@ -12,9 +12,9 @@ import com.hifylive.myapplication.databinding.ActivityChatBinding
 import com.hifylive.myapplication.sample.ChatAdapter
 import com.hifylive.myapplication.sample.ChatMsg
 import com.hifylive.myapplication.sample.ChatViewModel
-import com.lhj.pagingutil.CommonLoadStateAdapter
-import com.lhj.pagingutil.PagingController
-import com.lhj.pagingutil.PagingHelper
+import com.chat.pagingutil.CommonLoadStateAdapter
+import com.chat.pagingutil.PagingController
+import com.chat.pagingutil.PagingHelper
 
 /**
  * 聊天演示 Activity:

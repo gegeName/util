@@ -320,7 +320,7 @@
     </LinearLayout>
 
 
-    <com.lhj.pagingutil.PagingStateLayout
+    <com.chat.pagingutil.PagingStateLayout
         android:id="@+id/pageState"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -343,6 +343,6 @@
                 android:overScrollMode="never" />
 
         </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-    </com.lhj.pagingutil.PagingStateLayout>
+    </com.chat.pagingutil.PagingStateLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

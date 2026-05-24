@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.effect"
+    namespace = "com.chat.effect"
     compileSdk = 35
 
     defaultConfig {

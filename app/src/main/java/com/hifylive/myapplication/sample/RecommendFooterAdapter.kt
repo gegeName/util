@@ -1,7 +1,7 @@
 package com.hifylive.myapplication.sample
 
 import com.hifylive.myapplication.databinding.LayoutFooterRecommendBinding
-import com.lhj.pagingutil.SingleItemBindingAdapter
+import com.chat.pagingutil.SingleItemBindingAdapter
 
 data class FooterData(val title: String, val desc: String)
 

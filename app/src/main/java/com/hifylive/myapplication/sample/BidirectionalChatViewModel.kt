@@ -3,9 +3,9 @@ package com.hifylive.myapplication.sample
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.lhj.pagingutil.BasePagingSource
-import com.lhj.pagingutil.PagingPatcher
-import com.lhj.pagingutil.pagingFlowOf
+import com.chat.pagingutil.BasePagingSource
+import com.chat.pagingutil.PagingPatcher
+import com.chat.pagingutil.pagingFlowOf
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID

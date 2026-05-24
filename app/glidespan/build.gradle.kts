@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.glidespan"
+    namespace = "com.chat.glidespan"
     compileSdk = 35
 
     defaultConfig {

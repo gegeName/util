@@ -19,12 +19,12 @@ import com.hifylive.myapplication.sample.FakeItem
 import com.hifylive.myapplication.sample.FakeListViewModel
 import com.hifylive.myapplication.sample.FooterData
 import com.hifylive.myapplication.sample.RecommendFooterAdapter
-import com.lhj.pagingutil.CommonLoadStateAdapter
-import com.lhj.pagingutil.PagingController
-import com.lhj.pagingutil.PagingHelper
-import com.lhj.pagingutil.RequestPolicy
-import com.lhj.pagingutil.SpacingItemDecoration
-import com.lhj.pagingutil.SwipeRefreshAdapter
+import com.chat.pagingutil.CommonLoadStateAdapter
+import com.chat.pagingutil.PagingController
+import com.chat.pagingutil.PagingHelper
+import com.chat.pagingutil.RequestPolicy
+import com.chat.pagingutil.SpacingItemDecoration
+import com.chat.pagingutil.SwipeRefreshAdapter
 import kotlinx.coroutines.delay
 
 /**

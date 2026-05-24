@@ -4,7 +4,7 @@
 -keepattributes Signature, InnerClasses, EnclosingMethod
 
 # 自定义 View 4 个构造器
--keep public class com.lhj.statelayout.** {
+-keep public class com.chat.statelayout.** {
     public <init>(android.content.Context);
     public <init>(android.content.Context, android.util.AttributeSet);
     public <init>(android.content.Context, android.util.AttributeSet, int);
@@ -17,7 +17,7 @@
 }
 
 # 公共 API
--keep public class com.lhj.statelayout.** { public protected *; }
+-keep public class com.chat.statelayout.** { public protected *; }
 
 # Kotlin 元数据
 -keep class kotlin.Metadata { *; }

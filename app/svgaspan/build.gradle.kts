@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.svgaspan"
+    namespace = "com.chat.svgaspan"
     compileSdk = 35
 
     defaultConfig {

@@ -3,10 +3,10 @@
 -keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
 
 # ─── 公共 API ────────────────────────────────────────────────────────────────
--keep public class com.lhj.svgaspan.SvgaSpanLoader { public protected *; }
--keep public class com.lhj.svgaspan.SvgaSpanLoader$Companion { public protected *; }
--keep public class com.lhj.svgaspan.SvgaSpanDrawable { public protected *; }
--keep class com.lhj.svgaspan.SvgaCache { *; }
+-keep public class com.chat.svgaspan.SvgaSpanLoader { public protected *; }
+-keep public class com.chat.svgaspan.SvgaSpanLoader$Companion { public protected *; }
+-keep public class com.chat.svgaspan.SvgaSpanDrawable { public protected *; }
+-keep class com.chat.svgaspan.SvgaCache { *; }
 
 # ─── 第三方:SVGAPlayer ──────────────────────────────────────────────────────
 -keep class com.opensource.svgaplayer.SVGAImageView { public protected *; }

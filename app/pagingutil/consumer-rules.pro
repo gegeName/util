@@ -6,7 +6,7 @@
 -keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
 
 # PagingStateLayout 在 XML 中 inflate 时通过反射调 (Context, AttributeSet[, int[, int]]) 构造器。
--keep class com.lhj.pagingutil.PagingStateLayout {
+-keep class com.chat.pagingutil.PagingStateLayout {
     public <init>(android.content.Context);
     public <init>(android.content.Context, android.util.AttributeSet);
     public <init>(android.content.Context, android.util.AttributeSet, int);

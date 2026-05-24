@@ -3,7 +3,7 @@ package com.hifylive.myapplication.sample
 import androidx.recyclerview.widget.DiffUtil
 import com.hifylive.myapplication.R
 import com.hifylive.myapplication.databinding.ItemFakeBinding
-import com.lhj.pagingutil.BasePagingAdapter
+import com.chat.pagingutil.BasePagingAdapter
 
 class FakeAdapter : BasePagingAdapter<FakeItem, ItemFakeBinding>(DIFF, ItemFakeBinding::inflate) {
 

@@ -4,7 +4,7 @@
 -keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
 
 # SpanBuilder 公共 API
--keep public class com.lhj.spanutil.** { public protected *; }
+-keep public class com.chat.spanutil.** { public protected *; }
 
 # Kotlin 元数据 / 协程
 -keep class kotlin.Metadata { *; }

@@ -12,7 +12,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.drawable.toDrawable
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.lhj.spanutil.SpanBuilder
+import com.chat.spanutil.SpanBuilder
 
 /**
  * SpanBuilder 在 RecyclerView 中的复用测试。

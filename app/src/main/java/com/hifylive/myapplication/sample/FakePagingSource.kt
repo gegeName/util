@@ -1,6 +1,6 @@
 package com.hifylive.myapplication.sample
 
-import com.lhj.pagingutil.BasePagingSource
+import com.chat.pagingutil.BasePagingSource
 import kotlinx.coroutines.delay
 import java.util.concurrent.atomic.AtomicLong
 

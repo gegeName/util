@@ -11,10 +11,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
-import com.lhj.effect.EffectManager
-import com.lhj.effect.EffectPlaybackListener
-import com.lhj.effect.EffectPriority
-import com.lhj.effect.EffectResource
+import com.chat.effect.EffectManager
+import com.chat.effect.EffectPlaybackListener
+import com.chat.effect.EffectPriority
+import com.chat.effect.EffectResource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

@@ -5,7 +5,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.lhj.shapeview.ShapeButton
+import com.chat.shapeview.ShapeButton
 
 class ViewActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

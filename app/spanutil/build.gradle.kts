@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.spanutil"
+    namespace = "com.chat.spanutil"
     compileSdk = 35
 
     defaultConfig {

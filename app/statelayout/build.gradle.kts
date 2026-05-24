@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.statelayout"
+    namespace = "com.chat.statelayout"
     compileSdk = 35
 
     defaultConfig {

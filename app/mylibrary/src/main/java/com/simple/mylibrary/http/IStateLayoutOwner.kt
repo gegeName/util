@@ -1,6 +1,6 @@
 package com.simple.mylibrary.http
 
-import com.lhj.statelayout.StateLayout
+import com.chat.statelayout.StateLayout
 
 /**
  * 页面声明"我有一个 StateLayout"。配合 `autoLoadingViewModel` 委托使用，

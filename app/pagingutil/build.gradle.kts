@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.pagingutil"
+    namespace = "com.chat.pagingutil"
     compileSdk = 35
 
     defaultConfig {

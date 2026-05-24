@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lhj.shapeview"
+    namespace = "com.chat.shapeview"
     compileSdk = 35
 
     defaultConfig {

@@ -15,10 +15,10 @@
 }
 
 # 模块自身 public API,业务方反射调用必须保留。
--keep public class com.lhj.pagingutil.** { public protected *; }
+-keep public class com.chat.pagingutil.** { public protected *; }
 
 # 自定义 View 构造器 + R.styleable
--keep public class com.lhj.pagingutil.PagingStateLayout {
+-keep public class com.chat.pagingutil.PagingStateLayout {
     public <init>(android.content.Context);
     public <init>(android.content.Context, android.util.AttributeSet);
     public <init>(android.content.Context, android.util.AttributeSet, int);
