@@ -48,6 +48,7 @@ dependencies {
     implementation(project(":app:svgaspan"))
     implementation(project(":app:shapeview"))
     implementation(project(":app:pagingutil"))
+    implementation(project(":app:effect"))
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("com.github.bumptech.glide:glide:5.0.5")
     implementation(libs.androidx.activity.ktx)

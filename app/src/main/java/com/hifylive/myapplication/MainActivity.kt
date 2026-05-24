@@ -68,6 +68,9 @@ class MainActivity : AppCompatActivity() {
         binding.btnChatActivity.setOnClickListener {
             startActivity(Intent(this@MainActivity, ChatActivity::class.java))
         }
+        binding.btnEffectActivity.setOnClickListener {
+            startActivity(Intent(this@MainActivity, EffectActivity::class.java))
+        }
         binding.btnChat2Activity.setOnClickListener {
             startActivity(Intent(this@MainActivity, BidirectionalChatActivity::class.java))
         }
