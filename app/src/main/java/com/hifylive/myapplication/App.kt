@@ -1,7 +1,6 @@
 package com.hifylive.myapplication
 
 import android.app.Application
-import com.chat.effect.AppEffectPlayerFactory
 import com.chat.effect.EffectLog
 import com.chat.effect.EffectManager
 

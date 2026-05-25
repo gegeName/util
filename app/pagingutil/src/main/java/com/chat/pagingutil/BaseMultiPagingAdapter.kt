@@ -144,7 +144,7 @@ abstract class BaseMultiPagingAdapter<T : Any>(
 
     override fun onBindViewHolder(holder: MultiHolder, position: Int) {
         val item = getItem(position) ?: return
-        val delegate = delegates.firstOrNull { it.viewType == holder.itemViewType } ?: return
+        val delegate = delegates.firstOrNull { it.viewType == getItemViewType(position) } ?: return
         if (holder.binding is ViewDataBinding) {
             (holder.binding as ViewDataBinding).executePendingBindings()
         }
@@ -161,7 +161,7 @@ abstract class BaseMultiPagingAdapter<T : Any>(
             return
         }
         val item = getItem(position)
-        val delegate = delegates.firstOrNull { it.viewType == holder.itemViewType }
+        val delegate = delegates.firstOrNull { it.viewType == getItemViewType(position) }
         val payloadsCb = delegate?.onBindPayloads
         if (item == null || delegate == null || payloadsCb == null) {
             super.onBindViewHolder(holder, position, payloads)

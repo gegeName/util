@@ -1,0 +1,56 @@
+apply plugin: 'maven-publish'
+
+ext {
+    publishGroupId    = 'com.github.gegeName'
+    publishArtifactId = 'effect-svga'
+    publishVersion    = project.findProperty('VERSION_NAME') ?: '0.1.0-LOCAL'
+
+    publishUrl        = 'https://github.com/gegeName/util'
+    publishDeveloperId   = 'gegeName'
+    publishDeveloperName = 'util'
+}
+
+android {
+    publishing {
+        singleVariant('release') {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                from components.release
+                groupId    = publishGroupId
+                artifactId = publishArtifactId
+                version    = publishVersion
+
+                pom {
+                    name        = publishArtifactId
+                    description = '特效播放框架 SVGA Player 实现，依赖 SVGAPlayer-Android'
+                    url         = publishUrl
+
+                    licenses {
+                        license {
+                            name         = 'The Apache Software License, Version 2.0'
+                            url          = 'https://www.apache.org/licenses/LICENSE-2.0.txt'
+                            distribution = 'repo'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id    = publishDeveloperId
+                            name  = publishDeveloperName
+                        }
+                    }
+                    scm {
+                        url = publishUrl
+                    }
+                }
+            }
+        }
+    }
+}
