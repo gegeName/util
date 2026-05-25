@@ -30,6 +30,9 @@ import kotlinx.coroutines.withTimeout
  * - LoadState 自动驱动尾部 Adapter
  * - 错误 toast 去重
  * - 内置 PagingPatcher，配合 [PagingController] 一行做局部更新与乐观更新
+ * - [chatMode] 一键开聊天布局(reverseLayout + stackFromEnd),配合
+ *   [PagingController.insertHead] / [PagingController.optimisticInsertTail]
+ *   覆盖"新消息冒泡 + 向上加载历史"标准聊天场景
  *
  * ViewModel 示例（继承 [BasePagingSource] 写一个分页源）：
  * ```
@@ -47,7 +50,7 @@ import kotlinx.coroutines.withTimeout
  * }
  * ```
  *
- * Fragment 接入示例：
+ * Fragment 接入示例（标准列表）：
  * ```
  * val paging = PagingHelper.with<UserItem>(viewLifecycleOwner)
  *     .recyclerView(mBinding.rv)
@@ -86,6 +89,7 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
     private var pageStateHandler: PageStateHandler? = null
     private var emptyTextProvider: (() -> CharSequence?)? = null
     private var errorTextProvider: ((Throwable) -> CharSequence?)? = null
+    private var hideAuxOnPageState: Boolean = true
     private var dragSortLongPress: Boolean = true
     private var dragSortVibrate: Boolean = true
     private var dragSortCanDrag: ((item: T, localPos: Int) -> Boolean)? = null
@@ -224,6 +228,17 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
 
     /** 静态加载失败文案的便捷重载 */
     fun errorText(text: CharSequence) = apply { errorTextProvider = { text } }
+
+    /**
+     * 进入加载中 / 空数据 / 加载失败这三种全屏占位态时，是否临时把 headers / footers /
+     * loadStateFooter 从 ConcatAdapter 里摘掉，避免它们露在 pageStateHandler 的占位视图
+     * 之外或抢先渲染；默认 true。
+     *
+     * 传 false 则全程不动这些 aux 适配器，无论处于哪种状态都保持显示（适用于 pageStateHandler
+     * 的占位视图是叠加在 RecyclerView 之上、能完全覆盖头尾的场景，或业务希望头尾在空/错误态
+     * 也始终可见的场景）。
+     */
+    fun hideAuxOnPageState(hide: Boolean) = apply { hideAuxOnPageState = hide }
 
     /**
      * 头部接口（[onHeaderRefresh]）的超时阈值，单位毫秒；默认 [DEFAULT_HEADER_REFRESH_TIMEOUT_MS]（10 秒）。
@@ -389,6 +404,46 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
 
         rv.itemAnimator = itemAnimator
 
+        val allAdapters: List<RecyclerView.Adapter<*>> = buildList {
+            headers.forEach { add(it.adapter) }
+            add(pa)
+            footers.forEach { add(it.adapter) }
+            loadStateFooter?.let { add(it) }
+        }
+        val auxAdapters = allAdapters.filter { it !== pa }
+        var auxVisible = true
+        fun setAuxVisible(visible: Boolean) {
+            if (!hideAuxOnPageState) return
+            if (auxVisible == visible || auxAdapters.isEmpty()) return
+            auxVisible = visible
+            val savedAnimator = rv.itemAnimator
+            rv.itemAnimator = null
+            if (!visible) {
+                val current = concat.adapters
+                auxAdapters.forEach { if (it in current) concat.removeAdapter(it) }
+            } else {
+                allAdapters.forEachIndexed { targetIdx, adapter ->
+                    val now = concat.adapters
+                    if (adapter !in now) {
+                        var insertIdx = 0
+                        for (i in 0 until targetIdx) {
+                            if (allAdapters[i] in now) insertIdx++
+                        }
+                        concat.addAdapter(insertIdx, adapter)
+                    }
+                }
+            }
+            savedAnimator?.let { animator ->
+                rv.post { if (rv.itemAnimator == null) rv.itemAnimator = animator }
+            }
+        }
+        pageStateHandler?.let { handler ->
+            if (pa.itemCount == 0) {
+                handler.showLoading()
+                setAuxVisible(false)
+            }
+        }
+
         var dragHelper: DragSortHelper<T>? = null
         val customFactory = customDragTouchHelperFactory
         val moved = dragSortOnMoved
@@ -442,6 +497,7 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
                 launch { wrappedFlow.collectLatest { pa.submitData(it) } }
                 launch {
                     var lastErrorKey = 0
+                    var hasShownContent = pa.itemCount > 0
                     pageStateHandler?.bindRetry { pa.retry() }
 
                     pa.loadStateFlow.collectLatest { state ->
@@ -467,16 +523,29 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
                             val empty = pa.itemCount == 0
                             val refresh = state.refresh
                             when {
-                                empty && refresh is LoadState.Loading && !userPullingRefresh -> sv.showLoading()
+                                !empty -> {
+                                    hasShownContent = true
+                                    sv.showContent()
+                                    setAuxVisible(true)
+                                }
                                 empty && refresh is LoadState.Error -> {
+                                    hasShownContent = false
                                     val text = errorTextProvider?.invoke(refresh.error)
                                     sv.showError(refresh.error, text)
+                                    setAuxVisible(false)
                                 }
                                 empty && refresh is LoadState.NotLoading
-                                    && state.append.endOfPaginationReached -> {
+                                        && state.append.endOfPaginationReached -> {
+                                    hasShownContent = false
                                     sv.showEmpty(emptyTextProvider?.invoke())
+                                    setAuxVisible(false)
                                 }
-                                else -> sv.showContent()
+                                empty && refresh is LoadState.Loading
+                                        && !userPullingRefresh
+                                        && !hasShownContent -> {
+                                    sv.showLoading()
+                                    setAuxVisible(false)
+                                }
                             }
                         }
 
@@ -610,8 +679,8 @@ class PagingHelper<T : Any> private constructor(private val owner: LifecycleOwne
                 inner ?: return 1
 
                 val isFullSpan = headers.any { it.adapter === inner && it.spanFull }
-                    || footers.any { it.adapter === inner && it.spanFull }
-                    || inner === loadStateFooter
+                        || footers.any { it.adapter === inner && it.spanFull }
+                        || inner === loadStateFooter
                 if (isFullSpan) return spanCount
 
                 if (inner === pagingAdapter) return userLookup.getSpanSize(localPos)
