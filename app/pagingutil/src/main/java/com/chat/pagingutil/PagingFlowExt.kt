@@ -149,17 +149,17 @@ fun <T : Any> pagingFlowOf(
 /**
  * 双向 lambda 版:聊天 / 时间轴等需要"加载更早历史"(PREPEND)的场景。
  *
- * 与单向 [pagingFlowOf] 的区别:fetcher 多一个 [LoadDirection] 参数,返回 [PageResult]
+ * 与单向 [pagingFlowOf] 的区别:fetcher 多两个参数 `direction` 与 `prependIndex`,返回 [PageResult]
  * (data, hasMore, hasPrev) 而不是 `Pair<List, Boolean>`。`hasPrev=true` 开启 PREPEND 触发,
  * `hasMore` 在不同方向下含义不同(REFRESH/APPEND 向后看,PREPEND 向前看)。
  *
- * Kotlin 按 lambda 形参个数区分单向(2 个)/双向(3 个)重载,业务侧调用时直接写就行,
+ * Kotlin 按 lambda 形参个数区分单向(2 个)/双向(4 个)重载,业务侧调用时直接写就行,
  * 不会和单向版冲突。
  *
  * 典型聊天用法(ViewModel 内):
  * ```
  * class ChatVM(private val api: ChatApi, private val roomId: String) : ViewModel() {
- *     val pagingFlow = pagingFlowOf { page, size, direction ->
+ *     val pagingFlow = pagingFlowOf { page, size, direction, prependIndex ->
  *         when (direction) {
  *              //首屏拉最新一页,告诉 Paging 还有更早历史(开启 PREPEND)
  *             LoadDirection.REFRESH -> api.latest(roomId, size).run {
@@ -168,8 +168,8 @@ fun <T : Any> pagingFlowOf(
  *                 hasPrev = hasOlder// ← 关键:开启 PREPEND 的开关
  *                 )
  *             }
- *             // 滚到顶,加载更早:page 已经是上一次返回的 prevKey
- *             LoadDirection.PREPEND -> api.byPage(roomId, page, size).run {
+ *             // 滚到顶,加载更早:prependIndex = 1, 2, 3 ... 业务直接当 offset 用
+ *             LoadDirection.PREPEND -> api.olderBatch(prependIndex, size).run {
  *                 PageResult(data = list, hasMore = hasOlder)
  *             }
  *             // 聊天里 REFRESH 已经在最新,通常走不到 APPEND;留个兜底
@@ -182,7 +182,9 @@ fun <T : Any> pagingFlowOf(
  * RecyclerView 配 `LinearLayoutManager(reverseLayout = true, stackFromEnd = true)`,
  * 用户向上滚动会自动触发 PREPEND 加载更早消息。
  *
- * @param fetcher (page, pageSize, direction) -> [PageResult],签名 = [BasePagingSource.fetchBidirectional]
+ * @param fetcher (page, pageSize, direction, prependIndex) -> [PageResult],
+ *                签名 = [BasePagingSource.fetchBidirectional]。prependIndex 在 PREPEND 时
+ *                从 1 递增,REFRESH/APPEND 时为 0;业务通常用 prependIndex 而忽略 page。
  */
 fun <T : Any> ViewModel.pagingFlowOf(
     pageSize: Int = 20,
@@ -192,7 +194,7 @@ fun <T : Any> ViewModel.pagingFlowOf(
     maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
     startPage: Int = 1,
     refreshFromStart: Boolean = false,
-    fetcher: suspend (page: Int, pageSize: Int, direction: LoadDirection) -> PageResult<T>
+    fetcher: suspend (page: Int, pageSize: Int, direction: LoadDirection, prependIndex: Int) -> PageResult<T>
 ): Flow<PagingData<T>> = pagingFlowOf(
     pageSize = pageSize,
     initialLoadSize = initialLoadSize,
@@ -212,7 +214,7 @@ fun <T : Any> pagingFlowOf(
     maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
     startPage: Int = 1,
     refreshFromStart: Boolean = false,
-    fetcher: suspend (page: Int, pageSize: Int, direction: LoadDirection) -> PageResult<T>
+    fetcher: suspend (page: Int, pageSize: Int, direction: LoadDirection, prependIndex: Int) -> PageResult<T>
 ): Flow<PagingData<T>> = pagingFlowOf(
     scope = scope,
     pageSize = pageSize,

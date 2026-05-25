@@ -6,7 +6,7 @@ import androidx.paging.PagingState
 /**
  * 简化版 PagingSource: 子类二选一覆写
  * - [fetch] (page, pageSize) → (data, hasMore): 经典单向(只向后翻页),最常用
- * - [fetchBidirectional] (page, pageSize, direction) → [PageResult]: 双向(支持 PREPEND 向前加载),聊天 / 时间轴等场景
+ * - [fetchBidirectional] (page, pageSize, direction, prependIndex) → [PageResult]: 双向(支持 PREPEND 向前加载),聊天 / 时间轴等场景
  *
  * 两者关系:框架内部统一走 [fetchBidirectional];它的默认实现会委托给 [fetch],
  * 因此存量子类(仅覆写 fetch)零改动继续可用。
@@ -50,7 +50,7 @@ abstract class BasePagingSource<T : Any>(
     protected open suspend fun fetch(page: Int, pageSize: Int): Pair<List<T>, Boolean> {
         error(
             "BasePagingSource 子类必须覆写 fetch(page, pageSize) " +
-                    "或 fetchBidirectional(page, pageSize, direction) 二者之一"
+                    "或 fetchBidirectional(page, pageSize, direction, prependIndex) 二者之一"
         )
     }
 
@@ -63,7 +63,7 @@ abstract class BasePagingSource<T : Any>(
      * 示例(典型聊天):
      * ```
      * override suspend fun fetchBidirectional(
-     *     page: Int, pageSize: Int, direction: LoadDirection
+     *     page: Int, pageSize: Int, direction: LoadDirection, prependIndex: Int
      * ): PageResult<Msg> = when (direction) {
      *     REFRESH -> {
      *         // 首屏:拉最新一页,告诉 paging 还有更早历史
@@ -71,8 +71,8 @@ abstract class BasePagingSource<T : Any>(
      *         PageResult(data = resp.list, hasMore = false, hasPrev = resp.hasOlder)
      *     }
      *     PREPEND -> {
-     *         // 用户滚到顶部,加载更早:本页 page 已经 = 前一页的 prevKey
-     *         val resp = api.messagesByPage(page, pageSize)
+     *         // prependIndex = 1, 2, 3 ... 业务直接当 offset 用即可
+     *         val resp = api.olderBatch(prependIndex, pageSize)
      *         PageResult(data = resp.list, hasMore = resp.hasOlder)
      *     }
      *     APPEND -> {
@@ -82,14 +82,19 @@ abstract class BasePagingSource<T : Any>(
      * }
      * ```
      *
-     * @param page 当前要拉的页码;REFRESH 时 = [startPage],其余方向 = 上次 nextKey/prevKey
+     * @param page Paging 内部维护的 key;REFRESH 时 = [startPage],其余方向 = 上次 nextKey/prevKey。
+     *             PREPEND 时 page 会变成 0、-1、-2…(paging 库的实现细节),业务通常不直接用,
+     *             用 [prependIndex] 更直观。
      * @param pageSize Paging 期望的条数(= PagingConfig.pageSize)
      * @param direction 本次 load 的方向,见 [LoadDirection]
+     * @param prependIndex PREPEND 计数,第 N 次 PREPEND 时 = N(从 1 开始);REFRESH / APPEND 时恒为 0。
+     *                     聊天 / 时间轴场景把它当"距离 latest 第几批历史"的 offset 用最自然。
      */
     protected open suspend fun fetchBidirectional(
         page: Int,
         pageSize: Int,
-        direction: LoadDirection
+        direction: LoadDirection,
+        prependIndex: Int
     ): PageResult<T> {
         val (data, hasMore) = fetch(page, pageSize)
         return PageResult(
@@ -99,6 +104,8 @@ abstract class BasePagingSource<T : Any>(
         )
     }
 
+    private var prependCount: Int = 0
+
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, T> {
         val direction = when (params) {
             is LoadParams.Refresh -> LoadDirection.REFRESH
@@ -106,8 +113,9 @@ abstract class BasePagingSource<T : Any>(
             is LoadParams.Prepend -> LoadDirection.PREPEND
         }
         val page = params.key ?: startPage
+        val prependIndex = if (direction == LoadDirection.PREPEND) ++prependCount else 0
         return try {
-            val result = fetchBidirectional(page, params.loadSize, direction)
+            val result = fetchBidirectional(page, params.loadSize, direction, prependIndex)
             val hasData = result.data.isNotEmpty()
 
             val prevKey: Int? = when (direction) {
@@ -123,6 +131,7 @@ abstract class BasePagingSource<T : Any>(
 
             LoadResult.Page(result.data, prevKey, nextKey)
         } catch (e: Exception) {
+            if (direction == LoadDirection.PREPEND) prependCount--
             LoadResult.Error(e)
         }
     }

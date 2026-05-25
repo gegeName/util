@@ -41,30 +41,24 @@ class BidirectionalChatViewModel : ViewModel() {
      * @param direction REFRESH / PREPEND / APPEND
      * @return [PageResult] 三件套: data, hasMore, hasPrev
      */
-    val pagingFlow = pagingFlowOf(pageSize = 20) { page, size, direction ->
-        Log.e("BidirectionalChatViewModel", ":page=${page} ")
+    val pagingFlow = pagingFlowOf(pageSize = 20) { page, size, direction, prependIndex ->
+        Log.e("BidirectionalChatViewModel", ":page=${page} prependIndex=$prependIndex")
         when (direction) {
             BasePagingSource.LoadDirection.REFRESH -> {
-                // 首屏: 拉最新一批, 告诉 Paging 还有更早历史 → 开启 PREPEND
                 val data = api.latest(size)
                 BasePagingSource.PageResult(
                     data = data,
-                    hasMore = false,                       // 已经在最新, 后面没东西
-                    hasPrev = data.size == size            // 拉满一页, 假定还有更早可拉
+                    hasMore = false,
+                    hasPrev = data.size == size
                 )
             }
 
             BasePagingSource.LoadDirection.PREPEND -> {
-                // 用户滚到顶部加载更早:
-                // page 的取值: REFRESH 后 prevKey = 0,所以第一次 PREPEND page=0,
-                // 之后 -1, -2... 业务把它翻译成距离 latest 几批的 offset.
-                val offset = -page + 1                     // page=0 → offset=1
-                val (data, hasMoreOlder) = api.olderBatch(offset, size)
+                val (data, hasMoreOlder) = api.olderBatch(prependIndex, size)
                 BasePagingSource.PageResult(data = data, hasMore = hasMoreOlder)
             }
 
             BasePagingSource.LoadDirection.APPEND -> {
-                // 聊天里 REFRESH 已经是最新,APPEND 通常走不到,兜底空
                 BasePagingSource.PageResult(emptyList(), hasMore = false)
             }
         }

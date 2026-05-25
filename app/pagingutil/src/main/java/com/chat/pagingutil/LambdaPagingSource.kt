@@ -24,17 +24,17 @@ class LambdaPagingSource<T : Any>(
  * 双向版通用 PagingSource:把 [fetcher] 改成支持 [LoadDirection] 派发,
  * 业务可以在同一个 lambda 里根据方向走不同接口 / 入参,典型聊天 / 时间轴场景。
  *
- * 与 [LambdaPagingSource] 的区别:fetcher 拿到的是方向 + 必须返回 [PageResult],
+ * 与 [LambdaPagingSource] 的区别:fetcher 拿到的是方向 + prependIndex + 必须返回 [PageResult],
  * 业务能控制 `hasPrev`(开启 PREPEND 的开关)和按方向分别决定 `hasMore`。
  *
  * 用法见双向版 [pagingFlowOf]:
  * ```
- * val chatFlow = pagingFlowOf { page, size, direction ->
+ * val chatFlow = pagingFlowOf { page, size, direction, prependIndex ->
  *     when (direction) {
  *         LoadDirection.REFRESH -> api.latest(roomId, size).run {
  *             PageResult(list, hasMore = false, hasPrev = hasOlder)
  *         }
- *         LoadDirection.PREPEND -> api.byPage(roomId, page, size).run {
+ *         LoadDirection.PREPEND -> api.olderBatch(prependIndex, size).run {
  *             PageResult(list, hasMore = hasOlder)
  *         }
  *         LoadDirection.APPEND -> PageResult(emptyList(), hasMore = false)
@@ -44,16 +44,18 @@ class LambdaPagingSource<T : Any>(
  *
  * @param startPage 起始页码,默认 1
  * @param refreshFromStart 刷新时是否回首页,详见 [BasePagingSource]
- * @param fetcher 实际拉数据的 suspend lambda,签名 = [BasePagingSource.fetchBidirectional]
+ * @param fetcher 实际拉数据的 suspend lambda,签名 = [BasePagingSource.fetchBidirectional]。
+ *                第 4 个参数 prependIndex:PREPEND 时从 1 递增,REFRESH/APPEND 时为 0。
  */
 class BidirectionalLambdaPagingSource<T : Any>(
     startPage: Int = 1,
     refreshFromStart: Boolean = false,
-    private val fetcher: suspend (page: Int, pageSize: Int, direction: LoadDirection) -> PageResult<T>
+    private val fetcher: suspend (page: Int, pageSize: Int, direction: LoadDirection, prependIndex: Int) -> PageResult<T>
 ) : BasePagingSource<T>(startPage, refreshFromStart) {
     override suspend fun fetchBidirectional(
         page: Int,
         pageSize: Int,
-        direction: LoadDirection
-    ): PageResult<T> = fetcher(page, pageSize, direction)
+        direction: LoadDirection,
+        prependIndex: Int
+    ): PageResult<T> = fetcher(page, pageSize, direction, prependIndex)
 }
