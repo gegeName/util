@@ -31,7 +31,9 @@ import kotlinx.coroutines.flow.Flow
  *
  * @param T item 类型
  * @param pageSize 每页大小，默认 20
- * @param initialLoadSize 首屏加载条数，默认与 [pageSize] 相同（即只取一页）；想首屏多塞两页可填 `pageSize * 2`
+ * @param initialLoadSize 首屏加载条数，默认 `pageSize * 3`（与 AndroidX Paging 默认一致）。下拉刷新会重新走首屏加载，
+ *                        若设得过小（比如 = pageSize），用户已 prefetch 过 N 页时刷新瞬间 itemCount 会大幅缩水，
+ *                        造成可见的白屏闪烁；想首屏只取一页可显式传 `pageSize`
  * @param prefetchDistance 触发下一页的预取距离，默认 [pageSize]
  * @param enablePlaceholders 是否在未加载位置展示占位 null，默认 false（绝大多数业务都是 false）
  * @param maxSize 内存中最多保留多少条；默认 [PagingConfig.MAX_SIZE_UNBOUNDED]，即不淘汰
@@ -39,7 +41,7 @@ import kotlinx.coroutines.flow.Flow
  */
 fun <T : Any> ViewModel.pagingFlowOf(
     pageSize: Int = 20,
-    initialLoadSize: Int = pageSize,
+    initialLoadSize: Int = pageSize * 3,
     prefetchDistance: Int = pageSize,
     enablePlaceholders: Boolean = false,
     maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
@@ -63,7 +65,7 @@ fun <T : Any> ViewModel.pagingFlowOf(
 fun <T : Any> pagingFlowOf(
     scope: CoroutineScope,
     pageSize: Int = 20,
-    initialLoadSize: Int = pageSize,
+    initialLoadSize: Int = pageSize * 3,
     prefetchDistance: Int = pageSize,
     enablePlaceholders: Boolean = false,
     maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
@@ -105,7 +107,7 @@ fun <T : Any> pagingFlowOf(
  */
 fun <T : Any> ViewModel.pagingFlowOf(
     pageSize: Int = 20,
-    initialLoadSize: Int = pageSize,
+    initialLoadSize: Int = pageSize * 3,
     prefetchDistance: Int = pageSize,
     enablePlaceholders: Boolean = false,
     maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
@@ -127,7 +129,7 @@ fun <T : Any> ViewModel.pagingFlowOf(
 fun <T : Any> pagingFlowOf(
     scope: CoroutineScope,
     pageSize: Int = 20,
-    initialLoadSize: Int = pageSize,
+    initialLoadSize: Int = pageSize * 3,
     prefetchDistance: Int = pageSize,
     enablePlaceholders: Boolean = false,
     maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
@@ -184,7 +186,7 @@ fun <T : Any> pagingFlowOf(
  */
 fun <T : Any> ViewModel.pagingFlowOf(
     pageSize: Int = 20,
-    initialLoadSize: Int = pageSize,
+    initialLoadSize: Int = pageSize * 3,
     prefetchDistance: Int = pageSize,
     enablePlaceholders: Boolean = false,
     maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
@@ -204,7 +206,7 @@ fun <T : Any> ViewModel.pagingFlowOf(
 fun <T : Any> pagingFlowOf(
     scope: CoroutineScope,
     pageSize: Int = 20,
-    initialLoadSize: Int = pageSize,
+    initialLoadSize: Int = pageSize * 3,
     prefetchDistance: Int = pageSize,
     enablePlaceholders: Boolean = false,
     maxSize: Int = PagingConfig.MAX_SIZE_UNBOUNDED,
