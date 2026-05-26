@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.VIBRATE"/>
     <application>
         <provider
-            android:name="com.simple.mylibrary.utils.ToastInitProvider"
+            android:name="com.chat.mylibrary.utils.ToastInitProvider"
             android:authorities="${applicationId}.simple.mylibrary.toast-init"
             android:exported="false" />
     </application>

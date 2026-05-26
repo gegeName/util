@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.hifylive.myapplication"
+    namespace = "com.chat.myapplication"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.hifylive.myapplication"
+        applicationId = "com.chat.myapplication"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -47,7 +47,7 @@ dependencies {
     implementation(project(":app:svgspan"))
     implementation(project(":app:svgaspan"))
     implementation(project(":app:shapeview"))
-    implementation(project(":app:pagingutil"))
+    implementation(project(":app:rv-page"))
     implementation(project(":app:effect-core"))
     implementation(project(":app:effect-svga"))
     implementation(project(":app:effect-mp4-vap"))

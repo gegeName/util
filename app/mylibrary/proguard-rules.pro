@@ -4,11 +4,11 @@
 -keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod, Exceptions
 
 # ─── 公共 API ────────────────────────────────────────────────────────────────
--keep public class com.simple.mylibrary.** { public protected *; }
+-keep public class com.chat.mylibrary.** { public protected *; }
 
 # ─── HTTP / sealed 状态类(Gson/Moshi 反射 + sealed 子类) ─────────────────
--keep class com.simple.mylibrary.http.** { *; }
--keep class com.simple.mylibrary.http.**$* { *; }
+-keep class com.chat.mylibrary.http.** { *; }
+-keep class com.chat.mylibrary.http.**$* { *; }
 
 # ─── ViewModel 通过 ViewModelProvider 反射实例化 ─────────────────────────────
 -keepclassmembers class * extends androidx.lifecycle.ViewModel {
@@ -18,10 +18,10 @@
 }
 
 # ─── 自定义 View(ZoomGestureHelper / LoadingDialog 等) ───────────────────
--keep public class com.simple.mylibrary.utils.ZoomGestureHelper { public protected *; }
+-keep public class com.chat.mylibrary.utils.ZoomGestureHelper { public protected *; }
 
 # ─── ToastInitProvider(ContentProvider 由系统按 manifest 字符串反射加载) ─
--keep class com.simple.mylibrary.utils.ToastInitProvider { *; }
+-keep class com.chat.mylibrary.utils.ToastInitProvider { *; }
 
 # ─── Retrofit / OkHttp / Gson(api 依赖,业务方自己接入也会用) ────────────
 -keepattributes Signature

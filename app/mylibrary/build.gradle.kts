@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.simple.mylibrary"
+    namespace = "com.chat.mylibrary"
     compileSdk = 35
 
     defaultConfig {
