@@ -21,6 +21,7 @@ install:
     :app:effect-svga:publishToMavenLocal
     :app:effect-mp4-vap:publishToMavenLocal
     :app:effect-gif-glide:publishToMavenLocal
+    :app:rv-page:publishToMavenLocal
     -PVERSION_NAME=$VERSION
 
 
@@ -37,4 +38,5 @@ install:
 #   com.github.<USER>.<REPO>:effect-svga:<TAG>
 #   com.github.<USER>.<REPO>:effect-mp4-vap:<TAG>
 #   com.github.<USER>.<REPO>:effect-gif-glide:<TAG>
+#   com.github.<USER>.<REPO>:rv-page:<TAG>
 # （注意是点号，不是冒号）

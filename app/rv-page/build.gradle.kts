@@ -4,11 +4,7 @@ plugins {
 
 android {
     namespace = "com.chat.rv_page"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 21
@@ -22,6 +18,12 @@ android {
     }
 
 }
+kotlin {
+    compilerOptions {
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+    }
+}
 
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
@@ -29,3 +31,5 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     api(project(":app:pagingutil"))
 }
+
+apply(from = "jitpack.gradle")
