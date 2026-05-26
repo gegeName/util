@@ -134,6 +134,8 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     companion object {
         /** 创建实例；[owner] 通常传 viewLifecycleOwner（Fragment）或 Activity 自身 */
         fun with(owner: LifecycleOwner) = RvPageBuilder(owner)
+
+        private const val ANIMATOR_GATE_TIMEOUT_MS = 800L
     }
 
     private var recyclerView: RecyclerView? = null
@@ -144,6 +146,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     private var errorTextProvider: ((Throwable) -> CharSequence?)? = null
     private var onHeaderRefresh: (suspend () -> Unit)? = null
     private var hideAuxOnPageState: Boolean = true
+    private var disableAnimatorUntilStable: Boolean = true
 
     private val sectionDefs = mutableListOf<SectionDef>()
 
@@ -175,6 +178,19 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
      */
     fun hideAuxOnPageState(hide: Boolean) = apply { hideAuxOnPageState = hide }
 
+    /**
+     * 首屏装配阶段是否暂时关闭 RecyclerView 的 ItemAnimator，避免静态 section
+     * 的数据陆续到达时,paging 区被向下挤的位移动画。默认 true。
+     *
+     * 原理:start() 后把 itemAnimator 置 null,等所有静态 section 都首次报告过
+     * 数据变化(或 800ms 兜底超时)之后恢复,让首屏 insert/change 一次性无动画落地。
+     * 之后的点击 / 局部更新仍会走原 ItemAnimator 的动画。
+     *
+     * 不需要这个行为(例如业务希望首屏就有动画过渡)就传 false。
+     */
+    fun disableAnimatorUntilStable(disable: Boolean) =
+        apply { disableAnimatorUntilStable = disable }
+
     /** DSL 入口：在 block 内声明各 section */
     fun sections(block: SectionsScope.() -> Unit) = apply {
         SectionsScope(sectionDefs).block()
@@ -197,7 +213,69 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             "同一页面最多 1 个分页 section，发现 ${pagingDefs.size} 个: " +
                     pagingDefs.joinToString { it.tag }
         }
-        return if (pagingDefs.size == 1) buildWithPaging(rv) else buildStatic(rv)
+        val controller = if (pagingDefs.size == 1) buildWithPaging(rv) else buildStatic(rv)
+        if (disableAnimatorUntilStable) installAnimatorGate(rv)
+        return controller
+    }
+
+    /**
+     * 关闭首屏装配期间的 ItemAnimator + 把 RV 暂时设 alpha=0,等所有 section(含 paging)
+     * 首次有数据变化后一并恢复,800ms 兜底超时。
+     *
+     * 为什么要 alpha=0:仅关动画解决不了"paging 接口比 static 接口快,评论先画出来再被
+     * 后到的 header 挤下去"这个**显示顺序**问题。alpha=0 让 RV 在 gate 期间整体不可见
+     * (业务挂的 PageStateLayout / 占位视图自然在上层覆盖),所有 section 数据齐了之后
+     * 一次性 alpha=1 露出,完全看不到"陆续出现 → 被推下去"过程。
+     *
+     * 如果业务没有占位视图、又不想要 alpha=0 的空白期(比如 RV 直接铺背景色就够),
+     * 用 [disableAnimatorUntilStable](`false`) 关掉本机制。
+     */
+    private fun installAnimatorGate(rv: RecyclerView) {
+        if (sectionDefs.isEmpty()) return
+        val savedAnimator = rv.itemAnimator ?: return
+        val savedAlpha = rv.alpha
+        rv.itemAnimator = null
+        rv.alpha = 0f
+
+        val pendingTags = sectionDefs.map { it.tag }.toMutableSet()
+        var restored = false
+        fun restore() {
+            if (restored) return
+            restored = true
+            rv.post {
+                if (rv.itemAnimator == null) rv.itemAnimator = savedAnimator
+                rv.alpha = savedAlpha
+            }
+        }
+
+        val observers = mutableMapOf<RecyclerView.Adapter<*>, RecyclerView.AdapterDataObserver>()
+        sectionDefs.forEach { def ->
+            val tag = def.tag
+            val adapter = def.adapter
+            val ob = object : RecyclerView.AdapterDataObserver() {
+                private fun onChanged0() {
+                    pendingTags.remove(tag)
+                    if (pendingTags.isEmpty()) {
+                        observers[adapter]?.let { adapter.unregisterAdapterDataObserver(it) }
+                        restore()
+                    }
+                }
+
+                override fun onChanged() = onChanged0()
+                override fun onItemRangeInserted(positionStart: Int, itemCount: Int) = onChanged0()
+                override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) = onChanged0()
+                override fun onItemRangeChanged(positionStart: Int, itemCount: Int) = onChanged0()
+            }
+            observers[adapter] = ob
+            adapter.registerAdapterDataObserver(ob)
+        }
+
+        rv.postDelayed({
+            if (!restored) {
+                observers.forEach { (a, o) -> runCatching { a.unregisterAdapterDataObserver(o) } }
+                restore()
+            }
+        }, ANIMATOR_GATE_TIMEOUT_MS)
     }
 
     private fun buildWithPaging(rv: RecyclerView): RvPageController {
