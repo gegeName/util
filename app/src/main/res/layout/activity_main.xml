@@ -315,6 +315,14 @@
                     android:layout_height="wrap_content"
                     android:padding="10dp"
                     android:text="Chat聊天2使用paging" />
+
+                <Button
+                    android:id="@+id/btnRvPageActivity"
+                    style="?attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:text="rvPage" />
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>

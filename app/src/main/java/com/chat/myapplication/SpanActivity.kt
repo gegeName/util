@@ -24,6 +24,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.chat.glidespan.GlideSpanGifLoader
 import com.chat.glidespan.GlideSpanImageLoader
+import com.chat.myapplication.databinding.ItemSpanDemoBinding
 import com.chat.pagingutil.BasePagingAdapter
 import com.chat.pagingutil.pagingFlowOf
 import com.chat.spanutil.SpanBuilder
@@ -33,7 +34,6 @@ import com.chat.spanutil.span.EmojiRegistry
 import com.chat.spanutil.span.RepeatConfig
 import com.chat.svgaspan.SvgaSpanLoader
 import com.chat.svgspan.DefaultSvgLoader
-import com.hifylive.myapplication.databinding.ItemSpanDemoBinding
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.min

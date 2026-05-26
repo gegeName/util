@@ -11,12 +11,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.chat.myapplication.databinding.ActivityChatBinding
 import com.chat.myapplication.sample.BidirectionalChatViewModel
 import com.chat.myapplication.sample.ChatAdapter
 import com.chat.myapplication.sample.ChatMsg
 import com.chat.pagingutil.PagingController
 import com.chat.pagingutil.PagingHelper
-import com.hifylive.myapplication.databinding.ActivityChatBinding
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 

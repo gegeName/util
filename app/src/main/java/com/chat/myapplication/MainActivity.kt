@@ -11,6 +11,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.paging.LoadState
 import androidx.recyclerview.widget.GridLayoutManager
+import com.chat.myapplication.databinding.ActivityMainBinding
 import com.chat.myapplication.sample.BannerData
 import com.chat.myapplication.sample.BannerHeaderAdapter
 import com.chat.myapplication.sample.FakeAdapter
@@ -24,7 +25,6 @@ import com.chat.pagingutil.PagingHelper
 import com.chat.pagingutil.RequestPolicy
 import com.chat.pagingutil.SpacingItemDecoration
 import com.chat.pagingutil.SwipeRefreshAdapter
-import com.hifylive.myapplication.databinding.ActivityMainBinding
 import kotlinx.coroutines.delay
 
 /**
@@ -73,6 +73,9 @@ class MainActivity : AppCompatActivity() {
         }
         binding.btnChat2Activity.setOnClickListener {
             startActivity(Intent(this@MainActivity, BidirectionalChatActivity::class.java))
+        }
+        binding.btnRvPageActivity.setOnClickListener {
+            startActivity(Intent(this@MainActivity, GoodsDetailActivity::class.java))
         }
         val bannerAdapter = BannerHeaderAdapter().apply {
             submit(BannerData("头部 Banner（addHeader）", "下拉刷新会触发 onHeaderRefresh 更新"))

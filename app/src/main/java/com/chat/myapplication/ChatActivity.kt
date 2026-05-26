@@ -8,13 +8,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.RecyclerView
+import com.chat.myapplication.databinding.ActivityChatBinding
 import com.chat.myapplication.sample.ChatAdapter
 import com.chat.myapplication.sample.ChatMsg
 import com.chat.myapplication.sample.ChatViewModel
 import com.chat.pagingutil.CommonLoadStateAdapter
 import com.chat.pagingutil.PagingController
 import com.chat.pagingutil.PagingHelper
-import com.hifylive.myapplication.databinding.ActivityChatBinding
 
 /**
  * 聊天演示 Activity:
