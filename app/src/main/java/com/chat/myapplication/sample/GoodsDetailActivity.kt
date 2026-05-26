@@ -86,7 +86,7 @@ class GoodsDetailActivity : AppCompatActivity() {
         }
     }.also {
         it.setOnItemClickListener(throttleMs = 600) { _, item, _ ->
-            toast("点击推荐：${item.name}")
+            vm.toggleRecLike(item.id)
         }
     }
 
@@ -147,6 +147,9 @@ class GoodsDetailActivity : AppCompatActivity() {
                                 b.tvOriginalPrice.paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
                             b.tvSales.text = "已售 ${h.sales}"
                         }
+                        onItemClick(throttleMs = 300) { _, _ ->
+                            vm.incrementSales()
+                        }
                     }
 
                 // ③ 规格选择
@@ -155,8 +158,8 @@ class GoodsDetailActivity : AppCompatActivity() {
                         b.tvSelected.text = s.selectedLabel
                         b.tvDelivery.text = s.deliveryDays
                     }
-                    onItemClick(throttleMs = 600) { _, _ ->
-                        toast("点击规格 → 打开规格选择弹窗")
+                    onItemClick(throttleMs = 300) { _, _ ->
+                        vm.cycleSpec()
                     }
                 }
 
@@ -180,6 +183,11 @@ class GoodsDetailActivity : AppCompatActivity() {
                         typeValue = DetailBlock.TYPE_VIDEO,
                         inflate = ItemGdDetailVideoBinding::inflate
                     ) { b, item, _ -> b.vCover.setBackgroundColor(item.videoColor) }
+                    onItemClick(throttleMs = 300) { _, item, _ ->
+                        if (item.itemType == DetailBlock.TYPE_TEXT) {
+                            vm.toggleDetailStar(item.id)
+                        }
+                    }
                 }
 
                 // ⑥ 章节标题"用户评价"（标题文案动态从 vm.commentCount 来）

@@ -77,11 +77,10 @@ abstract class SingleItemBindingAdapter<T, VB : ViewBinding>(
     /**
      * 局部刷新单 item；可见且 data 非空才会派发，否则忽略。
      *
-     * @param position 通常传 0（单 item Adapter 只有一格）
      * @param payload  局部刷新负载
      */
-    fun notifyPayload(position: Int, payload: Any) {
-        if (visible && data != null) notifyItemChanged(position, payload)
+    fun notifyPayload(payload: Any) {
+        if (visible && data != null) notifyItemChanged(0, payload)
     }
 
     /**
@@ -98,8 +97,14 @@ abstract class SingleItemBindingAdapter<T, VB : ViewBinding>(
      * @param data 新数据，null 表示无数据
      */
     fun submit(data: T?) {
+        val hadItem = visible && this.data != null
         this.data = data
-        notifyItemChanged(0)
+        val hasItem = visible && data != null
+        when {
+            !hadItem && hasItem -> notifyItemInserted(0)
+            hadItem && !hasItem -> notifyItemRemoved(0)
+            hadItem && hasItem -> notifyItemChanged(0)
+        }
     }
 
     /**
