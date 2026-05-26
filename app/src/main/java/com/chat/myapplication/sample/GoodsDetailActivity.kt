@@ -202,7 +202,7 @@ class GoodsDetailActivity : AppCompatActivity() {
                     ItemGdCommentBinding::inflate, diff = COMMENT_DIFF
                 ) {
                     flow = vm.commentFlow
-                    keyOf { it.id }
+                    patcher(vm.commentPatcher)
                     onBind { b, c, _ ->
                         b.vAvatar.setBackgroundColor(c.avatarColor)
                         b.tvName.text = c.userName

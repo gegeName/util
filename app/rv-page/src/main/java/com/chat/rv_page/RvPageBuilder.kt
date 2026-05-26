@@ -5,12 +5,14 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
+import androidx.paging.CombinedLoadStates
 import androidx.paging.LoadStateAdapter
 import androidx.paging.PagingData
 import androidx.paging.PagingDataAdapter
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.StaggeredGridLayoutManager
@@ -20,6 +22,7 @@ import com.chat.pagingutil.BasePagingAdapter
 import com.chat.pagingutil.MultiTypeItem
 import com.chat.pagingutil.PageStateHandler
 import com.chat.pagingutil.PagingHelper
+import com.chat.pagingutil.PagingPatcher
 import com.chat.pagingutil.PagingRefreshAdapter
 import com.chat.pagingutil.SingleItemBindingAdapter
 import kotlinx.coroutines.flow.Flow
@@ -147,6 +150,11 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     private var onHeaderRefresh: (suspend () -> Unit)? = null
     private var hideAuxOnPageState: Boolean = true
     private var disableAnimatorUntilStable: Boolean = true
+    private var onLoadStateChange: ((CombinedLoadStates) -> Unit)? = null
+    private var headerRefreshTimeoutMs: Long? = null
+    private var itemAnimator: RecyclerView.ItemAnimator? = null
+    private var itemAnimatorConfigured: Boolean = false
+    private var disableAnimatorOnRefresh: Boolean = true
 
     private val sectionDefs = mutableListOf<SectionDef>()
 
@@ -190,6 +198,21 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
      */
     fun disableAnimatorUntilStable(disable: Boolean) =
         apply { disableAnimatorUntilStable = disable }
+
+    /** 进阶：拿到完整 [CombinedLoadStates],自定义骨架屏 / 空态 / 错误页 */
+    fun onLoadState(block: (CombinedLoadStates) -> Unit) = apply { onLoadStateChange = block }
+
+    /** [onHeaderRefresh] 的超时阈值,单位毫秒;不传走 [PagingHelper] 默认 10 秒 */
+    fun headerRefreshTimeout(ms: Long) = apply { headerRefreshTimeoutMs = ms }
+
+    /** 自定义 RecyclerView 的 [RecyclerView.ItemAnimator];显式 null 关闭所有动画 */
+    fun itemAnimator(animator: RecyclerView.ItemAnimator?) = apply {
+        itemAnimatorConfigured = true
+        itemAnimator = animator
+    }
+
+    /** 下拉刷新期间是否临时关闭 ItemAnimator,默认 true */
+    fun disableAnimatorOnRefresh(disable: Boolean) = apply { disableAnimatorOnRefresh = disable }
 
     /** DSL 入口：在 block 内声明各 section */
     fun sections(block: SectionsScope.() -> Unit) = apply {
@@ -297,6 +320,8 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         errorTextProvider?.let { helper.errorText(it) }
         onHeaderRefresh?.let { helper.onHeaderRefresh(it) }
         pagingDef.keyOf?.let { helper.keyOf(it) }
+        pagingDef.patcher?.let { helper.patcher(it) }
+        helper.clearPatchesOnRefresh(pagingDef.clearPatchesOnRefresh)
         pagingDef.onLoadError?.let {
             helper.onLoadError(
                 distinct = pagingDef.distinctErrorToast,
@@ -305,7 +330,20 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
         pagingDef.onEmpty?.let { helper.onEmpty(it) }
         pagingDef.loadStateFooterFactory?.let { helper.loadStateFooter(it) }
+        onLoadStateChange?.let { helper.onLoadState(it) }
+        headerRefreshTimeoutMs?.let { helper.headerRefreshTimeout(it) }
+        if (itemAnimatorConfigured) helper.itemAnimator(itemAnimator)
+        helper.disableAnimatorOnRefresh(disableAnimatorOnRefresh)
         if (pagingDef.chatMode) helper.chatMode(true)
+        pagingDef.dragSortFactory?.let { helper.dragSort(it) }
+        pagingDef.dragSortConfig?.let {
+            helper.enableDragSort(
+                longPressEnabled = it.longPressEnabled,
+                vibrateOnDragStart = it.vibrateOnDragStart,
+                canDrag = it.canDrag,
+                onMoved = it.onMoved
+            )
+        }
         helper.hideAuxOnPageState(hideAuxOnPageState)
 
         headersDef.forEach { helper.addHeader(it.adapter, spanFull = it.spanFull) }
@@ -555,6 +593,10 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                     onEmpty = cfg.onEmpty,
                     loadStateFooterFactory = cfg.loadStateFooterFactory,
                     chatMode = cfg.chatMode,
+                    patcher = cfg.patcher as PagingPatcher<Any, Any>?,
+                    clearPatchesOnRefresh = cfg.clearPatchesOnRefresh,
+                    dragSortConfig = cfg.dragSortConfig as PagingCommonConfig.DragSortConfig<Any>?,
+                    dragSortFactory = cfg.dragSortFactory as ((pa: PagingDataAdapter<Any, *>) -> ItemTouchHelper)?,
                     handle = handle as PagingSectionHandle<Any>
                 )
             )
@@ -903,9 +945,38 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         internal var distinctErrorToast: Boolean = true
         internal var onEmpty: ((Boolean) -> Unit)? = null
         internal var loadStateFooterFactory: ((retry: () -> Unit) -> LoadStateAdapter<*>)? = null
+        internal var patcher: PagingPatcher<Any, T>? = null
+        internal var clearPatchesOnRefresh: Boolean = true
+        internal var dragSortConfig: DragSortConfig<T>? = null
+        internal var dragSortFactory: ((pa: PagingDataAdapter<T, *>) -> ItemTouchHelper)? = null
 
         fun keyOf(extractor: (T) -> Any) {
             keyOf = extractor
+        }
+
+        /** 业务方在 VM 持有的 [PagingPatcher],跨 view 重建保留乐观更新 / 局部补丁;不传时框架按 [keyOf] 自建,view 重建即丢。 */
+        fun patcher(patcher: PagingPatcher<Any, T>) {
+            this.patcher = patcher
+        }
+
+        /** 下拉刷新时是否清空所有本地补丁,默认 true */
+        fun clearPatchesOnRefresh(clear: Boolean) {
+            clearPatchesOnRefresh = clear
+        }
+
+        /** 启用拖动排序;语义见 [PagingHelper.enableDragSort] */
+        fun enableDragSort(
+            longPressEnabled: Boolean = true,
+            vibrateOnDragStart: Boolean = true,
+            canDrag: ((item: T, localPos: Int) -> Boolean)? = null,
+            onMoved: (fromKey: Any, toKey: Any, fromLocal: Int, toLocal: Int) -> Unit
+        ) {
+            dragSortConfig = DragSortConfig(longPressEnabled, vibrateOnDragStart, canDrag, onMoved)
+        }
+
+        /** 完全自定义拖动行为;与 [enableDragSort] 互斥,详见 [PagingHelper.dragSort] */
+        fun dragSort(factory: (pa: PagingDataAdapter<T, *>) -> ItemTouchHelper) {
+            dragSortFactory = factory
         }
 
         fun onLoadError(distinct: Boolean = true, block: (Throwable) -> Unit) {
@@ -919,6 +990,13 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         fun loadStateFooter(factory: (retry: () -> Unit) -> LoadStateAdapter<*>) {
             loadStateFooterFactory = factory
         }
+
+        class DragSortConfig<T : Any>(
+            val longPressEnabled: Boolean,
+            val vibrateOnDragStart: Boolean,
+            val canDrag: ((item: T, localPos: Int) -> Boolean)?,
+            val onMoved: (fromKey: Any, toKey: Any, fromLocal: Int, toLocal: Int) -> Unit
+        )
     }
 
     /**
@@ -1172,6 +1250,10 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             val onEmpty: ((Boolean) -> Unit)?,
             val loadStateFooterFactory: ((retry: () -> Unit) -> LoadStateAdapter<*>)?,
             val chatMode: Boolean,
+            val patcher: PagingPatcher<Any, T>?,
+            val clearPatchesOnRefresh: Boolean,
+            val dragSortConfig: PagingCommonConfig.DragSortConfig<T>?,
+            val dragSortFactory: ((pa: PagingDataAdapter<T, *>) -> ItemTouchHelper)?,
             /** start() 完成后会把 PagingController 绑回 handle，让业务通过 handle 拿 controller */
             val handle: PagingSectionHandle<T>
         ) : SectionDef(tag, pagingAdapter, spanFull)
