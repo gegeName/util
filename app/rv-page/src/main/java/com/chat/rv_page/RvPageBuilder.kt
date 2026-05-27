@@ -1,5 +1,6 @@
 package com.chat.rv_page
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -25,112 +26,42 @@ import com.chat.pagingutil.PagingHelper
 import com.chat.pagingutil.PagingPatcher
 import com.chat.pagingutil.PagingRefreshAdapter
 import com.chat.pagingutil.SingleItemBindingAdapter
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * 页面级 DSL 入口（"所有界面用 RecyclerView 布局"的工具类）。
+ * 页面级 DSL 入口。
  *
- * 把"多 section 装配 / 静态页 RV 化 / 分页 + 状态整合 / 动态增删 section"四件事合到一处，
- * 内部按需委托给 [PagingHelper]（有分页 section 时）或自建 [ConcatAdapter]（纯静态时）。
- * 与现有 [PagingHelper] 是**叠加关系**，不替代它，只在装配层做一层薄包装。
- *
- * 入口：
  * ```
  * val page = RvPage.with(viewLifecycleOwner)
  *     .recyclerView(mBinding.rv)
- *     .refreshAdapter(SmartRefreshAdapter(mBinding.srl))   // 可选
- *     .pageState(mBinding.pageStateView)                    // 可选，复用 PageStateHandler
+ *     .refreshAdapter(SmartRefreshAdapter(mBinding.srl))
+ *     .pageState(mBinding.pageStateView)
  *     .sections {
- *         single<Banner, ItemBannerBinding>(ItemBannerBinding::inflate, tag = "banner") {
- *             data = vm.banner
- *             onBind { b, d -> b.iv.load(d.url) }
+ *         single<Banner, ItemBannerBinding>(ItemBannerBinding::inflate, tag = "banner") { ... }
+ *         list<MenuItem, ItemMenuBinding>(ItemMenuBinding::inflate, tag = "menu") {
+ *             keyOf { it.id }; ...
  *         }
- *         list<MenuItem, ItemMenuBinding>(ItemMenuBinding::inflate, diff = MENU_DIFF, tag = "menu") {
- *             data = vm.items
- *             onBind { b, item, _ -> b.tv.text = item.title }
- *             onItemClick(throttleMs = 600) { v, item, _ -> nav(item.route) }
- *         }
- *         pagingList<FeedItem, ItemFeedBinding>(ItemFeedBinding::inflate, diff = FEED_DIFF, tag = "feed") {
- *             flow = vm.feedFlow
- *             keyOf { it.id }
- *             onBind { b, item, _ -> b.tv.text = item.text }
- *             loadStateFooter { CommonLoadStateAdapter(onRetry = it) }
+ *         pagingList<FeedItem, ItemFeedBinding>(ItemFeedBinding::inflate, tag = "feed") {
+ *             flow = vm.feedFlow; keyOf { it.id }; ...
  *         }
  *     }
  *     .start()
  *
- * // 运行时：
  * page.paging<FeedItem>("feed")?.optimisticDelete(...)
  * page.addSection("promo", PromoAdapter(), at = 1)
  * page.hideSection("banner")
  * page.refresh()
  * ```
  *
- * ---
- *
- * ## 已知限制
- *
- * ### 1. 同一页面最多 1 个分页 section
- *
- * `pagingList` 与 `pagingMultiList` 加起来只能出现一次（[PagingHelper] 内部
- * `pagingAdapter()` 只能调一次，Paging 3 的设计就是"一个页面一个 `Flow<PagingData<T>>`"）。
- * 违反时 [start] 抛错并列出冲突 tag。
- *
- * **允许**：1 个 paging + N 个静态 section
- * ```
- * sections {
- *     single { ... }                  // Banner（静态）
- *     pagingList<Feed, ...> { ... }   // 主流（唯一分页）
- *     list<Promo, ...> { ... }        // 底部推荐（静态）
- * }
- * ```
- *
- * **禁止**：2 个 paging
- * ```
- * sections {
- *     pagingList<MyFollow, ...> { flow = vm.followFlow }    // ← 抛错
- *     pagingList<Recommend, ...> { flow = vm.recFlow }
- * }
- * ```
- *
- * **注意 `sections {}` 可链式多次调用**：每次调用都把声明的 section 追加到同一份列表，
- * paging 限制是**整个页面的总和**，分散到多次 `sections {}` 也躲不过：
- * ```
- * RvPage.with(owner)
- *     .sections { single(...); pagingList<A, ...> { flow = vm.flowA } }
- *     .sections { pagingList<B, ...> { flow = vm.flowB } }   // ← start() 时仍抛错
- *     .start()
- * ```
- * 这种写法和把所有 section 写在同一个 `sections {}` 块里**完全等价**——拆成多次只是组织代码
- * 的便利（例如按"头部 / 主列表 / 尾部"分块写），不会绕过任何校验。
- *
- * 真要"两个独立分页流"：用 TabLayout + ViewPager2 拆成两个 Fragment，或在服务端合流后用
- * [submitMultiList] 多类型 / sealed class 区分，或把其中一个改成静态全量拉。
- *
- * ### 2. `hideSection` 与 `hideAuxOnPageState` 在分页模式下的冲突
- *
- * [PagingHelper] 默认 `hideAuxOnPageState=true`，分页 loading/empty/error 时会自动把所有
- * header / footer / loadStateFooter 从 ConcatAdapter 摘掉，showContent 时按声明顺序**全部插回**。
- *
- * 而 [RvPageController.hideSection] 也是从 ConcatAdapter 摘掉 adapter——两个机制各管各的，
- * 互相不知道对方状态。冲突时间线：
- *
- * ```
- * T0  page.hideSection("banner")          → banner 被摘掉 ✓
- * T1  paging 进 loading（下拉刷新/首次进入）→ PagingHelper 把所有 aux 摘掉（无害）
- * T2  paging showContent（数据到达）       → PagingHelper 按声明顺序全部插回
- *                                            → banner 又被插回来了！hideSection 失效
- * ```
- *
- * 要在分页页面用 `hideSection`，必须显式 [hideAuxOnPageState]`(false)` 关掉自动管控；
- * 代价是空态 / loading 时 header/footer 不会自动让位给占位视图，需自行确保占位视图样式不冲突
- * （比如占位是覆盖整个 RV 的 overlay 而不是替换内容）。
- *
- * ### 3. section tag 唯一
- *
- * 每个 section 的 `tag` 在同一页面内必须唯一；不传 tag 时自动生成 `section_0` / `section_1` …。
- * 重复时 [start] 或 [RvPageController.addSection] 抛错。
+ * 约束:
+ * - 一个页面最多 1 个 paging section(`pagingList` + `pagingMultiList` 加起来);违反时 [start] 抛错。
+ * - section tag 在同一页面内唯一;不传则自动 `section_0` / `section_1` … 。
+ * - 分页模式下用 [RvPageController.hideSection],需显式 [hideAuxOnPageState]`(false)`。
  */
 class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
 
@@ -138,7 +69,19 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         /** 创建实例；[owner] 通常传 viewLifecycleOwner（Fragment）或 Activity 自身 */
         fun with(owner: LifecycleOwner) = RvPageBuilder(owner)
 
-        private const val ANIMATOR_GATE_TIMEOUT_MS = 800L
+        /**
+         * 由 [keyOf] 派生的 [DiffUtil.ItemCallback]:`areItemsTheSame = keyOf 相等`,
+         * `areContentsTheSame = item.equals`。
+         */
+        internal fun <T : Any> autoDiff(keyOf: (T) -> Any): DiffUtil.ItemCallback<T> =
+            object : DiffUtil.ItemCallback<T>() {
+                override fun areItemsTheSame(oldItem: T, newItem: T): Boolean =
+                    keyOf(oldItem) == keyOf(newItem)
+
+                @SuppressLint("DiffUtilEquals")
+                override fun areContentsTheSame(oldItem: T, newItem: T): Boolean =
+                    oldItem == newItem
+            }
     }
 
     private var recyclerView: RecyclerView? = null
@@ -149,7 +92,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     private var errorTextProvider: ((Throwable) -> CharSequence?)? = null
     private var onHeaderRefresh: (suspend () -> Unit)? = null
     private var hideAuxOnPageState: Boolean = true
-    private var disableAnimatorUntilStable: Boolean = true
+    private var awaitStaticBeforePagingMs: Long = 0L
     private var onLoadStateChange: ((CombinedLoadStates) -> Unit)? = null
     private var headerRefreshTimeoutMs: Long? = null
     private var itemAnimator: RecyclerView.ItemAnimator? = null
@@ -170,60 +113,48 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     fun errorText(provider: (Throwable) -> CharSequence?) = apply { errorTextProvider = provider }
     fun errorText(text: CharSequence) = apply { errorTextProvider = { text } }
 
-    /**
-     * 下拉刷新时除了 paging.refresh() 之外额外执行的头部接口。
-     * 纯静态页面也可用：搭配 [refreshAdapter] 实现"下拉重拉静态数据"。
-     */
+    /** 下拉刷新时额外执行的头部接口;纯静态页面也可用。 */
     fun onHeaderRefresh(block: suspend () -> Unit) = apply { onHeaderRefresh = block }
 
     /**
-     * 分页模式下进入 loading / empty / error 全屏占位态时，是否临时把 static section /
-     * loadStateFooter 从 ConcatAdapter 摘掉；默认 true（行为对齐 [PagingHelper]）。
-     *
-     * **重要**：默认 true 时，[RvPageController.hideSection] 在状态切换时会被覆盖
-     * （showContent 时被 helper 重新插回）。若业务需要在分页模式下手动 hide static section，
-     * 请显式 `.hideAuxOnPageState(false)`。纯静态模式下本开关无效。
+     * 分页 loading / empty / error 时是否临时摘掉 static section / loadStateFooter;默认 true。
+     * 想在分页模式下用 [RvPageController.hideSection] 必须显式传 false。
      */
     fun hideAuxOnPageState(hide: Boolean) = apply { hideAuxOnPageState = hide }
 
     /**
-     * 首屏装配阶段是否暂时关闭 RecyclerView 的 ItemAnimator，避免静态 section
-     * 的数据陆续到达时,paging 区被向下挤的位移动画。默认 true。
+     * 启动时延迟收集 paging flow,等所有 static section 都首次有数据(或超时)再放行,
+     * 避免"paging 比 static 接口快、列表先画再被后到的 header 挤下去"的位移动画。
      *
-     * 原理:start() 后把 itemAnimator 置 null,等所有静态 section 都首次报告过
-     * 数据变化(或 800ms 兜底超时)之后恢复,让首屏 insert/change 一次性无动画落地。
-     * 之后的点击 / 局部更新仍会走原 ItemAnimator 的动画。
+     * 0 = 关(默认);>0 = 启用且最长等 [timeoutMs] 毫秒。超时后无论 static 是否到齐都放行 paging,
+     * 避免某个 static 接口挂掉导致评论永不出现。
      *
-     * 不需要这个行为(例如业务希望首屏就有动画过渡)就传 false。
+     * 不影响 static section 自身渲染:它们一到就画,仅推迟 paging。
      */
-    fun disableAnimatorUntilStable(disable: Boolean) =
-        apply { disableAnimatorUntilStable = disable }
+    fun awaitStaticBeforePaging(timeoutMs: Long) = apply {
+        awaitStaticBeforePagingMs = timeoutMs.coerceAtLeast(0L)
+    }
 
-    /** 进阶：拿到完整 [CombinedLoadStates],自定义骨架屏 / 空态 / 错误页 */
     fun onLoadState(block: (CombinedLoadStates) -> Unit) = apply { onLoadStateChange = block }
 
-    /** [onHeaderRefresh] 的超时阈值,单位毫秒;不传走 [PagingHelper] 默认 10 秒 */
+    /** [onHeaderRefresh] 超时阈值;ms;不传走 [PagingHelper] 默认 10 秒。 */
     fun headerRefreshTimeout(ms: Long) = apply { headerRefreshTimeoutMs = ms }
 
-    /** 自定义 RecyclerView 的 [RecyclerView.ItemAnimator];显式 null 关闭所有动画 */
+    /** 自定义 ItemAnimator;显式 null 关闭所有动画。 */
     fun itemAnimator(animator: RecyclerView.ItemAnimator?) = apply {
         itemAnimatorConfigured = true
         itemAnimator = animator
     }
 
-    /** 下拉刷新期间是否临时关闭 ItemAnimator,默认 true */
+    /** 下拉刷新期间是否临时关闭 ItemAnimator;默认 true。 */
     fun disableAnimatorOnRefresh(disable: Boolean) = apply { disableAnimatorOnRefresh = disable }
 
-    /** DSL 入口：在 block 内声明各 section */
+    /** 在 block 内声明各 section。 */
     fun sections(block: SectionsScope.() -> Unit) = apply {
         SectionsScope(sectionDefs).block()
     }
 
-    /**
-     * 完成配置并装配。
-     * - 有分页 section → 委托 [PagingHelper]：paging 之前的 section 作为 headers，之后的作为 footers
-     * - 无分页 section → 自建 [ConcatAdapter] + 可选 [PageStateHandler]
-     */
+    /** 完成配置并装配。 */
     fun start(): RvPageController {
         val rv = requireNotNull(recyclerView) { "recyclerView 不能为空" }
         require(sectionDefs.isNotEmpty()) { "至少声明一个 section" }
@@ -237,68 +168,61 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                     pagingDefs.joinToString { it.tag }
         }
         val controller = if (pagingDefs.size == 1) buildWithPaging(rv) else buildStatic(rv)
-        if (disableAnimatorUntilStable) installAnimatorGate(rv)
+        installVisibilityTracker(rv)
         return controller
     }
 
-    /**
-     * 关闭首屏装配期间的 ItemAnimator + 把 RV 暂时设 alpha=0,等所有 section(含 paging)
-     * 首次有数据变化后一并恢复,800ms 兜底超时。
-     *
-     * 为什么要 alpha=0:仅关动画解决不了"paging 接口比 static 接口快,评论先画出来再被
-     * 后到的 header 挤下去"这个**显示顺序**问题。alpha=0 让 RV 在 gate 期间整体不可见
-     * (业务挂的 PageStateLayout / 占位视图自然在上层覆盖),所有 section 数据齐了之后
-     * 一次性 alpha=1 露出,完全看不到"陆续出现 → 被推下去"过程。
-     *
-     * 如果业务没有占位视图、又不想要 alpha=0 的空白期(比如 RV 直接铺背景色就够),
-     * 用 [disableAnimatorUntilStable](`false`) 关掉本机制。
-     */
-    private fun installAnimatorGate(rv: RecyclerView) {
-        if (sectionDefs.isEmpty()) return
-        val savedAnimator = rv.itemAnimator ?: return
-        val savedAlpha = rv.alpha
-        rv.itemAnimator = null
-        rv.alpha = 0f
+    private fun gatePagingFlow(
+        realFlow: Flow<PagingData<Any>>,
+        staticAdapters: List<RecyclerView.Adapter<*>>,
+        timeoutMs: Long
+    ): Flow<PagingData<Any>> {
+        if (timeoutMs <= 0) return realFlow
+        val waiting = staticAdapters.filter { it.itemCount == 0 }
+        if (waiting.isEmpty()) return realFlow
 
-        val pendingTags = sectionDefs.map { it.tag }.toMutableSet()
-        var restored = false
-        fun restore() {
-            if (restored) return
-            restored = true
-            rv.post {
-                if (rv.itemAnimator == null) rv.itemAnimator = savedAnimator
-                rv.alpha = savedAlpha
-            }
-        }
-
+        val ready = CompletableDeferred<Unit>()
+        val pending = waiting.toMutableSet()
         val observers = mutableMapOf<RecyclerView.Adapter<*>, RecyclerView.AdapterDataObserver>()
-        sectionDefs.forEach { def ->
-            val tag = def.tag
-            val adapter = def.adapter
+
+        waiting.forEach { adapter ->
             val ob = object : RecyclerView.AdapterDataObserver() {
-                private fun onChanged0() {
-                    pendingTags.remove(tag)
-                    if (pendingTags.isEmpty()) {
-                        observers[adapter]?.let { adapter.unregisterAdapterDataObserver(it) }
-                        restore()
+                override fun onChanged() = check()
+                override fun onItemRangeInserted(positionStart: Int, itemCount: Int) = check()
+                override fun onItemRangeChanged(positionStart: Int, itemCount: Int) = check()
+                private fun check() {
+                    if (adapter.itemCount > 0) {
+                        pending.remove(adapter)
+                        runCatching { adapter.unregisterAdapterDataObserver(this) }
+                        observers.remove(adapter)
+                        if (pending.isEmpty() && !ready.isCompleted) ready.complete(Unit)
                     }
                 }
-
-                override fun onChanged() = onChanged0()
-                override fun onItemRangeInserted(positionStart: Int, itemCount: Int) = onChanged0()
-                override fun onItemRangeRemoved(positionStart: Int, itemCount: Int) = onChanged0()
-                override fun onItemRangeChanged(positionStart: Int, itemCount: Int) = onChanged0()
             }
             observers[adapter] = ob
             adapter.registerAdapterDataObserver(ob)
         }
 
-        rv.postDelayed({
-            if (!restored) {
-                observers.forEach { (a, o) -> runCatching { a.unregisterAdapterDataObserver(o) } }
-                restore()
+        return flow {
+            try {
+                withTimeoutOrNull(timeoutMs) { ready.await() }
+                emitAll(realFlow)
+            } finally {
+                observers.entries.toList().forEach { (a, o) ->
+                    runCatching { a.unregisterAdapterDataObserver(o) }
+                }
+                observers.clear()
             }
-        }, ANIMATOR_GATE_TIMEOUT_MS)
+        }
+    }
+
+    private fun installVisibilityTracker(rv: RecyclerView) {
+        val subs = sectionDefs.filter { it.visibilityDispatch != null }
+        if (subs.isEmpty()) return
+        val tracker = VisibilityTracker(rv)
+        subs.forEach { def ->
+            tracker.register(def.adapter, def.visibilityThresholdPercent, def.visibilityDispatch!!)
+        }
     }
 
     private fun buildWithPaging(rv: RecyclerView): RvPageController {
@@ -309,10 +233,16 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         val headersDef = sectionDefs.subList(0, pagingIndex)
         val footersDef = sectionDefs.subList(pagingIndex + 1, sectionDefs.size)
 
+        val gatedFlow = gatePagingFlow(
+            realFlow = pagingDef.flow,
+            staticAdapters = (headersDef + footersDef).map { it.adapter },
+            timeoutMs = awaitStaticBeforePagingMs
+        )
+
         val helper = PagingHelper.with<Any>(owner)
             .recyclerView(rv)
             .pagingAdapter(pagingDef.pagingAdapter)
-            .pagingFlow(pagingDef.flow)
+            .pagingFlow(gatedFlow)
         layoutManager?.let { helper.layoutManager(it) }
         refreshAdapter?.let { helper.refreshAdapter(it) }
         pageStateHandler?.let { helper.pageState(it) }
@@ -431,7 +361,8 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     private fun configSpanSize(lm: GridLayoutManager, concat: ConcatAdapter) {
         val spanCount = lm.spanCount
         val userLookup = lm.spanSizeLookup
-        val fullSpanAdapters = sectionDefs.filter { it.spanFull }.map { it.adapter }.toSet()
+        val defByAdapter: Map<RecyclerView.Adapter<*>, SectionDef> =
+            sectionDefs.associateBy { it.adapter }
         lm.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
                 var offset = 0
@@ -445,7 +376,12 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                     offset += count
                 }
                 inner ?: return 1
-                if (inner in fullSpanAdapters) return spanCount
+                val def = defByAdapter[inner]
+                // per-item span 优先;否则回退 section 级 spanFull;最后回退用户 lookup
+                def?.spanSizeFor?.let { provider ->
+                    return provider(localPos, spanCount).coerceIn(1, spanCount)
+                }
+                if (def?.spanFull == true) return spanCount
                 return userLookup.getSpanSize(localPos)
             }
         }
@@ -482,19 +418,13 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
 
     // ───── DSL Scope ─────
 
-    /**
-     * `sections { ... }` block 的接收者；提供六种 section 工厂方法。
-     * 每个工厂创建好 Adapter 后立即把 [SectionDef] 加入 sectionDefs，[start] 时统一装配。
-     */
+    /** `sections { }` block 的接收者,提供六种 section 工厂。 */
     class SectionsScope internal constructor(private val defs: MutableList<SectionDef>) {
 
         private var autoTagIndex = 0
         private fun nextTag(): String = "section_${autoTagIndex++}"
 
-        /**
-         * 单格 section（[SingleItemBindingAdapter] 承载）。
-         * @return 强类型句柄，直接 `.submit(data)` 喂数据，无需 tag
-         */
+        /** 单格 section([SingleItemBindingAdapter] 承载)。 */
         fun <T : Any, VB : ViewBinding> single(
             inflate: (LayoutInflater, ViewGroup, Boolean) -> VB,
             tag: String? = null,
@@ -502,64 +432,147 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         ): SingleSectionHandle<T> {
             val builder = SingleBuilder<T, VB>(inflate).apply(block)
             val adapter = builder.build()
-            addInternal(adapter, tag, builder.spanFull)
+            val visBlock = builder.visibilityBlock
+            val visDispatch: ((Int, Boolean) -> Unit)? = visBlock?.let { b ->
+                { _: Int, visible: Boolean ->
+                    adapter.currentData()?.let { d -> b(d, visible) }
+                }
+            }
+            addInternal(
+                adapter, tag, builder.spanFull,
+                spanSizeFor = null,
+                visibilityThreshold = builder.visibilityThreshold,
+                visibilityDispatch = visDispatch
+            )
             return SingleSectionHandle(adapter)
         }
 
-        /** 单布局静态列表 section（[BaseListAdapter] 承载） */
+        /**
+         * 单布局静态列表 section([BaseListAdapter] 承载)。
+         *
+         * ⚠ `diff` 与 `keyOf { }` 二选一必须给一个,否则 [start] 抛错。
+         */
         fun <T : Any, VB : ViewBinding> list(
             inflate: (LayoutInflater, ViewGroup, Boolean) -> VB,
-            diff: DiffUtil.ItemCallback<T>,
+            diff: DiffUtil.ItemCallback<T>? = null,
             tag: String? = null,
             block: ListBuilder<T, VB>.() -> Unit
         ): ListSectionHandle<T> {
-            val builder = ListBuilder<T, VB>(inflate, diff).apply(block)
-            val adapter = builder.build()
-            addInternal(adapter, tag, builder.spanFull)
+            val builder = ListBuilder<T, VB>(inflate).apply(block)
+            val effectiveDiff = diff
+                ?: builder.keyOfExtractor?.let { autoDiff(it) }
+                ?: error("list section: 工厂 diff 与 builder.keyOf { } 至少提供一个")
+            val adapter = builder.build(effectiveDiff)
+            val visBlock = builder.visibilityBlock
+            val visDispatch: ((Int, Boolean) -> Unit)? = visBlock?.let { b ->
+                { pos: Int, visible: Boolean ->
+                    adapter.getItemOrNull(pos)?.let { item -> b(item, pos, visible) }
+                }
+            }
+            val spanProvider = builder.spanSizeProvider
+            val spanFor: ((Int, Int) -> Int)? = spanProvider?.let { p ->
+                { pos: Int, total: Int ->
+                    val item = adapter.getItemOrNull(pos)
+                    if (item != null) p(item, pos, total) else 1
+                }
+            }
+            addInternal(
+                adapter, tag, builder.spanFull,
+                spanSizeFor = spanFor,
+                visibilityThreshold = builder.visibilityThreshold,
+                visibilityDispatch = visDispatch
+            )
             return ListSectionHandle(adapter)
         }
 
-        /** 多布局静态列表 section（[BaseMultiListAdapter] 承载） */
+        /**
+         * 多布局静态列表 section([BaseMultiListAdapter] 承载)。
+         *
+         * ⚠ `diff` 与 `keyOf { }` 二选一必须给一个。
+         */
         fun <T : Any> multiList(
-            diff: DiffUtil.ItemCallback<T>,
+            diff: DiffUtil.ItemCallback<T>? = null,
             tag: String? = null,
             block: MultiListBuilder<T>.() -> Unit
         ): MultiListSectionHandle<T> {
-            val builder = MultiListBuilder<T>(diff).apply(block)
-            val adapter = builder.build()
-            addInternal(adapter, tag, builder.spanFull)
+            val builder = MultiListBuilder<T>().apply(block)
+            val effectiveDiff = diff
+                ?: builder.keyOfExtractor?.let { autoDiff(it) }
+                ?: error("multiList section: 工厂 diff 与 builder.keyOf { } 至少提供一个")
+            val adapter = builder.build(effectiveDiff)
+            val visBlock = builder.visibilityBlock
+            val visDispatch: ((Int, Boolean) -> Unit)? = visBlock?.let { b ->
+                { pos: Int, visible: Boolean ->
+                    adapter.getItemOrNull(pos)?.let { item -> b(item, pos, visible) }
+                }
+            }
+            val spanProvider = builder.spanSizeProvider
+            val spanFor: ((Int, Int) -> Int)? = spanProvider?.let { p ->
+                { pos: Int, total: Int ->
+                    val item = adapter.getItemOrNull(pos)
+                    if (item != null) p(item, pos, total) else 1
+                }
+            }
+            addInternal(
+                adapter, tag, builder.spanFull,
+                spanSizeFor = spanFor,
+                visibilityThreshold = builder.visibilityThreshold,
+                visibilityDispatch = visDispatch
+            )
             return MultiListSectionHandle(adapter)
         }
 
         /**
-         * 单布局分页 section（[BasePagingAdapter] 承载，最终走 [PagingHelper]）。
-         * @return 句柄；`controller` 在 [start] 完成后非空，可调 `optimisticUpdate` 等
+         * 单布局分页 section([BasePagingAdapter] 承载,委托 [PagingHelper])。
+         *
+         * `diff` 可省;省则按 `keyOf { }` 或 `patcher.keyOf` 自动合成。
          */
         fun <T : Any, VB : ViewBinding> pagingList(
             inflate: (LayoutInflater, ViewGroup, Boolean) -> VB,
-            diff: DiffUtil.ItemCallback<T>,
+            diff: DiffUtil.ItemCallback<T>? = null,
             tag: String? = null,
             block: PagingListBuilder<T, VB>.() -> Unit
         ): PagingSectionHandle<T> {
-            val builder = PagingListBuilder<T, VB>(inflate, diff).apply(block)
+            val builder = PagingListBuilder<T, VB>(inflate).apply(block)
+            val effectiveDiff = diff
+                ?: effectivePagingKeyOf(builder)?.let { autoDiff(it) }
+                ?: error("pagingList section: 工厂 diff 与 builder.keyOf { } / .patcher(...) 至少提供一个")
             val handle = PagingSectionHandle<T>()
-            addPagingInternal(builder.buildAdapter(), builder.flow!!, tag, builder, handle)
+            addPagingInternal(
+                builder.buildAdapter(effectiveDiff),
+                builder.flow!!,
+                tag,
+                builder,
+                handle
+            )
             return handle
         }
 
-        /** 多布局分页 section（[BaseMultiPagingAdapter] 承载，最终走 [PagingHelper]） */
+        /** 多布局分页 section([BaseMultiPagingAdapter] 承载)。`diff` 同 [pagingList] 可省。 */
         fun <T : Any> pagingMultiList(
-            diff: DiffUtil.ItemCallback<T>,
+            diff: DiffUtil.ItemCallback<T>? = null,
             tag: String? = null,
             block: PagingMultiListBuilder<T>.() -> Unit
         ): PagingSectionHandle<T> {
-            val builder = PagingMultiListBuilder<T>(diff).apply(block)
+            val builder = PagingMultiListBuilder<T>().apply(block)
+            val effectiveDiff = diff
+                ?: effectivePagingKeyOf(builder)?.let { autoDiff(it) }
+                ?: error("pagingMultiList section: 工厂 diff 与 builder.keyOf { } / .patcher(...) 至少提供一个")
             val handle = PagingSectionHandle<T>()
-            addPagingInternal(builder.buildAdapter(), builder.flow!!, tag, builder, handle)
+            addPagingInternal(
+                builder.buildAdapter(effectiveDiff),
+                builder.flow!!,
+                tag,
+                builder,
+                handle
+            )
             return handle
         }
 
-        /** 直接挂业务自家 Adapter；返回简单 handle 暴露 adapter 引用 */
+        private fun <T : Any> effectivePagingKeyOf(cfg: PagingCommonConfig<T>): ((T) -> Any)? =
+            cfg.keyOf ?: cfg.patcher?.keyOf
+
+        /** 直接挂业务自家 Adapter。 */
         fun custom(
             tag: String? = null,
             adapter: RecyclerView.Adapter<*>,
@@ -569,8 +582,60 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             return CustomSectionHandle(adapter)
         }
 
-        private fun addInternal(adapter: RecyclerView.Adapter<*>, tag: String?, spanFull: Boolean) {
-            defs.add(SectionDef.Static(tag ?: nextTag(), adapter, spanFull))
+        /**
+         * 横向 carousel section:对外占整页一行,内部一个横向 RecyclerView。
+         *
+         * ⚠ `diff` 与 `keyOf { }` 二选一必须给一个。
+         *
+         * ```
+         * carousel<TopicCard, ItemTopicBinding>(ItemTopicBinding::inflate) {
+         *     keyOf { it.id }
+         *     data = vm.topics
+         *     heightDp = 120; itemSpacingDp = 8
+         *     snap = CarouselSnap.LINEAR
+         *     onBind { b, item, _ -> b.tv.text = item.title }
+         *     onItemClick(throttleMs = 500, keyOf = { it.id }) { _, item, _ -> nav(item.url) }
+         * }
+         * ```
+         */
+        fun <T : Any, VB : ViewBinding> carousel(
+            inflate: (LayoutInflater, ViewGroup, Boolean) -> VB,
+            diff: DiffUtil.ItemCallback<T>? = null,
+            tag: String? = null,
+            block: CarouselBuilder<T, VB>.() -> Unit
+        ): CarouselSectionHandle<T> {
+            val builder = CarouselBuilder<T, VB>(inflate).apply(block)
+            val effectiveDiff = diff
+                ?: builder.keyOfExtractor?.let { autoDiff(it) }
+                ?: error("carousel section: 工厂 diff 与 builder.keyOf { } 至少提供一个")
+            val carouselAdapter = builder.build(effectiveDiff)
+            // carousel 整体作为单 item section;曝光以"carousel 整行"为粒度,业务一般也是这么算的
+            val visBlock = builder.visibilityBlock
+            val visDispatch: ((Int, Boolean) -> Unit)? = visBlock?.let { b ->
+                { _: Int, visible: Boolean -> b(visible) }
+            }
+            addInternal(
+                carouselAdapter, tag, builder.spanFull,
+                spanSizeFor = null,
+                visibilityThreshold = builder.visibilityThreshold,
+                visibilityDispatch = visDispatch
+            )
+            return CarouselSectionHandle(carouselAdapter)
+        }
+
+        private fun addInternal(
+            adapter: RecyclerView.Adapter<*>,
+            tag: String?,
+            spanFull: Boolean,
+            spanSizeFor: ((localPos: Int, totalSpan: Int) -> Int)? = null,
+            visibilityThreshold: Int = 50,
+            visibilityDispatch: ((localPos: Int, visible: Boolean) -> Unit)? = null
+        ) {
+            val def = SectionDef.Static(tag ?: nextTag(), adapter, spanFull)
+            def.spanSizeFor = spanSizeFor
+            def.visibilityThresholdPercent = visibilityThreshold
+            def.visibilityDispatch = visibilityDispatch
+            defs.add(def)
         }
 
         private fun <T : Any> addPagingInternal(
@@ -581,34 +646,51 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             handle: PagingSectionHandle<T>
         ) {
             @Suppress("UNCHECKED_CAST")
-            defs.add(
-                SectionDef.Paging(
-                    tag = tag ?: nextTag(),
-                    pagingAdapter = adapter as PagingDataAdapter<Any, *>,
-                    flow = flow as Flow<PagingData<Any>>,
-                    spanFull = cfg.spanFull,
-                    keyOf = cfg.keyOf?.let { fn -> { item: Any -> fn(item as T) } },
-                    onLoadError = cfg.onLoadError,
-                    distinctErrorToast = cfg.distinctErrorToast,
-                    onEmpty = cfg.onEmpty,
-                    loadStateFooterFactory = cfg.loadStateFooterFactory,
-                    chatMode = cfg.chatMode,
-                    patcher = cfg.patcher as PagingPatcher<Any, Any>?,
-                    clearPatchesOnRefresh = cfg.clearPatchesOnRefresh,
-                    dragSortConfig = cfg.dragSortConfig as PagingCommonConfig.DragSortConfig<Any>?,
-                    dragSortFactory = cfg.dragSortFactory as ((pa: PagingDataAdapter<Any, *>) -> ItemTouchHelper)?,
-                    handle = handle as PagingSectionHandle<Any>
-                )
+            val def = SectionDef.Paging(
+                tag = tag ?: nextTag(),
+                pagingAdapter = adapter as PagingDataAdapter<Any, *>,
+                flow = flow as Flow<PagingData<Any>>,
+                spanFull = cfg.spanFull,
+                keyOf = cfg.keyOf?.let { fn -> { item: Any -> fn(item as T) } },
+                onLoadError = cfg.onLoadError,
+                distinctErrorToast = cfg.distinctErrorToast,
+                onEmpty = cfg.onEmpty,
+                loadStateFooterFactory = cfg.loadStateFooterFactory,
+                chatMode = cfg.chatMode,
+                patcher = cfg.patcher as PagingPatcher<Any, Any>?,
+                clearPatchesOnRefresh = cfg.clearPatchesOnRefresh,
+                dragSortConfig = cfg.dragSortConfig as PagingCommonConfig.DragSortConfig<Any>?,
+                dragSortFactory = cfg.dragSortFactory as ((pa: PagingDataAdapter<Any, *>) -> ItemTouchHelper)?,
+                handle = handle as PagingSectionHandle<Any>
             )
+            val visBlock = cfg.visibilityBlock
+            if (visBlock != null) {
+                def.visibilityThresholdPercent = cfg.visibilityThreshold
+                def.visibilityDispatch = { pos: Int, visible: Boolean ->
+                    @Suppress("UNCHECKED_CAST")
+                    val item = adapter.peek(pos) as T?
+                    if (item != null) visBlock(item, pos, visible)
+                }
+            }
+            val spanProvider = cfg.spanSizeProvider
+            if (spanProvider != null) {
+                def.spanSizeFor = { pos: Int, total: Int ->
+                    @Suppress("UNCHECKED_CAST")
+                    val item = adapter.peek(pos) as T?
+                    if (item != null) spanProvider(item, pos, total) else 1
+                }
+            }
+            defs.add(def)
         }
     }
 
     // ───── Section builders ─────
 
     /**
-     * 单格 section builder：配置 [SingleItemBindingAdapter]。
-     * @property data 要显示的数据；null 时该 section 不占格
-     * @property spanFull GridLayoutManager 下是否跨整行，默认 true
+     * 单格 section builder。
+     *
+     * @property data 要显示的数据;null 时该 section 不占格
+     * @property spanFull GridLayoutManager 下是否跨整行,默认 true
      */
     class SingleBuilder<T : Any, VB : ViewBinding> internal constructor(
         private val inflater: (LayoutInflater, ViewGroup, Boolean) -> VB
@@ -626,6 +708,19 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         private var itemChildClickThrottle: Long = 0L
         private var onItemChildClick: ((View, T) -> Unit)? = null
         private var onItemChildLongClick: ((View, T) -> Boolean)? = null
+        internal var visibilityThreshold: Int = 50
+        internal var visibilityBlock: ((data: T, visible: Boolean) -> Unit)? = null
+
+        /**
+         * 单格曝光回调:可见比例跨过 [thresholdPercent] 阈值时触发。
+         * @param thresholdPercent 1..100
+         */
+        fun onVisibilityChanged(
+            thresholdPercent: Int = 50,
+            block: (data: T, visible: Boolean) -> Unit
+        ) {
+            visibilityThreshold = thresholdPercent; visibilityBlock = block
+        }
 
         fun onBind(block: (binding: VB, data: T) -> Unit) {
             onBind = block
@@ -698,15 +793,19 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
     }
 
-    /**
-     * 单布局静态列表 builder：配置 [BaseListAdapter]。
-     */
+    /** 单布局静态列表 builder。 */
     class ListBuilder<T : Any, VB : ViewBinding> internal constructor(
-        private val inflater: (LayoutInflater, ViewGroup, Boolean) -> VB,
-        private val diff: DiffUtil.ItemCallback<T>
+        private val inflater: (LayoutInflater, ViewGroup, Boolean) -> VB
     ) {
         var data: List<T> = emptyList()
         var spanFull: Boolean = true
+        internal var keyOfExtractor: ((T) -> Any)? = null
+
+        /** 主键提取器,工厂未传 `diff` 时按 `keyOf` + `equals` 自动合成 diff。 */
+        fun keyOf(extractor: (T) -> Any) {
+            keyOfExtractor = extractor
+        }
+
         private var onBind: ((VB, T, Int) -> Unit)? = null
         private var onBindPayloads: ((VB, T, Int, MutableList<Any>) -> Unit)? = null
         private var onViewHolderCreated: ((BaseListAdapter.BindingHolder<VB>, VB) -> Unit)? = null
@@ -720,6 +819,25 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         private var itemChildClickKeyOf: ((T) -> Any)? = null
         private var onItemChildClick: ((View, T, Int) -> Unit)? = null
         private var onItemChildLongClick: ((View, T, Int) -> Boolean)? = null
+        internal var visibilityThreshold: Int = 50
+        internal var visibilityBlock: ((item: T, position: Int, visible: Boolean) -> Unit)? = null
+        internal var spanSizeProvider: ((item: T, localPos: Int, totalSpan: Int) -> Int)? = null
+
+        /**
+         * 单 item 曝光回调:可见比例跨过 [thresholdPercent] 阈值时触发。
+         * @param thresholdPercent 1..100
+         */
+        fun onItemVisibilityChanged(
+            thresholdPercent: Int = 50,
+            block: (item: T, position: Int, visible: Boolean) -> Unit
+        ) {
+            visibilityThreshold = thresholdPercent; visibilityBlock = block
+        }
+
+        /** per-item 跨列数;优先级高于 [spanFull],仅 GridLayoutManager 生效。 */
+        fun spanSize(provider: (item: T, localPos: Int, totalSpan: Int) -> Int) {
+            spanSizeProvider = provider
+        }
 
         fun onBind(block: (binding: VB, item: T, position: Int) -> Unit) {
             onBind = block
@@ -766,7 +884,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             onItemChildLongClick = block
         }
 
-        internal fun build(): BaseListAdapter<T, VB> {
+        internal fun build(diff: DiffUtil.ItemCallback<T>): BaseListAdapter<T, VB> {
             val onBindCb = requireNotNull(onBind) { "list section 必须 onBind { ... }" }
             val onBindPayloadsCb = onBindPayloads
             val onCreateCb = onViewHolderCreated
@@ -820,16 +938,19 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
     }
 
-    /**
-     * 多布局静态列表 builder：配置 [BaseMultiListAdapter]。
-     */
-    class MultiListBuilder<T : Any> internal constructor(
-        private val diff: DiffUtil.ItemCallback<T>
-    ) {
+    /** 多布局静态列表 builder。 */
+    class MultiListBuilder<T : Any> internal constructor() {
         var data: List<T> = emptyList()
         var spanFull: Boolean = true
+        internal var keyOfExtractor: ((T) -> Any)? = null
         private val typeRegistrations =
             mutableListOf<(BaseMultiListAdapter<T>) -> Unit>()
+
+        /** 详见 [ListBuilder.keyOf] */
+        fun keyOf(extractor: (T) -> Any) {
+            keyOfExtractor = extractor
+        }
+
 
         private var itemClickThrottle: Long = 0L
         private var itemClickKeyOf: ((T) -> Any)? = null
@@ -841,6 +962,22 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         private var itemChildClickKeyOf: ((T) -> Any)? = null
         private var onItemChildClick: ((View, T, Int) -> Unit)? = null
         private var onItemChildLongClick: ((View, T, Int) -> Boolean)? = null
+        internal var visibilityThreshold: Int = 50
+        internal var visibilityBlock: ((item: T, position: Int, visible: Boolean) -> Unit)? = null
+        internal var spanSizeProvider: ((item: T, localPos: Int, totalSpan: Int) -> Int)? = null
+
+        /** 详见 [ListBuilder.onItemVisibilityChanged] */
+        fun onItemVisibilityChanged(
+            thresholdPercent: Int = 50,
+            block: (item: T, position: Int, visible: Boolean) -> Unit
+        ) {
+            visibilityThreshold = thresholdPercent; visibilityBlock = block
+        }
+
+        /** 详见 [ListBuilder.spanSize] */
+        fun spanSize(provider: (item: T, localPos: Int, totalSpan: Int) -> Int) {
+            spanSizeProvider = provider
+        }
 
         /** typeValue 版：要求 T 实现 [MultiTypeItem] */
         fun <VB : ViewBinding> addType(
@@ -902,7 +1039,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             onItemChildLongClick = block
         }
 
-        internal fun build(): BaseMultiListAdapter<T> {
+        internal fun build(diff: DiffUtil.ItemCallback<T>): BaseMultiListAdapter<T> {
             require(typeRegistrations.isNotEmpty()) { "multiList section 至少 addType<...> { ... } 一次" }
             val adapter = object : BaseMultiListAdapter<T>(diff) {}
             typeRegistrations.forEach { it(adapter) }
@@ -933,9 +1070,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
     }
 
-    /**
-     * 分页 section 共有配置，被 [PagingListBuilder] / [PagingMultiListBuilder] 共享。
-     */
+    /** [PagingListBuilder] / [PagingMultiListBuilder] 的共享配置。 */
     abstract class PagingCommonConfig<T : Any> {
         var flow: Flow<PagingData<T>>? = null
         var spanFull: Boolean = true
@@ -949,22 +1084,38 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         internal var clearPatchesOnRefresh: Boolean = true
         internal var dragSortConfig: DragSortConfig<T>? = null
         internal var dragSortFactory: ((pa: PagingDataAdapter<T, *>) -> ItemTouchHelper)? = null
+        internal var visibilityThreshold: Int = 50
+        internal var visibilityBlock: ((item: T, position: Int, visible: Boolean) -> Unit)? = null
+        internal var spanSizeProvider: ((item: T, localPos: Int, totalSpan: Int) -> Int)? = null
+
+        /** 详见 [ListBuilder.onItemVisibilityChanged] */
+        fun onItemVisibilityChanged(
+            thresholdPercent: Int = 50,
+            block: (item: T, position: Int, visible: Boolean) -> Unit
+        ) {
+            visibilityThreshold = thresholdPercent; visibilityBlock = block
+        }
+
+        /** 详见 [ListBuilder.spanSize] */
+        fun spanSize(provider: (item: T, localPos: Int, totalSpan: Int) -> Int) {
+            spanSizeProvider = provider
+        }
 
         fun keyOf(extractor: (T) -> Any) {
             keyOf = extractor
         }
 
-        /** 业务方在 VM 持有的 [PagingPatcher],跨 view 重建保留乐观更新 / 局部补丁;不传时框架按 [keyOf] 自建,view 重建即丢。 */
+        /** VM 持有的 [PagingPatcher];不传时框架按 [keyOf] 自建。 */
         fun patcher(patcher: PagingPatcher<Any, T>) {
             this.patcher = patcher
         }
 
-        /** 下拉刷新时是否清空所有本地补丁,默认 true */
+        /** 下拉刷新时是否清空所有本地补丁,默认 true。 */
         fun clearPatchesOnRefresh(clear: Boolean) {
             clearPatchesOnRefresh = clear
         }
 
-        /** 启用拖动排序;语义见 [PagingHelper.enableDragSort] */
+        /** 启用拖动排序,见 [PagingHelper.enableDragSort]。 */
         fun enableDragSort(
             longPressEnabled: Boolean = true,
             vibrateOnDragStart: Boolean = true,
@@ -974,7 +1125,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             dragSortConfig = DragSortConfig(longPressEnabled, vibrateOnDragStart, canDrag, onMoved)
         }
 
-        /** 完全自定义拖动行为;与 [enableDragSort] 互斥,详见 [PagingHelper.dragSort] */
+        /** 完全自定义拖动行为;与 [enableDragSort] 互斥。 */
         fun dragSort(factory: (pa: PagingDataAdapter<T, *>) -> ItemTouchHelper) {
             dragSortFactory = factory
         }
@@ -999,12 +1150,9 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         )
     }
 
-    /**
-     * 单布局分页 builder：内部生成 [BasePagingAdapter] 委托给 [PagingHelper]。
-     */
+    /** 单布局分页 builder。 */
     class PagingListBuilder<T : Any, VB : ViewBinding> internal constructor(
-        private val inflater: (LayoutInflater, ViewGroup, Boolean) -> VB,
-        private val diff: DiffUtil.ItemCallback<T>
+        private val inflater: (LayoutInflater, ViewGroup, Boolean) -> VB
     ) : PagingCommonConfig<T>() {
         private var onBind: ((VB, T, Int) -> Unit)? = null
         private var onBindPayloads: ((VB, T, Int, MutableList<Any>) -> Unit)? = null
@@ -1065,7 +1213,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             onItemChildLongClick = block
         }
 
-        internal fun buildAdapter(): PagingDataAdapter<T, *> {
+        internal fun buildAdapter(diff: DiffUtil.ItemCallback<T>): PagingDataAdapter<T, *> {
             require(flow != null) { "pagingList section 必须设置 flow" }
             val onBindCb = requireNotNull(onBind) { "pagingList section 必须 onBind { ... }" }
             val onBindPayloadsCb = onBindPayloads
@@ -1119,12 +1267,8 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
     }
 
-    /**
-     * 多布局分页 builder：内部生成 [BaseMultiPagingAdapter] 委托给 [PagingHelper]。
-     */
-    class PagingMultiListBuilder<T : Any> internal constructor(
-        private val diff: DiffUtil.ItemCallback<T>
-    ) : PagingCommonConfig<T>() {
+    /** 多布局分页 builder。 */
+    class PagingMultiListBuilder<T : Any> internal constructor() : PagingCommonConfig<T>() {
         private val typeRegistrations = mutableListOf<(BaseMultiPagingAdapter<T>) -> Unit>()
 
         private var itemClickThrottle: Long = 0L
@@ -1196,7 +1340,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             onItemChildLongClick = block
         }
 
-        internal fun buildAdapter(): PagingDataAdapter<T, *> {
+        internal fun buildAdapter(diff: DiffUtil.ItemCallback<T>): PagingDataAdapter<T, *> {
             require(flow != null) { "pagingMultiList section 必须设置 flow" }
             require(typeRegistrations.isNotEmpty()) { "pagingMultiList section 至少 addType<...> { ... } 一次" }
             val adapter = object : BaseMultiPagingAdapter<T>(diff) {}
@@ -1227,20 +1371,182 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
     }
 
-    /**
-     * Section 在 builder 内的中间表示（不暴露给业务）。
-     */
+    /** 内置横向滑动RecyclerView */
+    class CarouselBuilder<T : Any, VB : ViewBinding> internal constructor(
+        private val inflater: (LayoutInflater, ViewGroup, Boolean) -> VB
+    ) {
+        internal var keyOfExtractor: ((T) -> Any)? = null
+
+        /** 详见 [ListBuilder.keyOf]。 */
+        fun keyOf(extractor: (T) -> Any) {
+            keyOfExtractor = extractor
+        }
+
+        /** 初始数据;运行时通过 [CarouselSectionHandle.submit] 更新。 */
+        var data: List<T> = emptyList()
+
+        /** 外层 GridLayoutManager 下是否跨整行;默认 true。 */
+        var spanFull: Boolean = true
+
+        /** 横向 RV 高度(dp);<=0 = wrap_content。 */
+        var heightDp: Int = -1
+
+        var paddingStartDp: Int = 0
+        var paddingEndDp: Int = 0
+        var paddingTopDp: Int = 0
+        var paddingBottomDp: Int = 0
+
+        /** item 间距(dp);0 = 紧贴。 */
+        var itemSpacingDp: Int = 0
+
+        /** 横向吸附模式;默认 [CarouselSnap.NONE]。 */
+        var snap: CarouselSnap = CarouselSnap.NONE
+
+        /** 跨 carousel 共享的 [RecyclerView.RecycledViewPool];不传则各自维护。 */
+        var sharedPool: RecyclerView.RecycledViewPool? = null
+
+        private var onBind: ((VB, T, Int) -> Unit)? = null
+        private var onBindPayloads: ((VB, T, Int, MutableList<Any>) -> Unit)? = null
+        private var onViewHolderCreated: ((BaseListAdapter.BindingHolder<VB>, VB) -> Unit)? = null
+        private var itemClickThrottle: Long = 0L
+        private var itemClickKeyOf: ((T) -> Any)? = null
+        private var onItemClick: ((View, T, Int) -> Unit)? = null
+        private var onItemLongClick: ((View, T, Int) -> Boolean)? = null
+        private var childIds: IntArray = IntArray(0)
+        private var childLongIds: IntArray = IntArray(0)
+        private var itemChildClickThrottle: Long = 0L
+        private var itemChildClickKeyOf: ((T) -> Any)? = null
+        private var onItemChildClick: ((View, T, Int) -> Unit)? = null
+        private var onItemChildLongClick: ((View, T, Int) -> Boolean)? = null
+        internal var visibilityThreshold: Int = 50
+        internal var visibilityBlock: ((visible: Boolean) -> Unit)? = null
+
+        fun onBind(block: (binding: VB, item: T, position: Int) -> Unit) {
+            onBind = block
+        }
+
+        fun onBindPayloads(block: (binding: VB, item: T, position: Int, payloads: MutableList<Any>) -> Unit) {
+            onBindPayloads = block
+        }
+
+        fun onViewHolderCreated(block: (holder: BaseListAdapter.BindingHolder<VB>, binding: VB) -> Unit) {
+            onViewHolderCreated = block
+        }
+
+        fun onItemClick(
+            throttleMs: Long = 0L,
+            keyOf: ((T) -> Any)? = null,
+            block: (View, T, Int) -> Unit
+        ) {
+            itemClickThrottle = throttleMs; itemClickKeyOf = keyOf; onItemClick = block
+        }
+
+        fun onItemLongClick(block: (View, T, Int) -> Boolean) {
+            onItemLongClick = block
+        }
+
+        fun childClickIds(vararg ids: Int) {
+            childIds = ids
+        }
+
+        fun childLongClickIds(vararg ids: Int) {
+            childLongIds = ids
+        }
+
+        fun onItemChildClick(
+            throttleMs: Long = 0L,
+            keyOf: ((T) -> Any)? = null,
+            block: (View, T, Int) -> Unit
+        ) {
+            itemChildClickThrottle = throttleMs; itemChildClickKeyOf = keyOf
+            onItemChildClick = block
+        }
+
+        fun onItemChildLongClick(block: (View, T, Int) -> Boolean) {
+            onItemChildLongClick = block
+        }
+
+        /** carousel 整行曝光回调,不带 item 粒度。 */
+        fun onVisibilityChanged(
+            thresholdPercent: Int = 50,
+            block: (visible: Boolean) -> Unit
+        ) {
+            visibilityThreshold = thresholdPercent; visibilityBlock = block
+        }
+
+        internal fun build(diff: DiffUtil.ItemCallback<T>): CarouselAdapter<T> {
+            val onBindCb = requireNotNull(onBind) { "carousel section 必须 onBind { ... }" }
+            val onBindPayloadsCb = onBindPayloads
+            val onCreateCb = onViewHolderCreated
+            val innerAdapter = object : BaseListAdapter<T, VB>(diff, inflater) {
+                override fun onBind(binding: VB, item: T, position: Int) =
+                    onBindCb(binding, item, position)
+
+                override fun onBind(
+                    binding: VB,
+                    item: T,
+                    position: Int,
+                    payloads: MutableList<Any>
+                ) {
+                    if (onBindPayloadsCb != null) onBindPayloadsCb(
+                        binding,
+                        item,
+                        position,
+                        payloads
+                    )
+                    else super.onBind(binding, item, position, payloads)
+                }
+
+                override fun onViewHolderCreated(holder: BindingHolder<VB>, binding: VB) {
+                    onCreateCb?.invoke(holder, binding)
+                }
+            }
+            onItemClick?.let {
+                innerAdapter.setOnItemClickListener(itemClickThrottle, itemClickKeyOf, it)
+            }
+            onItemLongClick?.let { innerAdapter.setOnItemLongClickListener(it) }
+            if (childIds.isNotEmpty()) {
+                innerAdapter.addChildClickViewIds(*childIds)
+                onItemChildClick?.let {
+                    innerAdapter.setOnItemChildClickListener(
+                        itemChildClickThrottle, itemChildClickKeyOf, it
+                    )
+                }
+            }
+            if (childLongIds.isNotEmpty()) {
+                innerAdapter.addChildLongClickViewIds(*childLongIds)
+                onItemChildLongClick?.let { innerAdapter.setOnItemChildLongClickListener(it) }
+            }
+            innerAdapter.submit(data)
+            return CarouselAdapter(
+                inner = innerAdapter,
+                heightDp = heightDp,
+                paddingStartDp = paddingStartDp,
+                paddingTopDp = paddingTopDp,
+                paddingEndDp = paddingEndDp,
+                paddingBottomDp = paddingBottomDp,
+                itemSpacingDp = itemSpacingDp,
+                snap = snap,
+                sharedPool = sharedPool
+            )
+        }
+    }
+
+    /** Section 在 builder 内的中间表示,不暴露给业务。 */
     sealed class SectionDef(
         val tag: String,
         val adapter: RecyclerView.Adapter<*>,
         val spanFull: Boolean
     ) {
+        internal var spanSizeFor: ((localPos: Int, totalSpan: Int) -> Int)? = null
+        internal var visibilityThresholdPercent: Int = 50
+        internal var visibilityDispatch: ((localPos: Int, visible: Boolean) -> Unit)? = null
+
         class Static(tag: String, adapter: RecyclerView.Adapter<*>, spanFull: Boolean) :
             SectionDef(tag, adapter, spanFull)
 
         class Paging<T : Any>(
             tag: String,
-            /** 强类型 PagingDataAdapter；父类 [SectionDef.adapter] 是同一实例的弱类型视图 */
             val pagingAdapter: PagingDataAdapter<T, *>,
             val flow: Flow<PagingData<T>>,
             spanFull: Boolean,
@@ -1254,11 +1560,10 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             val clearPatchesOnRefresh: Boolean,
             val dragSortConfig: PagingCommonConfig.DragSortConfig<T>?,
             val dragSortFactory: ((pa: PagingDataAdapter<T, *>) -> ItemTouchHelper)?,
-            /** start() 完成后会把 PagingController 绑回 handle，让业务通过 handle 拿 controller */
             val handle: PagingSectionHandle<T>
         ) : SectionDef(tag, pagingAdapter, spanFull)
     }
 }
 
-/** 顶层快捷别名，让调用更短：`RvPage.with(owner)` */
+/** `RvPage.with(owner)` 的别名。 */
 typealias RvPage = RvPageBuilder

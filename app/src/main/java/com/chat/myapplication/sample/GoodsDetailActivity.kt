@@ -43,6 +43,8 @@ import com.chat.myapplication.sample.GoodsHeader
 import com.chat.myapplication.sample.GoodsSpec
 import com.chat.myapplication.sample.REC_GOODS_DIFF
 import com.chat.myapplication.sample.RecGoods
+import com.chat.rv_page.CarouselSectionHandle
+import com.chat.rv_page.CarouselSnap
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -66,7 +68,7 @@ class GoodsDetailActivity : AppCompatActivity() {
     private lateinit var detailsSection: MultiListSectionHandle<DetailBlock>
     private lateinit var commentTitleSection: SingleSectionHandle<String>
     private lateinit var commentsSection: PagingSectionHandle<Comment>
-    private lateinit var recSection: SingleSectionHandle<List<RecGoods>>
+    private lateinit var recSection: CarouselSectionHandle<RecGoods>
 
     // ── 嵌套子 Adapter（Banner / 推荐 的横向 RV）──
     private val bannerImageAdapter = object : BaseListAdapter<Int, ItemGdBannerImageBinding>(
@@ -112,45 +114,41 @@ class GoodsDetailActivity : AppCompatActivity() {
         page = RvPage.with(this)
             .recyclerView(binding.rv)
             .layoutManager(LinearLayoutManager(this))
+            .awaitStaticBeforePaging(200)
             .refreshAdapter(SwipeRefreshAdapter(binding.swipeRefresh))
             .pageState(binding.pageState)
             .onHeaderRefresh { vm.loadAll().join() }
             .hideAuxOnPageState(false)
             .sections {
 
-                // ① Banner（嵌套横向 RV）
-                bannerSection =
-                    single<List<Int>, ItemGdBannerBinding>(ItemGdBannerBinding::inflate) {
-                        onViewHolderCreated { _, b ->
-                            b.rvBanner.layoutManager =
-                                LinearLayoutManager(
-                                    this@GoodsDetailActivity,
-                                    RecyclerView.HORIZONTAL,
-                                    false
-                                )
-                            b.rvBanner.adapter = bannerImageAdapter
-                        }
-                        onBind { b, colors ->
-                            bannerImageAdapter.submit(colors)
-                            b.tvBannerHint.text = "1 / ${colors.size}"
-                        }
+                // ① Banner（嵌套横向 RV;保留 single 写法是为了顶上还有 "1/N" 文案）
+                bannerSection = single<List<Int>, ItemGdBannerBinding>(ItemGdBannerBinding::inflate) {
+                    onViewHolderCreated { _, b ->
+                        b.rvBanner.layoutManager =
+                            LinearLayoutManager(this@GoodsDetailActivity, RecyclerView.HORIZONTAL, false)
+                        b.rvBanner.adapter = bannerImageAdapter
                     }
+                    onBind { b, colors ->
+                        bannerImageAdapter.submit(colors)
+                        b.tvBannerHint.text = "1 / ${colors.size}"
+                    }
+                    // 单格曝光埋点:banner 至少 30% 露出时触发一次
+                    onVisibilityChanged(thresholdPercent = 30) { _, visible ->
+                        Log.d("GoodsDetail", "Banner visible=$visible")
+                    }
+                }
 
                 // ② 标题 + 价格
-                headerSection =
-                    single<GoodsHeader, ItemGdHeaderBinding>(ItemGdHeaderBinding::inflate) {
-                        onBind { b, h ->
-                            b.tvName.text = h.name
-                            b.tvPrice.text = h.priceText
-                            b.tvOriginalPrice.text = h.originalPriceText
-                            b.tvOriginalPrice.paintFlags =
-                                b.tvOriginalPrice.paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
-                            b.tvSales.text = "已售 ${h.sales}"
-                        }
-                        onItemClick(throttleMs = 300) { _, _ ->
-                            vm.incrementSales()
-                        }
+                headerSection = single<GoodsHeader, ItemGdHeaderBinding>(ItemGdHeaderBinding::inflate) {
+                    onBind { b, h ->
+                        b.tvName.text = h.name
+                        b.tvPrice.text = h.priceText
+                        b.tvOriginalPrice.text = h.originalPriceText
+                        b.tvOriginalPrice.paintFlags =
+                            b.tvOriginalPrice.paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
+                        b.tvSales.text = "已售 ${h.sales}"
                     }
+                }
 
                 // ③ 规格选择
                 specSection = single<GoodsSpec, ItemGdSpecBinding>(ItemGdSpecBinding::inflate) {
@@ -158,8 +156,8 @@ class GoodsDetailActivity : AppCompatActivity() {
                         b.tvSelected.text = s.selectedLabel
                         b.tvDelivery.text = s.deliveryDays
                     }
-                    onItemClick(throttleMs = 300) { _, _ ->
-                        vm.cycleSpec()
+                    onItemClick(throttleMs = 600) { _, _ ->
+                        toast("点击规格 → 打开规格选择弹窗")
                     }
                 }
 
@@ -183,11 +181,8 @@ class GoodsDetailActivity : AppCompatActivity() {
                         typeValue = DetailBlock.TYPE_VIDEO,
                         inflate = ItemGdDetailVideoBinding::inflate
                     ) { b, item, _ -> b.vCover.setBackgroundColor(item.videoColor) }
-                    onItemClick(throttleMs = 300) { _, item, _ ->
-                        if (item.itemType == DetailBlock.TYPE_TEXT) {
-                            vm.toggleDetailStar(item.id)
-                        }
-                    }
+                    // 假如外层是 GridLayoutManager(this, 3),想让视频块跨整 3 列、其它占 1 列:
+                    // spanSize { item, _, total -> if (item.itemType == DetailBlock.TYPE_VIDEO) total else 1 }
                 }
 
                 // ⑥ 章节标题"用户评价"（标题文案动态从 vm.commentCount 来）
@@ -197,9 +192,9 @@ class GoodsDetailActivity : AppCompatActivity() {
                     onBind { b, t -> b.tvTitle.text = t }
                 }
 
-                // ⑦ 评论分页
+                // ⑦ 评论分页 —— Comment 是 data class,不传 diff,框架按 keyOf + equals 自动合成
                 commentsSection = pagingList<Comment, ItemGdCommentBinding>(
-                    ItemGdCommentBinding::inflate, diff = COMMENT_DIFF
+                    ItemGdCommentBinding::inflate
                 ) {
                     flow = vm.commentFlow
                     patcher(vm.commentPatcher)
@@ -223,6 +218,10 @@ class GoodsDetailActivity : AppCompatActivity() {
                     }
                     loadStateFooter { CommonLoadStateAdapter(onRetry = it) }
                     onLoadError { toast("评论加载失败：${it.message}") }
+                    // 评论曝光埋点:每条评论 >= 50% 露出时上报一次
+                    onItemVisibilityChanged(thresholdPercent = 50) { item, _, visible ->
+                        if (visible) Log.d("GoodsDetail", "曝光评论 id=${item.id}")
+                    }
                 }
 
                 // ⑧ 章节标题"相关推荐"
@@ -231,20 +230,30 @@ class GoodsDetailActivity : AppCompatActivity() {
                     onBind { b, t -> b.tvTitle.text = t }
                 }
 
-                // ⑨ 推荐（嵌套横向 RV）
-                recSection =
-                    single<List<RecGoods>, ItemGdRecListBinding>(ItemGdRecListBinding::inflate) {
-                        onViewHolderCreated { _, b ->
-                            b.rvRec.layoutManager =
-                                LinearLayoutManager(
-                                    this@GoodsDetailActivity,
-                                    RecyclerView.HORIZONTAL,
-                                    false
-                                )
-                            b.rvRec.adapter = recImageAdapter
-                        }
-                        onBind { _, list -> recImageAdapter.submit(list) }
+                // ⑨ 推荐 —— 用 carousel DSL,不用再手写横向 RV / Adapter
+                //         RecGoods 是 data class,这里只声明 keyOf,框架自动合成 diff
+                recSection = carousel<RecGoods, ItemGdRecGoodsBinding>(
+                    ItemGdRecGoodsBinding::inflate
+                ) {
+                    keyOf { it.id }
+                    paddingStartDp = 12
+                    paddingEndDp = 12
+                    itemSpacingDp = 8
+                    sharedPool= RecyclerView.RecycledViewPool()
+                    onBind { b, item, _ ->
+                        b.vCover.setBackgroundColor(item.coverColor)
+                        b.tvName.text = item.name
+                        b.tvPrice.text = item.priceText
                     }
+                    onItemClick(throttleMs = 600, keyOf = { it.name }) { _, item, _ ->
+                        toast("点击推荐:${item.name}")
+                    }
+                    // carousel 整行曝光埋点(进入屏幕一半以上触发一次)
+                    onVisibilityChanged(thresholdPercent = 50) { visible ->
+                        Log.d("GoodsDetail", "推荐区块 visible=$visible")
+                    }
+                }
+
             }
             .start()
     }
@@ -265,7 +274,7 @@ class GoodsDetailActivity : AppCompatActivity() {
                         if (c > 0) commentTitleSection.submit("用户评价 ($c)")
                     }
                 }
-                launch { vm.recommends.collect { recSection.submit(it.takeIf { it.isNotEmpty() }) } }
+                launch { vm.recommends.collect { recSection.submit(it) } }
             }
         }
     }

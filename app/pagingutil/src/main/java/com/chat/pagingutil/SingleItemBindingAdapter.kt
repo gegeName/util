@@ -107,6 +107,9 @@ abstract class SingleItemBindingAdapter<T, VB : ViewBinding>(
         }
     }
 
+    /** 当前承载的数据。 */
+    fun currentData(): T? = data
+
     /**
      * 切换是否展示该单 item。
      *

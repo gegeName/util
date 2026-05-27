@@ -80,3 +80,11 @@ class PagingSectionHandle<T : Any> internal constructor() {
 class CustomSectionHandle internal constructor(
     val adapter: androidx.recyclerview.widget.RecyclerView.Adapter<*>
 )
+
+/** `carousel { ... }` 返回的句柄。 */
+class CarouselSectionHandle<T : Any> internal constructor(
+    internal val adapter: CarouselAdapter<T>
+) {
+    /** 提交横向列表数据;null 视为清空。 */
+    fun submit(list: List<T>?) = adapter.submit(list)
+}
