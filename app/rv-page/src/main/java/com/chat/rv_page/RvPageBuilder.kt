@@ -1,6 +1,5 @@
 package com.chat.rv_page
 
-import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -78,9 +77,8 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                 override fun areItemsTheSame(oldItem: T, newItem: T): Boolean =
                     keyOf(oldItem) == keyOf(newItem)
 
-                @SuppressLint("DiffUtilEquals")
                 override fun areContentsTheSame(oldItem: T, newItem: T): Boolean =
-                    oldItem == newItem
+                    java.util.Objects.equals(oldItem, newItem)
             }
     }
 
