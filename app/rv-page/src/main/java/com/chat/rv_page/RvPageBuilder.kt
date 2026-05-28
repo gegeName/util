@@ -96,6 +96,8 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     private var itemAnimator: RecyclerView.ItemAnimator? = null
     private var itemAnimatorConfigured: Boolean = false
     private var disableAnimatorOnRefresh: Boolean = true
+    private var onStickyHeaderSetup: ((View) -> Unit)? = null
+    private var onStickyHeaderTeardown: ((View) -> Unit)? = null
 
     private val sectionDefs = mutableListOf<SectionDef>()
 
@@ -147,6 +149,12 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     /** 下拉刷新期间是否临时关闭 ItemAnimator;默认 true。 */
     fun disableAnimatorOnRefresh(disable: Boolean) = apply { disableAnimatorOnRefresh = disable }
 
+    /** 某 view 被提升为 sticky header 时回调;通常用于加阴影 / 抬高 elevation / 改背景。 */
+    fun onStickyHeaderSetup(block: (View) -> Unit) = apply { onStickyHeaderSetup = block }
+
+    /** 某 view 退出 sticky 状态时回调;撤销 [onStickyHeaderSetup] 的副作用。 */
+    fun onStickyHeaderTeardown(block: (View) -> Unit) = apply { onStickyHeaderTeardown = block }
+
     /** 在 block 内声明各 section。 */
     fun sections(block: SectionsScope.() -> Unit) = apply {
         SectionsScope(sectionDefs).block()
@@ -178,6 +186,8 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     private fun installStickyHeaders(rv: RecyclerView) {
         if (sectionDefs.none { it.isStickyHeaderAt != null }) return
         val concat = rv.adapter as? ConcatAdapter ?: return
+        val setupCb = onStickyHeaderSetup
+        val teardownCb = onStickyHeaderTeardown
         val callbacks = object : StickyHeaderCallbacks {
             override fun isStickyHeader(position: Int): Boolean {
                 var offset = 0
@@ -192,6 +202,14 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                     offset += count
                 }
                 return false
+            }
+
+            override fun setupStickyHeaderView(stickyHeader: View) {
+                setupCb?.invoke(stickyHeader)
+            }
+
+            override fun teardownStickyHeaderView(stickyHeader: View) {
+                teardownCb?.invoke(stickyHeader)
             }
         }
         rv.addItemDecoration(StickyHeaderItemDecoration(callbacks))

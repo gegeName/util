@@ -4,8 +4,6 @@ import android.view.View
 
 /**
  * 描述某个 adapter position 是否应作为 sticky header 渲染。
- * 接口签名与 Airbnb Epoxy 的 `StickyHeaderCallbacks` 保持一致,便于未来切换实现。
- *
  * RvPage 内部由 [RvPageBuilder] 自动构造一个匿名实例,业务无需直接实现 —— 在 section 上声明
  * `stickyHeader = true` 即可。
  */
