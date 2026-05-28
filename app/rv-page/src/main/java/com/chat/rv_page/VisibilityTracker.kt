@@ -88,12 +88,14 @@ internal class VisibilityTracker(private val recyclerView: RecyclerView) {
                     state[vh] = TrackedState(localPos, nowVisible)
                     if (nowVisible) sub.dispatch(localPos, true)
                 }
+
                 prev.localPos != localPos -> {
                     if (prev.visible) sub.dispatch(prev.localPos, false)
                     prev.localPos = localPos
                     prev.visible = nowVisible
                     if (nowVisible) sub.dispatch(localPos, true)
                 }
+
                 prev.visible != nowVisible -> {
                     prev.visible = nowVisible
                     sub.dispatch(localPos, nowVisible)

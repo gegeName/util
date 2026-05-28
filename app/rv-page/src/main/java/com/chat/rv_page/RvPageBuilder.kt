@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import java.util.Objects
 
 /**
  * 页面级 DSL 入口。
@@ -60,7 +61,6 @@ import kotlinx.coroutines.withTimeoutOrNull
  * 约束:
  * - 一个页面最多 1 个 paging section(`pagingList` + `pagingMultiList` 加起来);违反时 [start] 抛错。
  * - section tag 在同一页面内唯一;不传则自动 `section_0` / `section_1` … 。
- * - 分页模式下用 [RvPageController.hideSection],需显式 [hideAuxOnPageState]`(false)`。
  */
 class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
 
@@ -70,15 +70,15 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
 
         /**
          * 由 [keyOf] 派生的 [DiffUtil.ItemCallback]:`areItemsTheSame = keyOf 相等`,
-         * `areContentsTheSame = item.equals`。
+         * `areContentsTheSame = Objects.equals`(业务侧 T 实现 `equals`,data class 默认满足)。
          */
         internal fun <T : Any> autoDiff(keyOf: (T) -> Any): DiffUtil.ItemCallback<T> =
             object : DiffUtil.ItemCallback<T>() {
                 override fun areItemsTheSame(oldItem: T, newItem: T): Boolean =
-                    keyOf(oldItem) == keyOf(newItem)
+                    Objects.equals(keyOf(oldItem), keyOf(newItem))
 
                 override fun areContentsTheSame(oldItem: T, newItem: T): Boolean =
-                    java.util.Objects.equals(oldItem, newItem)
+                    Objects.equals(oldItem, newItem)
             }
     }
 
@@ -167,7 +167,34 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
         val controller = if (pagingDefs.size == 1) buildWithPaging(rv) else buildStatic(rv)
         installVisibilityTracker(rv)
+        installStickyHeaders(rv)
         return controller
+    }
+
+    /**
+     * 任一 section 声明 sticky 谓词时挂 [StickyHeaderItemDecoration]:把全局 position 翻译成
+     * (section, localPos),用 section 自带的谓词逐项判定。
+     */
+    private fun installStickyHeaders(rv: RecyclerView) {
+        if (sectionDefs.none { it.isStickyHeaderAt != null }) return
+        val concat = rv.adapter as? ConcatAdapter ?: return
+        val callbacks = object : StickyHeaderCallbacks {
+            override fun isStickyHeader(position: Int): Boolean {
+                var offset = 0
+                for (a in concat.adapters) {
+                    val count = a.itemCount
+                    if (position < offset + count) {
+                        val def = sectionDefs.firstOrNull { it.concatAdapter === a }
+                            ?: return false
+                        val pred = def.isStickyHeaderAt ?: return false
+                        return pred(position - offset)
+                    }
+                    offset += count
+                }
+                return false
+            }
+        }
+        rv.addItemDecoration(StickyHeaderItemDecoration(callbacks))
     }
 
     private fun gatePagingFlow(
@@ -219,7 +246,11 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         if (subs.isEmpty()) return
         val tracker = VisibilityTracker(rv)
         subs.forEach { def ->
-            tracker.register(def.adapter, def.visibilityThresholdPercent, def.visibilityDispatch!!)
+            tracker.register(
+                def.concatAdapter,
+                def.visibilityThresholdPercent,
+                def.visibilityDispatch!!
+            )
         }
     }
 
@@ -233,7 +264,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
 
         val gatedFlow = gatePagingFlow(
             realFlow = pagingDef.flow,
-            staticAdapters = (headersDef + footersDef).map { it.adapter },
+            staticAdapters = (headersDef + footersDef).map { it.concatAdapter },
             timeoutMs = awaitStaticBeforePagingMs
         )
 
@@ -274,8 +305,8 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
         helper.hideAuxOnPageState(hideAuxOnPageState)
 
-        headersDef.forEach { helper.addHeader(it.adapter, spanFull = it.spanFull) }
-        footersDef.forEach { helper.addFooter(it.adapter, spanFull = it.spanFull) }
+        headersDef.forEach { helper.addHeader(it.concatAdapter, spanFull = it.spanFull) }
+        footersDef.forEach { helper.addFooter(it.concatAdapter, spanFull = it.spanFull) }
 
         val pagingController = helper.start()
         // 把 controller 绑回 PagingSectionHandle，业务通过 handle.controller 拿
@@ -283,7 +314,13 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         val concat = rv.adapter as ConcatAdapter
 
         val entries = sectionDefs.map {
-            RvPageController.SectionEntry(it.tag, it.adapter, it.spanFull, visible = true)
+            RvPageController.SectionEntry(
+                tag = it.tag,
+                adapter = it.adapter,
+                spanFull = it.spanFull,
+                visible = true,
+                concatEntry = it.concatAdapter
+            )
         }.toMutableList()
 
         return RvPageController(
@@ -299,7 +336,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     private fun buildStatic(rv: RecyclerView): RvPageController {
         val concat = ConcatAdapter(
             ConcatAdapter.Config.Builder().setIsolateViewTypes(true).build(),
-            *sectionDefs.map { it.adapter }.toTypedArray()
+            *sectionDefs.map { it.concatAdapter }.toTypedArray()
         )
         val lm = layoutManager ?: LinearLayoutManager(rv.context)
         rv.layoutManager = lm
@@ -310,7 +347,13 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
 
         val entries = sectionDefs.map {
-            RvPageController.SectionEntry(it.tag, it.adapter, it.spanFull, visible = true)
+            RvPageController.SectionEntry(
+                tag = it.tag,
+                adapter = it.adapter,
+                spanFull = it.spanFull,
+                visible = true,
+                concatEntry = it.concatAdapter
+            )
         }.toMutableList()
 
         pageStateHandler?.let { handler ->
@@ -360,7 +403,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         val spanCount = lm.spanCount
         val userLookup = lm.spanSizeLookup
         val defByAdapter: Map<RecyclerView.Adapter<*>, SectionDef> =
-            sectionDefs.associateBy { it.adapter }
+            sectionDefs.associateBy { it.concatAdapter }
         lm.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
                 var offset = 0
@@ -386,7 +429,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     }
 
     private fun configStaggered(rv: RecyclerView, concat: ConcatAdapter) {
-        val fullSpanAdapters = sectionDefs.filter { it.spanFull }.map { it.adapter }.toSet()
+        val fullSpanAdapters = sectionDefs.filter { it.spanFull }.map { it.concatAdapter }.toSet()
         if (fullSpanAdapters.isEmpty()) return
         rv.addOnChildAttachStateChangeListener(object :
             RecyclerView.OnChildAttachStateChangeListener {
@@ -436,11 +479,14 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                     adapter.currentData()?.let { d -> b(d, visible) }
                 }
             }
+            val stickyPred: ((Int) -> Boolean)? =
+                if (builder.stickyHeader) { pos -> pos == 0 } else null
             addInternal(
                 adapter, tag, builder.spanFull,
                 spanSizeFor = null,
                 visibilityThreshold = builder.visibilityThreshold,
-                visibilityDispatch = visDispatch
+                visibilityDispatch = visDispatch,
+                isStickyHeaderAt = stickyPred
             )
             return SingleSectionHandle(adapter)
         }
@@ -474,11 +520,22 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                     if (item != null) p(item, pos, total) else 1
                 }
             }
+            val stickyPredicate = builder.stickyHeaderPredicate
+            val stickyPred: ((Int) -> Boolean)? = when {
+                stickyPredicate != null -> { pos ->
+                    val item = adapter.getItemOrNull(pos)
+                    item != null && stickyPredicate(item, pos)
+                }
+
+                builder.stickyHeader -> { pos -> pos == 0 }
+                else -> null
+            }
             addInternal(
                 adapter, tag, builder.spanFull,
                 spanSizeFor = spanFor,
                 visibilityThreshold = builder.visibilityThreshold,
-                visibilityDispatch = visDispatch
+                visibilityDispatch = visDispatch,
+                isStickyHeaderAt = stickyPred
             )
             return ListSectionHandle(adapter)
         }
@@ -511,11 +568,22 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                     if (item != null) p(item, pos, total) else 1
                 }
             }
+            val stickyPredicate = builder.stickyHeaderPredicate
+            val stickyPred: ((Int) -> Boolean)? = when {
+                stickyPredicate != null -> { pos ->
+                    val item = adapter.getItemOrNull(pos)
+                    item != null && stickyPredicate(item, pos)
+                }
+
+                builder.stickyHeader -> { pos -> pos == 0 }
+                else -> null
+            }
             addInternal(
                 adapter, tag, builder.spanFull,
                 spanSizeFor = spanFor,
                 visibilityThreshold = builder.visibilityThreshold,
-                visibilityDispatch = visDispatch
+                visibilityDispatch = visDispatch,
+                isStickyHeaderAt = stickyPred
             )
             return MultiListSectionHandle(adapter)
         }
@@ -570,13 +638,17 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         private fun <T : Any> effectivePagingKeyOf(cfg: PagingCommonConfig<T>): ((T) -> Any)? =
             cfg.keyOf ?: cfg.patcher?.keyOf
 
-        /** 直接挂业务自家 Adapter。 */
+        /**
+         * 直接挂业务自家 Adapter。
+         * @param isStickyHeaderAt 谓词;null = 不参与 sticky;返回 true 的 localPos 会顶顶
+         */
         fun custom(
             tag: String? = null,
             adapter: RecyclerView.Adapter<*>,
-            spanFull: Boolean = true
+            spanFull: Boolean = true,
+            isStickyHeaderAt: ((localPos: Int) -> Boolean)? = null
         ): CustomSectionHandle {
-            addInternal(adapter, tag, spanFull)
+            addInternal(adapter, tag, spanFull, isStickyHeaderAt = isStickyHeaderAt)
             return CustomSectionHandle(adapter)
         }
 
@@ -627,12 +699,17 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
             spanFull: Boolean,
             spanSizeFor: ((localPos: Int, totalSpan: Int) -> Int)? = null,
             visibilityThreshold: Int = 50,
-            visibilityDispatch: ((localPos: Int, visible: Boolean) -> Unit)? = null
+            visibilityDispatch: ((localPos: Int, visible: Boolean) -> Unit)? = null,
+            isStickyHeaderAt: ((localPos: Int) -> Boolean)? = null
         ) {
             val def = SectionDef.Static(tag ?: nextTag(), adapter, spanFull)
+            @Suppress("UNCHECKED_CAST")
+            def.concatAdapter =
+                GatingAdapter(adapter as RecyclerView.Adapter<RecyclerView.ViewHolder>)
             def.spanSizeFor = spanSizeFor
             def.visibilityThresholdPercent = visibilityThreshold
             def.visibilityDispatch = visibilityDispatch
+            def.isStickyHeaderAt = isStickyHeaderAt
             defs.add(def)
         }
 
@@ -678,6 +755,17 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
                     if (item != null) spanProvider(item, pos, total) else 1
                 }
             }
+            val stickyPredicate = cfg.stickyHeaderPredicate
+            def.isStickyHeaderAt = when {
+                stickyPredicate != null -> { pos: Int ->
+                    @Suppress("UNCHECKED_CAST")
+                    val item = adapter.peek(pos) as T?
+                    item != null && stickyPredicate(item, pos)
+                }
+
+                cfg.stickyHeader -> { pos: Int -> pos == 0 }
+                else -> null
+            }
             defs.add(def)
         }
     }
@@ -695,6 +783,9 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     ) {
         var data: T? = null
         var spanFull: Boolean = true
+
+        /** 是否作为 sticky header(滚动时顶顶);需要业务在 builder.start 时启用 LinearLayoutManager。 */
+        var stickyHeader: Boolean = false
         private var onBind: ((VB, T) -> Unit)? = null
         private var onBindPayloads: ((VB, T, MutableList<Any>) -> Unit)? = null
         private var onViewHolderCreated: ((SingleItemBindingAdapter.VH<VB>, VB) -> Unit)? = null
@@ -797,6 +888,20 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     ) {
         var data: List<T> = emptyList()
         var spanFull: Boolean = true
+
+        /** true = section 首个 item 作为 sticky header(等价 `isStickyHeader { _, pos -> pos == 0 }`)。 */
+        var stickyHeader: Boolean = false
+
+        internal var stickyHeaderPredicate: ((item: T, localPos: Int) -> Boolean)? = null
+
+        /**
+         * 自定义 sticky header 判定:任意满足谓词的 item 在滚动时顶顶,适合"每个日期分组首条都吸顶"
+         * 这种场景。设了谓词后 [stickyHeader] 字段会被忽略。
+         */
+        fun isStickyHeader(predicate: (item: T, localPos: Int) -> Boolean) {
+            stickyHeaderPredicate = predicate
+        }
+
         internal var keyOfExtractor: ((T) -> Any)? = null
 
         /** 主键提取器,工厂未传 `diff` 时按 `keyOf` + `equals` 自动合成 diff。 */
@@ -940,6 +1045,17 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
     class MultiListBuilder<T : Any> internal constructor() {
         var data: List<T> = emptyList()
         var spanFull: Boolean = true
+
+        /** 详见 [ListBuilder.stickyHeader]。 */
+        var stickyHeader: Boolean = false
+
+        internal var stickyHeaderPredicate: ((item: T, localPos: Int) -> Boolean)? = null
+
+        /** 详见 [ListBuilder.isStickyHeader]。 */
+        fun isStickyHeader(predicate: (item: T, localPos: Int) -> Boolean) {
+            stickyHeaderPredicate = predicate
+        }
+
         internal var keyOfExtractor: ((T) -> Any)? = null
         private val typeRegistrations =
             mutableListOf<(BaseMultiListAdapter<T>) -> Unit>()
@@ -1073,6 +1189,17 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         var flow: Flow<PagingData<T>>? = null
         var spanFull: Boolean = true
         var chatMode: Boolean = false
+
+        /** 详见 [ListBuilder.stickyHeader]。 */
+        var stickyHeader: Boolean = false
+
+        internal var stickyHeaderPredicate: ((item: T, localPos: Int) -> Boolean)? = null
+
+        /** 详见 [ListBuilder.isStickyHeader]。 */
+        fun isStickyHeader(predicate: (item: T, localPos: Int) -> Boolean) {
+            stickyHeaderPredicate = predicate
+        }
+
         internal var keyOf: ((T) -> Any)? = null
         internal var onLoadError: ((Throwable) -> Unit)? = null
         internal var distinctErrorToast: Boolean = true
@@ -1369,7 +1496,7 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         }
     }
 
-    /** 内置横向滑动RecyclerView */
+    /** carousel section builder。 */
     class CarouselBuilder<T : Any, VB : ViewBinding> internal constructor(
         private val inflater: (LayoutInflater, ViewGroup, Boolean) -> VB
     ) {
@@ -1539,6 +1666,15 @@ class RvPageBuilder private constructor(private val owner: LifecycleOwner) {
         internal var spanSizeFor: ((localPos: Int, totalSpan: Int) -> Int)? = null
         internal var visibilityThresholdPercent: Int = 50
         internal var visibilityDispatch: ((localPos: Int, visible: Boolean) -> Unit)? = null
+
+        /** 真正装到 ConcatAdapter 的 adapter:static 用 [GatingAdapter] 包装 [adapter],paging 直接 = pagingAdapter。 */
+        internal var concatAdapter: RecyclerView.Adapter<*> = adapter
+
+        /**
+         * 该 section 内 [localPos] 是否作为 sticky header:`null` = section 完全不参与 sticky;
+         * 非空时按谓词逐项判定(简单 `stickyHeader=true` 等价 `{ pos -> pos == 0 }`)。
+         */
+        internal var isStickyHeaderAt: ((localPos: Int) -> Boolean)? = null
 
         class Static(tag: String, adapter: RecyclerView.Adapter<*>, spanFull: Boolean) :
             SectionDef(tag, adapter, spanFull)

@@ -12,7 +12,7 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         EffectLog.enabled = true
-        EffectManager.init(this, AppEffectPlayerFactory())
+        EffectManager.init(AppEffectPlayerFactory())
         EffectManager.enableAutoStage(this)
     }
 }

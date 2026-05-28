@@ -6,34 +6,30 @@ import com.chat.effect.IEffectPlayerFactory
 import com.chat.effect.gif.glide.GifEffectPlayer
 import com.chat.effect.mp4.vap.VapMp4EffectPlayer
 import com.chat.effect.svga.SvgaEffectPlayer
+import com.common.utils.effect.EffectChannel
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * 业务侧特效播放器工厂示例。给 [com.chat.effect.EffectManager.init] 注入。
+ * 业务侧特效播放器工厂。给 [com.common.utils.effect.EffectManager.init] 注入。
  *
- * 拆分后框架本身不再带任何 player 实现，业务方按引入了哪些子模块，自己组装 when 分支。
- * 这里只是 demo：同时引入了 effect-svga / effect-mp4-vap / effect-gif-glide 三个 lib。
+ * **按 (type, channel) 缓存 Player 实例**:
+ * - 同类型不同通道并发播放时,各通道需要独立的 Player 实例(view 不能共用)
+ * - 同通道同类型连续播放复用 Player 实例(Player 内部又会复用 view)
  *
- * 只用其中一种时，删掉对应分支与 import 即可。比如只用 SVGA：
- * ```
- * class MyFactory : IEffectPlayerFactory {
- *     private val svga by lazy { SvgaEffectPlayer() }
- *     override fun create(type: EffectType) = when (type) {
- *         EffectType.SVGA -> svga
- *         else -> throw IllegalStateException("unsupported $type")
- *     }
- * }
- * ```
+ * 例:`(SVGA, DEFAULT)` 和 `(SVGA, VIP)` 是两个独立 Player,各自挂自己的 SVGAImageView 到 stage。
  */
 class AppEffectPlayerFactory : IEffectPlayerFactory {
+    private val cache = ConcurrentHashMap<Pair<EffectType, EffectChannel>, IEffectPlayer>()
 
-    private val svga by lazy { SvgaEffectPlayer() }
-    private val mp4 by lazy { VapMp4EffectPlayer() }
-    private val gif by lazy { GifEffectPlayer() }
-
-    override fun create(type: EffectType): IEffectPlayer = when (type) {
-        EffectType.SVGA -> svga
-        EffectType.MP4 -> mp4
-        EffectType.GIF -> gif
-        else -> throw IllegalArgumentException("no player registered for type=${type.key}")
-    }
+    override fun create(type: EffectType, channel: EffectChannel): IEffectPlayer =
+        cache.getOrPut(type to channel) {
+            when (type) {
+                EffectType.SVGA -> SvgaEffectPlayer()
+                EffectType.MP4 -> VapMp4EffectPlayer()
+                EffectType.GIF -> GifEffectPlayer()
+                else -> throw IllegalArgumentException(
+                    "no player registered for type=${type.key} channel=${channel.key}"
+                )
+            }
+        }
 }

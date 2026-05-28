@@ -10,14 +10,14 @@ import androidx.recyclerview.widget.AsyncListDiffer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
-import com.chat.pagingutil.MultiTypeItem
+import com.chat.pagingutil.*
 
 /**
- * 多布局 **非分页** RecyclerView Adapter 基类（与 [com.chat.pagingutil.BaseMultiPagingAdapter] 对偶）。
+ * 多布局 **非分页** RecyclerView Adapter 基类（与 [BaseMultiPagingAdapter] 对偶）。
  *
  * **无反射版**：[addType] 多接一个 `inflate` 函数引用参数（如 `ItemTextBlockBinding::inflate`）。
  *
- * 派发方式与 [com.chat.pagingutil.BaseMultiPagingAdapter] 完全一致：
+ * 派发方式与 [BaseMultiPagingAdapter] 完全一致：
  *
  * 【方式 A】数据实现 [MultiTypeItem] 接口：
  * ```
@@ -47,7 +47,7 @@ import com.chat.pagingutil.MultiTypeItem
  * adapter.addType(isMine = { it is Block.Image }, inflate = ItemImageBinding::inflate) { b, item, _ -> ... }
  * ```
  *
- * 点击事件 + 节流 API 与 [com.chat.pagingutil.BasePagingAdapter] 一致。
+ * 点击事件 + 节流 API 与 [BasePagingAdapter] 一致。
  *
  * @param T item 类型
  * @param diff DiffUtil.ItemCallback
@@ -70,6 +70,7 @@ abstract class BaseMultiListAdapter<T : Any>(
 
     @PublishedApi
     internal val delegates = mutableListOf<TypeDelegate<T>>()
+
     @PublishedApi
     internal var nextAutoType: Int = 0
 
