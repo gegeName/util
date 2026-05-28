@@ -164,6 +164,7 @@ class GoodsDetailActivity : AppCompatActivity() {
                 // ④ 章节标题"商品详情"（静态文案 data 直接给）
                 single<String, ItemGdSectionTitleBinding>(ItemGdSectionTitleBinding::inflate) {
                     data = "商品详情"
+                    stickyHeader=true
                     onBind { b, t -> b.tvTitle.text = t }
                 }
 
@@ -189,6 +190,7 @@ class GoodsDetailActivity : AppCompatActivity() {
                 commentTitleSection = single<String, ItemGdSectionTitleBinding>(
                     ItemGdSectionTitleBinding::inflate
                 ) {
+                    stickyHeader=true
                     onBind { b, t -> b.tvTitle.text = t }
                 }
 

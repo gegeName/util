@@ -3,6 +3,7 @@ package com.chat.effect
 
 import android.app.Activity
 import android.app.Application
+import android.content.Context
 import android.os.Bundle
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -53,7 +54,8 @@ object EffectManager {
     /**
      * 注入工厂。应用启动时调用一次；重复调用会覆盖。
      */
-    fun init(factory: IEffectPlayerFactory) {
+    fun init(context: Context,factory: IEffectPlayerFactory) {
+        EffectIO.init(context)
         this.factory = factory
     }
 
