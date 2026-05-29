@@ -8,9 +8,6 @@
     <item
         android:width="48dp"
         android:height="48dp"
-        android:gravity="center">
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/picker_ic_audio" />
-    </item>
+        android:gravity="center"
+        android:drawable="@drawable/picker_ic_audio" />
 </layer-list>

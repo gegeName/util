@@ -2,6 +2,8 @@ package com.chat.picker.loader
 
 import android.content.res.Resources
 import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -14,6 +16,7 @@ internal object DefaultImageEngine : IImageEngine {
     private val pool = Executors.newFixedThreadPool(2)
     private val main = Handler(Looper.getMainLooper())
     private val originalToken = "default_engine_original_token".hashCode()
+    private val audioBgColor = Color.parseColor("#9E9E9E")
 
     private val maxOriginalSize: Int by lazy {
         val dm = Resources.getSystem().displayMetrics
@@ -24,24 +27,29 @@ internal object DefaultImageEngine : IImageEngine {
     override fun loadThumbnail(view: ImageView, item: MediaEntity) {
         when {
             item.isImage -> {
+                view.background = null
                 view.scaleType = ImageView.ScaleType.CENTER_CROP
                 ImageLoader.load(view, item.uri, isVideo = false, 360, 360)
             }
             item.isVideo -> {
+                view.background = null
                 view.scaleType = ImageView.ScaleType.CENTER_CROP
                 ImageLoader.load(view, item.uri, isVideo = true, 360, 360)
             }
             item.isAudio -> {
-                view.scaleType = ImageView.ScaleType.FIT_CENTER
-                view.setImageResource(com.chat.picker.R.drawable.picker_audio_placeholder)
+                view.background = ColorDrawable(audioBgColor)
+                view.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                view.setImageResource(com.chat.picker.R.drawable.picker_ic_audio)
                 item.albumArtUri?.let {
+                    view.background = null
                     view.scaleType = ImageView.ScaleType.CENTER_CROP
                     ImageLoader.load(view, it, isVideo = false, 360, 360)
                 }
             }
             else -> {
-                view.scaleType = ImageView.ScaleType.FIT_CENTER
-                view.setImageResource(com.chat.picker.R.drawable.picker_audio_placeholder)
+                view.background = ColorDrawable(audioBgColor)
+                view.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                view.setImageResource(com.chat.picker.R.drawable.picker_ic_audio)
             }
         }
     }

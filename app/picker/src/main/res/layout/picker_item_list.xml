@@ -8,6 +8,7 @@
     android:padding="8dp">
 
     <FrameLayout
+        android:background="#666666"
         android:layout_width="72dp"
         android:layout_height="72dp">
 
