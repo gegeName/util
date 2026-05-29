@@ -76,6 +76,10 @@ internal object PermissionHelper {
     private fun granted(ctx: Context, perm: String): Boolean =
         ContextCompat.checkSelfPermission(ctx, perm) == PackageManager.PERMISSION_GRANTED
 
+    /**
+     * 是否处于"部分授权"状态：仅 API 34+ 才会出现，
+     * API ≤ 33 不存在该概念，直接返回 false。
+     */
     fun isPartialAccess(ctx: Context, type: MediaType): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false
         if (type == MediaType.AUDIO) return false
@@ -88,7 +92,6 @@ internal object PermissionHelper {
         val videoFull = ContextCompat.checkSelfPermission(
             ctx, Manifest.permission.READ_MEDIA_VIDEO
         ) == PackageManager.PERMISSION_GRANTED
-        // 仅"部分授权"granted，完整权限未 granted
         return visualSelected && !imagesFull && !videoFull
     }
 }
