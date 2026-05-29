@@ -10,7 +10,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
 
 /** 适配全面屏：根布局延伸到 system bars 后面，顶/底 bar 单独承接 inset 高度 */
-internal object EdgeToEdge {
+object EdgeToEdge {
 
     /**
      * 启用 edge-to-edge 并把 system bars 的高度作为 padding 应用到顶/底 bar 上。
@@ -29,24 +29,19 @@ internal object EdgeToEdge {
         val window = activity.window
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        // 关键：把 system bars 背景设为透明，避免默认半透明遮罩在 toolbar 颜色之上 → "颜色分成"
-        // API 35+ 这两个属性已 no-op（系统强制透明），@Suppress 屏蔽 deprecation 警告
         @Suppress("DEPRECATION")
         window.statusBarColor = Color.TRANSPARENT
         @Suppress("DEPRECATION")
         window.navigationBarColor = Color.TRANSPARENT
-        // 部分老 ROM 在 navigationBar 上加分隔线，主动去掉
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             @Suppress("DEPRECATION")
             window.navigationBarDividerColor = Color.TRANSPARENT
         }
 
-        // 状态栏图标/字色：暗色 toolbar → 亮色 icons（false 即亮色）
         val controller = WindowCompat.getInsetsController(window, root)
         controller.isAppearanceLightStatusBars = lightStatusBarIcons
         controller.isAppearanceLightNavigationBars = false
 
-        // 记录每个 bar 初始 padding，避免重复叠加
         val topInitTop = topBar?.paddingTop ?: 0
         val topInitLeft = topBar?.paddingLeft ?: 0
         val topInitRight = topBar?.paddingRight ?: 0

@@ -344,7 +344,7 @@ internal class MediaPreviewAdapter
 
         fun release() {
             providerView?.let { v ->
-                MediaSelector.otherPreviewProvider()?.recycleView(v)
+                MediaSelector.otherPreviewProvider()?.onViewRecycled(v)
                 container.removeView(v)
             }
             providerView = null

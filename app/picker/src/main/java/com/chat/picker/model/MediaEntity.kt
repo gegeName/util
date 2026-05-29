@@ -8,11 +8,7 @@ data class MediaEntity(
     val id: Long,
     val uri: Uri,
     /**
-     * 真实文件路径（来自 MediaStore.MediaColumns.DATA）。
-     * - API ≤ 28：可直接读取
-     * - API 29+：scoped storage 下该列仍能取到，但用户进程可能无权直接 file IO；
-     *   优先使用 [uri] + ContentResolver。某些第三方压缩库仍需 file path，本字段保留方便对接
-     * - 系统 Photo Picker 返回的 Uri 拿不到该字段，会为 null
+     * 真实文件路径
      */
     val filePath: String?,
     val displayName: String,
