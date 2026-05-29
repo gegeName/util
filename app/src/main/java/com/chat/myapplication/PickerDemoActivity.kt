@@ -8,11 +8,11 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.chat.picker.api.MediaSelector
+import com.chat.picker.api.Picker
 import com.chat.picker.model.MediaEntity
 import com.chat.picker.model.MediaFilter
 import com.chat.picker.model.MediaType
 import java.io.File
-//package com.hifylive.myapplication
 class PickerDemoActivity : AppCompatActivity() {
 
     private lateinit var result: TextView
@@ -30,7 +30,7 @@ class PickerDemoActivity : AppCompatActivity() {
         lastPickedHint = findViewById(R.id.demo_last_picked_hint)
 
         findViewById<Button>(R.id.btn_pick_image).setOnClickListener {
-            MediaSelector.with(this)
+            Picker.with(this)
                 .type(MediaType.IMAGE)
                 .maxCount(9)
                 .grid(true)

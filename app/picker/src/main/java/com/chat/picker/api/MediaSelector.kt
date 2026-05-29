@@ -290,3 +290,5 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
         fun invalidateCache() = preloadCache.clear()
     }
 }
+
+typealias Picker = MediaSelector
