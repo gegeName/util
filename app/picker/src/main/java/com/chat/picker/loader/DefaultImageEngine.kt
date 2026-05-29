@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.widget.ImageView
+import com.chat.picker.model.MediaEntity
 import java.util.concurrent.Executors
 
 internal object DefaultImageEngine : IImageEngine {
@@ -18,6 +19,31 @@ internal object DefaultImageEngine : IImageEngine {
         val dm = Resources.getSystem().displayMetrics
         val longSide = maxOf(dm.widthPixels, dm.heightPixels)
         minOf(longSide, 2048).coerceAtLeast(720)
+    }
+
+    override fun loadThumbnail(view: ImageView, item: MediaEntity) {
+        when {
+            item.isImage -> {
+                view.scaleType = ImageView.ScaleType.CENTER_CROP
+                ImageLoader.load(view, item.uri, isVideo = false, 360, 360)
+            }
+            item.isVideo -> {
+                view.scaleType = ImageView.ScaleType.CENTER_CROP
+                ImageLoader.load(view, item.uri, isVideo = true, 360, 360)
+            }
+            item.isAudio -> {
+                view.scaleType = ImageView.ScaleType.FIT_CENTER
+                view.setImageResource(com.chat.picker.R.drawable.picker_audio_placeholder)
+                item.albumArtUri?.let {
+                    view.scaleType = ImageView.ScaleType.CENTER_CROP
+                    ImageLoader.load(view, it, isVideo = false, 360, 360)
+                }
+            }
+            else -> {
+                view.scaleType = ImageView.ScaleType.FIT_CENTER
+                view.setImageResource(com.chat.picker.R.drawable.picker_audio_placeholder)
+            }
+        }
     }
 
     override fun loadThumbnail(view: ImageView, uri: Uri, isVideo: Boolean) {

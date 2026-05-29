@@ -302,4 +302,4 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
     }
 }
 
-typealias Picker = MediaSelector
+typealias PickIt = MediaSelector

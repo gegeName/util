@@ -1,11 +1,16 @@
 package com.chat.picker.ui
 
+import android.media.MediaPlayer
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.MediaController
 import android.widget.ProgressBar
+import android.widget.SeekBar
+import android.widget.TextView
 import android.widget.VideoView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -21,6 +26,7 @@ internal class MediaPreviewAdapter
     companion object {
         private const val TYPE_IMAGE = 1
         private const val TYPE_VIDEO = 2
+        private const val TYPE_AUDIO = 3
 
         private val DIFF = object : DiffUtil.ItemCallback<MediaEntity>() {
             override fun areItemsTheSame(oldItem: MediaEntity, newItem: MediaEntity): Boolean =
@@ -31,15 +37,21 @@ internal class MediaPreviewAdapter
         }
     }
 
-    override fun getItemViewType(position: Int): Int =
-        if (getItem(position).isVideo) TYPE_VIDEO else TYPE_IMAGE
+    override fun getItemViewType(position: Int): Int {
+        val item = getItem(position)
+        return when {
+            item.isVideo -> TYPE_VIDEO
+            item.isAudio -> TYPE_AUDIO
+            else -> TYPE_IMAGE
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        return if (viewType == TYPE_VIDEO) {
-            VideoVH(inflater.inflate(R.layout.picker_page_video, parent, false))
-        } else {
-            ImageVH(inflater.inflate(R.layout.picker_page_image, parent, false))
+        return when (viewType) {
+            TYPE_VIDEO -> VideoVH(inflater.inflate(R.layout.picker_page_video, parent, false))
+            TYPE_AUDIO -> AudioVH(inflater.inflate(R.layout.picker_page_audio, parent, false))
+            else -> ImageVH(inflater.inflate(R.layout.picker_page_image, parent, false))
         }
     }
 
@@ -48,6 +60,7 @@ internal class MediaPreviewAdapter
         when (holder) {
             is ImageVH -> holder.bind(item)
             is VideoVH -> holder.bind(item)
+            is AudioVH -> holder.bind(item)
         }
     }
 
@@ -55,6 +68,7 @@ internal class MediaPreviewAdapter
         when (holder) {
             is VideoVH -> holder.release()
             is ImageVH -> holder.release()
+            is AudioVH -> holder.release()
         }
     }
 
@@ -101,16 +115,16 @@ internal class MediaPreviewAdapter
                 mp.setOnVideoSizeChangedListener { _, _, _ -> video.requestLayout() }
                 mp.setOnInfoListener { _, what, _ ->
                     when (what) {
-                        android.media.MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START -> {
+                        MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START -> {
                             loading.visibility = View.GONE
                             thumb.visibility = View.GONE
                         }
 
-                        android.media.MediaPlayer.MEDIA_INFO_BUFFERING_START -> {
+                        MediaPlayer.MEDIA_INFO_BUFFERING_START -> {
                             loading.visibility = View.VISIBLE
                         }
 
-                        android.media.MediaPlayer.MEDIA_INFO_BUFFERING_END -> {
+                        MediaPlayer.MEDIA_INFO_BUFFERING_END -> {
                             loading.visibility = View.GONE
                         }
                     }
@@ -149,6 +163,127 @@ internal class MediaPreviewAdapter
             video.setOnCompletionListener(null)
             thumb.setImageDrawable(null)
             controller = null
+        }
+    }
+
+    internal inner class AudioVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val cover: ImageView = v.findViewById(R.id.page_audio_cover)
+        private val title: TextView = v.findViewById(R.id.page_audio_title)
+        private val pos: TextView = v.findViewById(R.id.page_audio_pos)
+        private val dur: TextView = v.findViewById(R.id.page_audio_dur)
+        private val seek: SeekBar = v.findViewById(R.id.page_audio_seek)
+        private val play: ImageView = v.findViewById(R.id.page_audio_play)
+
+        private val handler = Handler(Looper.getMainLooper())
+        private var player: MediaPlayer? = null
+        private var prepared = false
+        private var seeking = false
+
+        init {
+            v.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+                override fun onViewAttachedToWindow(view: View) {}
+                override fun onViewDetachedFromWindow(view: View) {
+                    release()
+                }
+            })
+        }
+
+        private val ticker = object : Runnable {
+            override fun run() {
+                val mp = player ?: return
+                if (!seeking && prepared) {
+                    val cur = runCatching { mp.currentPosition }.getOrDefault(0)
+                    seek.progress = cur
+                    pos.text = format(cur.toLong())
+                }
+                handler.postDelayed(this, 250)
+            }
+        }
+
+        fun bind(item: MediaEntity) {
+            release()
+            title.text = item.displayName
+            pos.text = format(0)
+            dur.text = format(item.durationMs)
+            seek.progress = 0
+            seek.max = item.durationMs.coerceAtLeast(1).toInt()
+            play.setImageResource(R.drawable.picker_ic_play)
+
+            MediaSelector.imageEngine().loadThumbnail(cover, item)
+
+            val mp = MediaPlayer().also { player = it }
+            runCatching {
+                mp.setDataSource(itemView.context, item.uri)
+                mp.setOnPreparedListener {
+                    prepared = true
+                    seek.max = mp.duration.coerceAtLeast(1)
+                    dur.text = format(mp.duration.toLong())
+                }
+                mp.setOnCompletionListener {
+                    play.setImageResource(R.drawable.picker_ic_play)
+                    seek.progress = 0
+                    pos.text = format(0)
+                }
+                mp.setOnErrorListener { _, _, _ ->
+                    prepared = false
+                    true
+                }
+                mp.prepareAsync()
+            }
+
+            play.setOnClickListener { toggle() }
+            seek.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
+                    if (fromUser) pos.text = format(p.toLong())
+                }
+
+                override fun onStartTrackingTouch(sb: SeekBar) {
+                    seeking = true
+                }
+
+                override fun onStopTrackingTouch(sb: SeekBar) {
+                    seeking = false
+                    if (prepared) runCatching { player?.seekTo(sb.progress) }
+                }
+            })
+            handler.removeCallbacks(ticker)
+            handler.post(ticker)
+        }
+
+        fun pauseIfPlaying() {
+            val mp = player ?: return
+            if (prepared && mp.isPlaying) {
+                runCatching { mp.pause() }
+                play.setImageResource(R.drawable.picker_ic_play)
+            }
+        }
+
+        private fun toggle() {
+            val mp = player ?: return
+            if (!prepared) return
+            if (mp.isPlaying) {
+                mp.pause()
+                play.setImageResource(R.drawable.picker_ic_play)
+            } else {
+                mp.start()
+                play.setImageResource(R.drawable.picker_ic_pause)
+            }
+        }
+
+        fun release() {
+            handler.removeCallbacks(ticker)
+            prepared = false
+            seeking = false
+            runCatching { player?.stop() }
+            runCatching { player?.release() }
+            player = null
+            play.setImageResource(R.drawable.picker_ic_play)
+            cover.setImageDrawable(null)
+        }
+
+        private fun format(ms: Long): String {
+            val s = (ms / 1000).coerceAtLeast(0)
+            return String.format("%02d:%02d", s / 60, s % 60)
         }
     }
 }

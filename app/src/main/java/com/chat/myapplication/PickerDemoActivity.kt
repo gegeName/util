@@ -8,7 +8,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.chat.picker.api.MediaSelector
-import com.chat.picker.api.Picker
+import com.chat.picker.api.PickIt
 import com.chat.picker.model.MediaEntity
 import com.chat.picker.model.MediaFilter
 import com.chat.picker.model.MediaType
@@ -30,7 +30,7 @@ class PickerDemoActivity : AppCompatActivity() {
         lastPickedHint = findViewById(R.id.demo_last_picked_hint)
 
         findViewById<Button>(R.id.btn_pick_image).setOnClickListener {
-            Picker.with(this)
+            PickIt.with(this)
                 .type(MediaType.IMAGE)
                 .maxCount(9)
                 .grid(true)
@@ -38,7 +38,7 @@ class PickerDemoActivity : AppCompatActivity() {
                 .start { render(it) }
         }
         findViewById<Button>(R.id.btn_pick_video).setOnClickListener {
-            MediaSelector.with(this)
+            PickIt.with(this)
                 .type(MediaType.VIDEO)
                 .maxCount(3)
                 .grid(true)
@@ -46,7 +46,7 @@ class PickerDemoActivity : AppCompatActivity() {
                 .start { render(it) }
         }
         findViewById<Button>(R.id.btn_pick_audio).setOnClickListener {
-            MediaSelector.with(this)
+            PickIt.with(this)
                 .type(MediaType.AUDIO)
                 .maxCount(5)
                 .grid(false)
@@ -56,14 +56,14 @@ class PickerDemoActivity : AppCompatActivity() {
             val filter = MediaFilter.Builder(MediaType.ALL)
                 .addMimeType("image/png", "video/mp4")
                 .build()
-            MediaSelector.with(this)
+            PickIt.with(this)
                 .filter(filter)
                 .maxCount(6)
                 .grid(true)
                 .start { render(it) }
         }
         findViewById<Button>(R.id.btn_pick_all).setOnClickListener {
-            MediaSelector.with(this)
+            PickIt.with(this)
                 .type(MediaType.ALL)
                 .maxCount(9)
                 .grid(true)
@@ -74,7 +74,7 @@ class PickerDemoActivity : AppCompatActivity() {
 
         // 1) 独立拍照：不进 picker，直接调起系统相机返回路径
         findViewById<Button>(R.id.btn_take_photo).setOnClickListener {
-            MediaSelector.takePhoto(this) { success, filePath, uri ->
+            PickIt.takePhoto(this) { success, filePath, uri ->
                 if (!success) {
                     result.text = "拍照取消或失败"
                     preview.visibility = ImageView.GONE
@@ -93,7 +93,7 @@ class PickerDemoActivity : AppCompatActivity() {
 
         // 2) 选图列表首位带"相机入口"item：用户可在 picker 内直接拍照并自动选中
         findViewById<Button>(R.id.btn_pick_with_camera).setOnClickListener {
-            MediaSelector.with(this)
+            PickIt.with(this)
                 .type(MediaType.IMAGE)
                 .maxCount(9)
                 .grid(true)
@@ -108,7 +108,7 @@ class PickerDemoActivity : AppCompatActivity() {
                 Toast.makeText(this, "请先选一次图片", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            MediaSelector.with(this)
+            PickIt.with(this)
                 .type(MediaType.IMAGE)
                 .maxCount(9)
                 .grid(true)

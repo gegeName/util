@@ -83,7 +83,6 @@ internal class MediaListAdapter(
         payloads: MutableList<Any>,
     ) {
         if (holder is CameraVH) {
-            // 相机 item 无角标
             return
         }
         if (payloads.contains(PAYLOAD_CHECK)) {
@@ -100,7 +99,6 @@ internal class MediaListAdapter(
     fun notifySelectionChanged(changed: Collection<MediaEntity>) {
         if (changed.isEmpty()) return
         val list = currentList
-        // 用 id+mediaType 联合 key 建立反向索引，避免 O(N*M)
         val indexMap = HashMap<Long, Int>(list.size)
         for ((i, e) in list.withIndex()) {
             indexMap[itemKey(e)] = i
@@ -126,7 +124,6 @@ internal class MediaListAdapter(
         private val mask: View = v.findViewById(R.id.item_mask)
 
         init {
-            // 监听只设一次，闭包内实时取 position/item，避免 diff 后漂移
             itemView.setOnClickListener {
                 val pos = bindingAdapterPosition
                 if (pos != RecyclerView.NO_POSITION) onItemClick(pos, getItem(pos))
@@ -138,7 +135,7 @@ internal class MediaListAdapter(
         }
 
         fun bindFull(item: MediaEntity, position: Int) {
-            MediaSelector.imageEngine().loadThumbnail(thumb, item.uri, item.isVideo)
+            MediaSelector.imageEngine().loadThumbnail(thumb, item)
             if (item.isVideo && item.durationMs > 0) {
                 duration.visibility = View.VISIBLE
                 duration.text = formatDuration(item.durationMs)
@@ -182,7 +179,7 @@ internal class MediaListAdapter(
         }
 
         fun bindFull(item: MediaEntity, position: Int) {
-            MediaSelector.imageEngine().loadThumbnail(thumb, item.uri, item.isVideo)
+            MediaSelector.imageEngine().loadThumbnail(thumb, item)
             name.text = item.displayName
             info.text = buildString {
                 append(formatSize(item.sizeBytes))

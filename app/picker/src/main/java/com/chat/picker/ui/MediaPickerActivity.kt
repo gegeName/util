@@ -31,15 +31,14 @@ class MediaPickerActivity : AppCompatActivity() {
     private var isGrid: Boolean = true
     private var adapter: MediaListAdapter? = null
 
-    // ===== 分页状态 =====
     private val pageSize: Int = MediaSelector.PAGE_SIZE
-    private var currentOffset: Int = 0           // 累加：已请求过的总条数（含被去重的）
+    private var currentOffset: Int = 0
     private var hasMore: Boolean = true
     private var isLoadingPage: Boolean = false
-    private var lastTriggerAt: Long = 0L         // 节流：避免高频 onScrolled 反复进入判断
+    private var lastTriggerAt: Long = 0L
     private val triggerCooldownMs = 200L
-    private val loadedKeys = HashSet<Long>()     // id<<4|mediaType.ordinal 去重 key
-    private val prefetchThreshold = 10           // 距底部 N 个时预加载下一页
+    private val loadedKeys = HashSet<Long>()
+    private val prefetchThreshold = 10
 
     private fun keyOf(e: MediaEntity): Long =
         (e.id shl 4) or (e.mediaType.ordinal.toLong() and 0xF)
@@ -72,7 +71,6 @@ class MediaPickerActivity : AppCompatActivity() {
         }
     }
 
-    // ===== 拍照 =====
     private var pendingCamera: com.chat.picker.camera.CameraHelper.Pending? = null
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()

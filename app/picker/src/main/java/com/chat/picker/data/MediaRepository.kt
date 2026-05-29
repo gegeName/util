@@ -60,6 +60,7 @@ object MediaRepository {
             val durIdx = c.optionalIndex(MediaStore.MediaColumns.DURATION)
             val wIdx = c.optionalIndex(MediaStore.MediaColumns.WIDTH)
             val hIdx = c.optionalIndex(MediaStore.MediaColumns.HEIGHT)
+            val albumIdx = c.optionalIndex(MediaStore.Audio.AudioColumns.ALBUM_ID)
 
             while (c.moveToNext()) {
                 val id = c.getLong(idIdx)
@@ -84,6 +85,7 @@ object MediaRepository {
                     width = if (wIdx >= 0) c.getInt(wIdx) else 0,
                     height = if (hIdx >= 0) c.getInt(hIdx) else 0,
                     mediaType = resolvedType,
+                    albumId = if (albumIdx >= 0 && resolvedType == MediaType.AUDIO) c.getLong(albumIdx) else 0L,
                 )
             }
         }
@@ -142,6 +144,9 @@ object MediaRepository {
         ) {
             base += MediaStore.MediaColumns.WIDTH
             base += MediaStore.MediaColumns.HEIGHT
+        }
+        if (type == MediaType.AUDIO || type == MediaType.ALL) {
+            base += MediaStore.Audio.AudioColumns.ALBUM_ID
         }
         return base.toTypedArray()
     }

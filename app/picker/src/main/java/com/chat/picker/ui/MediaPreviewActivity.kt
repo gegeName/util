@@ -53,7 +53,10 @@ class MediaPreviewActivity : AppCompatActivity() {
             pager.setCurrentItem(startIndex, false)
         }
         pager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) { refreshFor(position) }
+            override fun onPageSelected(position: Int) {
+                pauseAllAudioExcept(position)
+                refreshFor(position)
+            }
         })
 
         findViewById<TextView>(R.id.preview_back).setOnClickListener { finish() }
@@ -89,6 +92,20 @@ class MediaPreviewActivity : AppCompatActivity() {
             check.setBackgroundResource(R.drawable.picker_check_unselected)
         }
         confirm.text = getString(R.string.picker_done_count, Selection.selected.size, maxCount)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        pauseAllAudioExcept(-1)
+    }
+
+    private fun pauseAllAudioExcept(currentPosition: Int) {
+        val rv = (pager.getChildAt(0) as? androidx.recyclerview.widget.RecyclerView) ?: return
+        for (i in 0 until rv.childCount) {
+            val child = rv.getChildAt(i)
+            val holder = rv.getChildViewHolder(child) as? MediaPreviewAdapter.AudioVH ?: continue
+            if (holder.bindingAdapterPosition != currentPosition) holder.pauseIfPlaying()
+        }
     }
 
     override fun finish() {
