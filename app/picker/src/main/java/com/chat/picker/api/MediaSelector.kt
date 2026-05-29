@@ -123,7 +123,6 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
 
         fun invalidateCache() = MediaSelectorInternal.invalidateCache()
 
-        // ===== 以下接口保持 internal，供库内 UI 模块按需访问 =====
 
         internal val pendingConfig: SelectionConfig?
             get() = MediaSelectorInternal.pendingConfig
