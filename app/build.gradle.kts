@@ -52,6 +52,7 @@ dependencies {
     implementation(project(":app:effect-svga"))
     implementation(project(":app:effect-mp4-vap"))
     implementation(project(":app:effect-gif-glide"))
+    implementation(project(":app:picker"))
     implementation("com.squareup.okhttp3:okhttp:5.3.2")
     implementation("com.github.bumptech.glide:glide:5.0.5")
     implementation(libs.androidx.activity.ktx)

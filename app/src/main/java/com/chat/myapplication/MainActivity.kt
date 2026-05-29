@@ -77,6 +77,9 @@ class MainActivity : AppCompatActivity() {
         binding.btnRvPageActivity.setOnClickListener {
             startActivity(Intent(this@MainActivity, GoodsDetailActivity::class.java))
         }
+        binding.btnPickerActivity.setOnClickListener {
+            startActivity(Intent(this@MainActivity, PickerDemoActivity::class.java))
+        }
         val bannerAdapter = BannerHeaderAdapter().apply {
             submit(BannerData("头部 Banner（addHeader）", "下拉刷新会触发 onHeaderRefresh 更新"))
             setOnItemClickListener(throttleMs = 600) { _, data ->

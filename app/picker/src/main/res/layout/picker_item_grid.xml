@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.chat.picker.ui.SquareFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="2dp">
+
+    <ImageView
+        android:id="@+id/item_thumb"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#EEEEEE"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/item_duration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="4dp"
+        android:background="#80000000"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp"
+        android:text="00:00"
+        android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        android:visibility="gone" />
+
+    <FrameLayout
+        android:id="@+id/item_check_box"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_gravity="top|end">
+
+        <TextView
+            android:id="@+id/item_check"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:background="@drawable/picker_check_unselected"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <View
+        android:id="@+id/item_mask"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#66000000"
+        android:visibility="gone" />
+</com.chat.picker.ui.SquareFrameLayout>

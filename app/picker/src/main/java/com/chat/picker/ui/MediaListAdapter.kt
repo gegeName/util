@@ -1,0 +1,242 @@
+package com.chat.picker.ui
+
+import android.annotation.SuppressLint
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.chat.picker.R
+import com.chat.picker.api.MediaSelector
+import com.chat.picker.model.MediaEntity
+
+internal class MediaListAdapter(
+    private val isGrid: Boolean,
+    private val onItemClick: (Int, MediaEntity) -> Unit,
+    private val onCheckClick: (Int, MediaEntity) -> Unit,
+    private val onCameraClick: () -> Unit = {},
+) : ListAdapter<MediaEntity, RecyclerView.ViewHolder>(DIFF) {
+
+    companion object {
+        /** payload：仅刷新选中态（不重载图片，避免闪烁） */
+        const val PAYLOAD_CHECK = "payload_check"
+
+        // ViewType
+        private const val TYPE_CAMERA = 1
+        private const val TYPE_NORMAL = 0
+
+        /** 列表首位的"相机入口"占位 entity（id=-1 + mimeType 空 唯一识别） */
+        val CAMERA_ENTRY = MediaEntity(
+            id = -1L,
+            uri = android.net.Uri.EMPTY,
+            filePath = null,
+            displayName = "",
+            mimeType = "",
+            sizeBytes = 0,
+            durationMs = 0,
+            dateAddedSec = 0,
+            width = 0,
+            height = 0,
+            mediaType = com.chat.picker.model.MediaType.ALL,
+        )
+
+        fun isCameraEntry(item: MediaEntity): Boolean = item.id == -1L && item.mimeType.isEmpty()
+
+        private val DIFF = object : DiffUtil.ItemCallback<MediaEntity>() {
+            override fun areItemsTheSame(o: MediaEntity, n: MediaEntity): Boolean =
+                o.id == n.id && o.mediaType == n.mediaType
+
+            override fun areContentsTheSame(o: MediaEntity, n: MediaEntity): Boolean = o == n
+        }
+    }
+
+    override fun getItemViewType(position: Int): Int =
+        if (isCameraEntry(getItem(position))) TYPE_CAMERA else TYPE_NORMAL
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        val inflater = LayoutInflater.from(parent.context)
+        if (viewType == TYPE_CAMERA) {
+            return CameraVH(inflater.inflate(R.layout.picker_item_camera, parent, false))
+        }
+        val layout = if (isGrid) R.layout.picker_item_grid else R.layout.picker_item_list
+        val v = inflater.inflate(layout, parent, false)
+        return if (isGrid) GridVH(v) else ListVH(v)
+    }
+
+    override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
+        // 解除 ImageView 对位图的强引用，避免与 LruCache 形成双重持有
+        holder.itemView.findViewById<ImageView>(R.id.item_thumb)?.setImageDrawable(null)
+    }
+
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        val item = getItem(position)
+        when (holder) {
+            is CameraVH -> { /* 静态布局，无需绑定 */ }
+            is GridVH -> holder.bindFull(item, position)
+            is ListVH -> holder.bindFull(item, position)
+        }
+    }
+
+    /** 局部刷新：仅当 payload 含 PAYLOAD_CHECK 时只更新角标，跳过图片加载 */
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: MutableList<Any>,
+    ) {
+        if (holder is CameraVH) {
+            // 相机 item 无角标
+            return
+        }
+        if (payloads.contains(PAYLOAD_CHECK)) {
+            val item = getItem(position)
+            when (holder) {
+                is GridVH -> holder.bindCheckOnly(item)
+                is ListVH -> holder.bindCheckOnly(item)
+            }
+            return
+        }
+        super.onBindViewHolder(holder, position, payloads)
+    }
+
+    /** 精确刷新：仅刷新角标真正变化的 item，不重绑图片 */
+    fun notifySelectionChanged(changed: Collection<MediaEntity>) {
+        if (changed.isEmpty()) return
+        val list = currentList
+        // 用 id+mediaType 联合 key 建立反向索引，避免 O(N*M)
+        val indexMap = HashMap<Long, Int>(list.size)
+        for ((i, e) in list.withIndex()) {
+            indexMap[itemKey(e)] = i
+        }
+        for (e in changed) {
+            val pos = indexMap[itemKey(e)] ?: continue
+            notifyItemChanged(pos, PAYLOAD_CHECK)
+        }
+    }
+
+    /** 从预览页返回：选中集合可能整体变了，但无法精确知道；回退到全量带 payload 刷新 */
+    fun notifySelectionChangedAll() {
+        if (itemCount > 0) notifyItemRangeChanged(0, itemCount, PAYLOAD_CHECK)
+    }
+
+    private fun itemKey(e: MediaEntity): Long =
+        (e.id shl 4) or (e.mediaType.ordinal.toLong() and 0xF)
+
+    private inner class GridVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val thumb: ImageView = v.findViewById(R.id.item_thumb)
+        private val duration: TextView = v.findViewById(R.id.item_duration)
+        private val check: TextView = v.findViewById(R.id.item_check)
+        private val checkBox: View = v.findViewById(R.id.item_check_box)
+        private val mask: View = v.findViewById(R.id.item_mask)
+
+        init {
+            // 监听只设一次，闭包内实时取 position/item，避免 diff 后漂移
+            itemView.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onItemClick(pos, getItem(pos))
+            }
+            checkBox.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onCheckClick(pos, getItem(pos))
+            }
+        }
+
+        fun bindFull(item: MediaEntity, position: Int) {
+            MediaSelector.imageEngine().loadThumbnail(thumb, item.uri, item.isVideo)
+            if (item.isVideo && item.durationMs > 0) {
+                duration.visibility = View.VISIBLE
+                duration.text = formatDuration(item.durationMs)
+            } else duration.visibility = View.GONE
+
+            applyCheckState(item)
+        }
+
+        fun bindCheckOnly(item: MediaEntity) = applyCheckState(item)
+
+        private fun applyCheckState(item: MediaEntity) {
+            val idx = Selection.indexOf(item)
+            if (idx > 0) {
+                check.text = idx.toString()
+                check.setBackgroundResource(R.drawable.picker_check_selected)
+                mask.visibility = View.VISIBLE
+            } else {
+                check.text = ""
+                check.setBackgroundResource(R.drawable.picker_check_unselected)
+                mask.visibility = View.GONE
+            }
+        }
+    }
+
+    private inner class ListVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val thumb: ImageView = v.findViewById(R.id.item_thumb)
+        private val duration: TextView = v.findViewById(R.id.item_duration)
+        private val name: TextView = v.findViewById(R.id.item_name)
+        private val info: TextView = v.findViewById(R.id.item_info)
+        private val check: TextView = v.findViewById(R.id.item_check)
+
+        init {
+            itemView.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onItemClick(pos, getItem(pos))
+            }
+            check.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onCheckClick(pos, getItem(pos))
+            }
+        }
+
+        fun bindFull(item: MediaEntity, position: Int) {
+            MediaSelector.imageEngine().loadThumbnail(thumb, item.uri, item.isVideo)
+            name.text = item.displayName
+            info.text = buildString {
+                append(formatSize(item.sizeBytes))
+                if (item.durationMs > 0) append("  ").append(formatDuration(item.durationMs))
+            }
+            if (item.isVideo && item.durationMs > 0) {
+                duration.visibility = View.VISIBLE
+                duration.text = formatDuration(item.durationMs)
+            } else duration.visibility = View.GONE
+
+            applyCheckState(item)
+        }
+
+        fun bindCheckOnly(item: MediaEntity) = applyCheckState(item)
+
+        private fun applyCheckState(item: MediaEntity) {
+            val idx = Selection.indexOf(item)
+            if (idx > 0) {
+                check.text = idx.toString()
+                check.setBackgroundResource(R.drawable.picker_check_selected)
+            } else {
+                check.text = ""
+                check.setBackgroundResource(R.drawable.picker_check_unselected)
+            }
+        }
+    }
+
+    private inner class CameraVH(v: View) : RecyclerView.ViewHolder(v) {
+        init {
+            v.setOnClickListener {
+                val pos = bindingAdapterPosition
+                if (pos != RecyclerView.NO_POSITION) onCameraClick()
+            }
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
+    private fun formatDuration(ms: Long): String {
+        val s = ms / 1000
+        return String.format("%02d:%02d", s / 60, s % 60)
+    }
+
+    @SuppressLint("DefaultLocale")
+    private fun formatSize(bytes: Long): String {
+        if (bytes < 1024) return "$bytes B"
+        val kb = bytes / 1024.0
+        if (kb < 1024) return String.format("%.1f KB", kb)
+        val mb = kb / 1024.0
+        return String.format("%.1f MB", mb)
+    }
+}
