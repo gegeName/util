@@ -27,6 +27,7 @@ internal class MediaPreviewAdapter
         private const val TYPE_IMAGE = 1
         private const val TYPE_VIDEO = 2
         private const val TYPE_AUDIO = 3
+        private const val TYPE_OTHER = 4
 
         private val DIFF = object : DiffUtil.ItemCallback<MediaEntity>() {
             override fun areItemsTheSame(oldItem: MediaEntity, newItem: MediaEntity): Boolean =
@@ -42,7 +43,8 @@ internal class MediaPreviewAdapter
         return when {
             item.isVideo -> TYPE_VIDEO
             item.isAudio -> TYPE_AUDIO
-            else -> TYPE_IMAGE
+            item.isImage -> TYPE_IMAGE
+            else -> TYPE_OTHER
         }
     }
 
@@ -51,6 +53,7 @@ internal class MediaPreviewAdapter
         return when (viewType) {
             TYPE_VIDEO -> VideoVH(inflater.inflate(R.layout.picker_page_video, parent, false))
             TYPE_AUDIO -> AudioVH(inflater.inflate(R.layout.picker_page_audio, parent, false))
+            TYPE_OTHER -> OtherVH(parent)
             else -> ImageVH(inflater.inflate(R.layout.picker_page_image, parent, false))
         }
     }
@@ -61,6 +64,7 @@ internal class MediaPreviewAdapter
             is ImageVH -> holder.bind(item)
             is VideoVH -> holder.bind(item)
             is AudioVH -> holder.bind(item)
+            is OtherVH -> holder.bind(item)
         }
     }
 
@@ -69,6 +73,7 @@ internal class MediaPreviewAdapter
             is VideoVH -> holder.release()
             is ImageVH -> holder.release()
             is AudioVH -> holder.release()
+            is OtherVH -> holder.release()
         }
     }
 
@@ -284,6 +289,65 @@ internal class MediaPreviewAdapter
         private fun format(ms: Long): String {
             val s = (ms / 1000).coerceAtLeast(0)
             return String.format("%02d:%02d", s / 60, s % 60)
+        }
+    }
+
+    /**
+     * 其他文件类型的容器：把 [com.chat.picker.preview.IOtherPreviewProvider] 注入的 View 放进 FrameLayout
+     * 当作 holder 根。未注册 provider 时显示一个最小信息态（文件名 + mime + 大小），不至于黑屏。
+     */
+    private inner class OtherVH(parent: ViewGroup) : RecyclerView.ViewHolder(android.widget.FrameLayout(parent.context).apply {
+        layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
+        )
+        setBackgroundColor(android.graphics.Color.parseColor("#1A1A1A"))
+    }) {
+        private val container: android.widget.FrameLayout = itemView as android.widget.FrameLayout
+        private var providerView: View? = null
+
+        fun bind(item: MediaEntity) {
+            release()
+            val provider = MediaSelector.otherPreviewProvider()
+            if (provider != null) {
+                val v = provider.createView(container)
+                providerView = v
+                container.addView(
+                    v,
+                    android.widget.FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    ),
+                )
+                provider.bindView(v, item)
+            } else {
+                val tv = TextView(container.context).apply {
+                    gravity = android.view.Gravity.CENTER
+                    setTextColor(android.graphics.Color.WHITE)
+                    textSize = 14f
+                    setPadding(48, 48, 48, 48)
+                    text = buildString {
+                        append(item.displayName).append('\n')
+                        append(item.mimeType).append('\n')
+                        append(item.sizeBytes).append(" bytes")
+                    }
+                }
+                providerView = tv
+                container.addView(
+                    tv,
+                    android.widget.FrameLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    ),
+                )
+            }
+        }
+
+        fun release() {
+            providerView?.let { v ->
+                MediaSelector.otherPreviewProvider()?.recycleView(v)
+                container.removeView(v)
+            }
+            providerView = null
         }
     }
 }
