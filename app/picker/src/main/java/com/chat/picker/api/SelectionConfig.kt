@@ -25,6 +25,13 @@ class SelectionConfig {
      * 数量应不超过 [maxCount]。
      */
     var preSelected: List<com.chat.picker.model.MediaEntity> = emptyList()
+
+    /**
+     * 首次加载是否显示 loading 弹窗。
+     * 默认 false：本地 MediaStore 通常 < 100ms 就返回，弹窗会一闪而过反而扰人；
+     * 仅当列表项数量极大或自定义查询慢时打开。
+     */
+    var showFirstLoading: Boolean = false
 }
 
 fun interface OnPickResultListener {

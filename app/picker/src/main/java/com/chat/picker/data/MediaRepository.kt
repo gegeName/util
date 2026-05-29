@@ -145,7 +145,8 @@ object MediaRepository {
             base += MediaStore.MediaColumns.WIDTH
             base += MediaStore.MediaColumns.HEIGHT
         }
-        if (type == MediaType.AUDIO || type == MediaType.ALL) {
+
+        if (type == MediaType.AUDIO) {
             base += MediaStore.Audio.AudioColumns.ALBUM_ID
         }
         return base.toTypedArray()

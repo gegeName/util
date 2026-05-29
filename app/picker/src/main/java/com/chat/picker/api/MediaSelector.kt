@@ -60,6 +60,12 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
     /** 传入已选过的项；打开 picker 时自动复选（按 id+mediaType 匹配） */
     fun preSelected(list: List<MediaEntity>) = apply { cfg.preSelected = list }
 
+    /**
+     * 首次加载是否显示 loading 弹窗，默认 false。
+     * 本地 MediaStore 查询通常很快，弹窗"一闪而过"体验差；当库较大或自定义筛选耗时时打开。
+     */
+    fun showFirstLoading(enable: Boolean) = apply { cfg.showFirstLoading = enable }
+
     fun start(listener: OnPickResultListener) {
         if (shouldUseSystemPicker()) {
             MediaSelectorInternal.launchSystemPicker(activity, cfg, listener)

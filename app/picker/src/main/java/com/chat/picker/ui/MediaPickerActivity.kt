@@ -302,7 +302,7 @@ class MediaPickerActivity : AppCompatActivity() {
             return
         }
 
-        showLoading(getString(com.chat.picker.R.string.picker_loading_files))
+        showLoading(getString(com.chat.picker.R.string.picker_loading_files), firstLoad = true)
         loadPageInternal(isCanonical, isFirstPage = true)
     }
 
@@ -348,8 +348,9 @@ class MediaPickerActivity : AppCompatActivity() {
         updateConfirmButton()
     }
 
-    private fun showLoading(text: String) {
+    private fun showLoading(text: String, firstLoad: Boolean = false) {
         if (isFinishing || isDestroyed) return
+        if (firstLoad && !config.showFirstLoading) return
         val dlg = loadingDialog ?: LoadingDialog(this).also { loadingDialog = it }
         dlg.setText(text)
         if (!dlg.isShowing) dlg.show()
