@@ -21,14 +21,12 @@ internal class MediaListAdapter(
 ) : ListAdapter<MediaEntity, RecyclerView.ViewHolder>(DIFF) {
 
     companion object {
-        /** payload：仅刷新选中态（不重载图片，避免闪烁） */
         const val PAYLOAD_CHECK = "payload_check"
 
         // ViewType
         private const val TYPE_CAMERA = 1
         private const val TYPE_NORMAL = 0
 
-        /** 列表首位的"相机入口"占位 entity（id=-1 + mimeType 空 唯一识别） */
         val CAMERA_ENTRY = MediaEntity(
             id = -1L,
             uri = android.net.Uri.EMPTY,
@@ -67,20 +65,18 @@ internal class MediaListAdapter(
     }
 
     override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
-        // 解除 ImageView 对位图的强引用，避免与 LruCache 形成双重持有
         holder.itemView.findViewById<ImageView>(R.id.item_thumb)?.setImageDrawable(null)
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val item = getItem(position)
         when (holder) {
-            is CameraVH -> { /* 静态布局，无需绑定 */ }
+            is CameraVH -> { }
             is GridVH -> holder.bindFull(item, position)
             is ListVH -> holder.bindFull(item, position)
         }
     }
 
-    /** 局部刷新：仅当 payload 含 PAYLOAD_CHECK 时只更新角标，跳过图片加载 */
     override fun onBindViewHolder(
         holder: RecyclerView.ViewHolder,
         position: Int,
@@ -101,7 +97,6 @@ internal class MediaListAdapter(
         super.onBindViewHolder(holder, position, payloads)
     }
 
-    /** 精确刷新：仅刷新角标真正变化的 item，不重绑图片 */
     fun notifySelectionChanged(changed: Collection<MediaEntity>) {
         if (changed.isEmpty()) return
         val list = currentList
@@ -116,7 +111,6 @@ internal class MediaListAdapter(
         }
     }
 
-    /** 从预览页返回：选中集合可能整体变了，但无法精确知道；回退到全量带 payload 刷新 */
     fun notifySelectionChangedAll() {
         if (itemCount > 0) notifyItemRangeChanged(0, itemCount, PAYLOAD_CHECK)
     }

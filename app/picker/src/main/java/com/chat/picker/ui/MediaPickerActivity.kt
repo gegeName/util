@@ -1,5 +1,6 @@
 package com.chat.picker.ui
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -43,15 +44,12 @@ class MediaPickerActivity : AppCompatActivity() {
     private fun keyOf(e: MediaEntity): Long =
         (e.id shl 4) or (e.mediaType.ordinal.toLong() and 0xF)
 
-    /** 是否在 adapter 中显示相机入口：仅 grid + 开关开 + 非纯音频 */
     private fun shouldShowCamera(): Boolean =
         config.showCameraEntry && isGrid &&
             config.filter.type != com.chat.picker.model.MediaType.AUDIO
 
-    /** 相机 item 占位偏移，0 或 1 */
     private fun cameraOffset(): Int = if (shouldShowCamera()) 1 else 0
 
-    /** 给 adapter 提交的最终列表：可能在前面加 CAMERA_ENTRY */
     private fun buildDisplayList(data: List<MediaEntity>): List<MediaEntity> {
         if (!shouldShowCamera()) return data.toList()
         return ArrayList<MediaEntity>(data.size + 1).apply {
@@ -89,11 +87,9 @@ class MediaPickerActivity : AppCompatActivity() {
         )
         val ok = success && exists && len > 0
         if (ok) {
-            // 异步注册到系统媒体库
             p.onSuccess()
             val entity = com.chat.picker.camera.CameraHelper.makeEntity(p.filePath, p.uri)
             insertCapturedPhoto(entity)
-            // 下次进 picker 重新查询能拿到新照片
             MediaSelector.invalidateCache()
         } else {
             p.onFail()
@@ -123,7 +119,6 @@ class MediaPickerActivity : AppCompatActivity() {
         cameraLauncher.launch(p.uri)
     }
 
-    /** 拍照完成：插入 Selection.all 第 0 位（adapter 上呈现为 camera 后第 2 位）并自动选中 */
     private fun insertCapturedPhoto(entity: MediaEntity) {
         com.chat.picker.util.PickerLog.d(
             "insertCapturedPhoto id=${entity.id} uri=${entity.uri} path=${entity.filePath} " +
@@ -134,7 +129,6 @@ class MediaPickerActivity : AppCompatActivity() {
             return
         }
         Selection.all.add(0, entity)
-        // 自动选中（超上限时给提示，但仍把图保留在列表中供查看）
         val result = Selection.toggle(entity)
         if (!result.accepted) {
             android.widget.Toast.makeText(
@@ -152,7 +146,6 @@ class MediaPickerActivity : AppCompatActivity() {
         if (result.resultCode == MediaPreviewActivity.RESULT_CONFIRMED) {
             finishWithResult()
         } else {
-            // 预览页可能改了多次选中态，无法精确还原变化集；走全量带 payload 刷新
             adapter?.notifySelectionChangedAll()
             updateConfirmButton()
         }
@@ -183,7 +176,6 @@ class MediaPickerActivity : AppCompatActivity() {
 
         Selection.clear()
         Selection.max = config.maxCount
-        // 灌入预选项：picker 列表渲染时通过 Selection.indexOf 自动显示角标
         if (config.preSelected.isNotEmpty()) {
             Selection.preSelect(config.preSelected)
         }
@@ -194,7 +186,6 @@ class MediaPickerActivity : AppCompatActivity() {
         btnToggle.setOnClickListener { toggleLayout() }
         btnConfirm.setOnClickListener { finishWithResult() }
         findViewById<TextView>(R.id.picker_partial_manage).setOnClickListener {
-            // 重新拉起权限弹窗让用户管理可访问的项
             permissionLauncher.launch(PermissionHelper.requiredPermissions(config.filter.type))
         }
         btnPreview.setOnClickListener {
@@ -203,7 +194,7 @@ class MediaPickerActivity : AppCompatActivity() {
         }
 
         setupRecycler()
-        updateConfirmButton()   // preSelected 灌入后立即显示数字
+        updateConfirmButton()
         requestPermissionsAndLoad()
     }
 
@@ -211,7 +202,6 @@ class MediaPickerActivity : AppCompatActivity() {
         adapter = MediaListAdapter(
             isGrid = isGrid,
             onItemClick = { position, _ ->
-                // 列表里点击：position 已是 adapter 内位置，需要减去相机偏移
                 val realIndex = position - cameraOffset()
                 if (realIndex in Selection.all.indices) {
                     openPreview(Selection.all, realIndex, true)
@@ -234,7 +224,6 @@ class MediaPickerActivity : AppCompatActivity() {
         recycler.clearOnScrollListeners()
         recycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
-                // 多重短路：方向 → 状态 → 节流（最便宜的判断在前）
                 if (dy <= 0) return
                 if (isLoadingPage || !hasMore) return
                 val now = android.os.SystemClock.uptimeMillis()
@@ -274,6 +263,7 @@ class MediaPickerActivity : AppCompatActivity() {
         updateConfirmButton()
     }
 
+    @SuppressLint("SetTextI18n")
     private fun updateConfirmButton() {
         btnConfirm.text = "完成(${Selection.selected.size}/${config.maxCount})"
     }
@@ -295,7 +285,6 @@ class MediaPickerActivity : AppCompatActivity() {
     }
 
     private fun loadData() {
-        // 重置分页状态：首次/重新拉权限后调用
         emptyView.visibility = View.GONE
         currentOffset = 0
         hasMore = true
@@ -308,7 +297,6 @@ class MediaPickerActivity : AppCompatActivity() {
         val isCanonical = config.filter.mimeTypes.isEmpty() && config.filter.extraSelection == null
         val cached = MediaSelector.cached(config.filter.type)
         if (cached != null && isCanonical) {
-            // 命中首页缓存：秒开，不弹 loading；后续翻页继续 query
             appendPage(cached, fromCache = true)
             return
         }
@@ -331,7 +319,6 @@ class MediaPickerActivity : AppCompatActivity() {
             offset = offset, limit = pageSize,
         ) { list ->
             runOnUiThread {
-                // 首页且 canonical 时回写缓存（与列表查询保持同节奏）
                 if (isFirstPage && isCanonical && list.isNotEmpty()) {
                     MediaSelector.putCache(config.filter.type, list)
                 }
@@ -340,7 +327,6 @@ class MediaPickerActivity : AppCompatActivity() {
         }
     }
 
-    /** 把新一页数据追加进列表，自动去重并更新 hasMore */
     private fun appendPage(page: List<MediaEntity>, fromCache: Boolean) {
         dismissLoading()
         val newOnes = page.filter { loadedKeys.add(keyOf(it)) }
@@ -348,14 +334,7 @@ class MediaPickerActivity : AppCompatActivity() {
             Selection.all.addAll(newOnes)
             adapter?.submitList(buildDisplayList(Selection.all))
         }
-        // 关键：offset 累加实际请求的条数（不是已加入列表的条数），
-        // 否则"返回非空但全被去重"会让 offset 不前进 → 下次查同一页 → 死循环
         currentOffset += page.size
-
-        // hasMore 三道判定，任一为否就停：
-        //   1) 返回不足一页 → 数据已到尾
-        //   2) 返回非空但去重后无新增 → offset 重叠或全量已加载，再查也只会重复
-        //   3) cache 命中且 cache 不足一页 → 数据本就只有这么多
         hasMore = when {
             page.size < pageSize -> false
             page.isNotEmpty() && newOnes.isEmpty() -> false
@@ -381,14 +360,12 @@ class MediaPickerActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // 退出列表时清理共享状态 + 释放图片缓存
         if (isFinishing) {
             Selection.clear()
             MediaSelector.clearActiveEngine()
             MediaSelector.clearActiveCompressors()
             com.chat.picker.loader.ImageLoader.clear()
         }
-        // 中断未完成的压缩任务，避免 Activity 销毁后仍占用 CPU
         compressPool?.shutdownNow()
         compressPool = null
         dismissLoading()
@@ -412,7 +389,6 @@ class MediaPickerActivity : AppCompatActivity() {
         previewLauncher.launch(intent)
     }
 
-    // ===== 压缩流程 =====
     private var compressPool: java.util.concurrent.ExecutorService? = null
 
     private fun finishWithResult() {
@@ -441,7 +417,6 @@ class MediaPickerActivity : AppCompatActivity() {
         val done = java.util.concurrent.atomic.AtomicInteger()
         val parallel = (Runtime.getRuntime().availableProcessors() / 2)
             .coerceIn(1, 4).coerceAtMost(total)
-        // 池只负责"发起任务"：同步实现会在池线程里跑完压缩，异步实现则在 launch 后立刻空闲
         val pool = java.util.concurrent.Executors.newFixedThreadPool(parallel)
             .also { compressPool = it }
 
@@ -449,7 +424,6 @@ class MediaPickerActivity : AppCompatActivity() {
         val vidCount = list.count { it.isVideo && videoC != null && videoC.needsCompress(it) }
         showLoading(buildProgressText(0, total, imgCount, vidCount))
 
-        // 每项完成时统一走这里（onSuccess/onError 内部已保证只触发一次）
         fun onItemDone(index: Int, result: MediaEntity) {
             results[index] = result
             val c = done.incrementAndGet()
@@ -465,7 +439,6 @@ class MediaPickerActivity : AppCompatActivity() {
         }
 
         list.forEachIndexed { i, item ->
-            // callback 内置原 item 引用：用户调 onError 时框架自动兜底原文件
             val callback = com.chat.picker.compress.CompressCallback(item) { result ->
                 onItemDone(i, result)
             }
@@ -476,10 +449,9 @@ class MediaPickerActivity : AppCompatActivity() {
                             imageC.compress(applicationContext, item, callback)
                         item.isVideo && videoC != null && videoC.needsCompress(item) ->
                             videoC.compress(applicationContext, item, callback)
-                        else -> callback.onSuccess(item) // 音频/不需压缩项：原样返回
+                        else -> callback.onSuccess(item)
                     }
                 } catch (e: Throwable) {
-                    // 用户实现 compress() 同步抛异常 → 走 onError 兜底
                     callback.onError(e)
                 }
             }

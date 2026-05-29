@@ -63,6 +63,7 @@ object MediaUploader {
 
     interface Listener {
         fun onStart() {}
+
         /** 进度（uploaded/total，单位字节）；total 为 -1 表示未知 */
         fun onProgress(uploaded: Long, total: Long) {}
         fun onSuccess(responseBody: String, code: Int) {}
@@ -90,7 +91,8 @@ object MediaUploader {
         onMainThread: Boolean = true,
     ): Cancellable {
         val app = context.applicationContext
-        val realName = fileName ?: queryDisplayName(app, uri) ?: "upload_${System.currentTimeMillis()}"
+        val realName =
+            fileName ?: queryDisplayName(app, uri) ?: "upload_${System.currentTimeMillis()}"
         val realMime = mimeType ?: queryMimeType(app, uri) ?: guessMimeFromName(realName)
         val total = querySize(app, uri)
 
@@ -158,6 +160,7 @@ object MediaUploader {
         fun onItemProgress(index: Int, uploaded: Long, total: Long) {}
         fun onItemSuccess(index: Int, responseBody: String) {}
         fun onItemError(index: Int, error: Throwable) {}
+
         /** 全部完成（含部分失败）后回调；results[i] 为 null 表示该项失败 */
         fun onAllDone(results: Array<String?>) {}
     }
@@ -185,7 +188,7 @@ object MediaUploader {
 
         if (total == 0) {
             dispatch(onMainThread) { listener.onAllDone(results) }
-            return Cancellable { /* no-op */ }
+            return Cancellable { }
         }
 
         entities.forEachIndexed { i, e ->
@@ -196,11 +199,13 @@ object MediaUploader {
                     override fun onProgress(uploaded: Long, t: Long) {
                         listener.onItemProgress(i, uploaded, t)
                     }
+
                     override fun onSuccess(responseBody: String, code: Int) {
                         results[i] = responseBody
                         listener.onItemSuccess(i, responseBody)
                         if (done.incrementAndGet() == total) listener.onAllDone(results)
                     }
+
                     override fun onError(err: Throwable) {
                         listener.onItemError(i, err)
                         if (done.incrementAndGet() == total) listener.onAllDone(results)
@@ -212,8 +217,6 @@ object MediaUploader {
         }
         return Cancellable { tasks.forEach { it.cancel() } }
     }
-
-    // ============== 内部工具 ==============
 
     private fun dispatch(onMain: Boolean, block: () -> Unit) {
         if (onMain) mainHandler.post(block) else block()
@@ -281,7 +284,6 @@ private class ProgressRequestBody(
             override fun write(source: okio.Buffer, byteCount: Long) {
                 super.write(source, byteCount)
                 val now = uploaded.addAndGet(byteCount)
-                // 节流：至少 80ms 报一次，避免回调风暴
                 val ts = System.currentTimeMillis()
                 if (now == total || ts - lastReport >= 80) {
                     lastReport = ts

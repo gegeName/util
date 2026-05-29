@@ -19,10 +19,6 @@ import java.io.File
 
 /**
  * 拍照工具。
- *
- * 兼容策略：所有 API 都用 **FileProvider + cacheDir** 作为相机 EXTRA_OUTPUT
- * （部分国产 ROM/相机 app 对 MediaStore content uri 写入支持不完善）。
- * 拍完异步注册到 MediaStore，下次进 picker 即可查到该文件。
  */
 internal object CameraHelper {
 
@@ -32,9 +28,7 @@ internal object CameraHelper {
 
     /** 一次拍照请求的上下文 */
     class Pending(
-        /** 给相机 app 写入的 FileProvider uri */
         val uri: Uri,
-        /** 相机写入的真实文件路径（cacheDir 下） */
         val filePath: String,
         val onSuccess: () -> Unit,
         val onFail: () -> Unit,
@@ -49,7 +43,6 @@ internal object CameraHelper {
             uri = uri,
             filePath = file.absolutePath,
             onSuccess = {
-                // 拍照成功 → 注册到系统媒体库；不阻塞 UI
                 Thread { registerToMediaStore(app, file) }.start()
             },
             onFail = { runCatching { file.delete() } },
@@ -128,12 +121,6 @@ internal object CameraHelper {
         launcher.launch(pending.uri)
     }
 
-    // ===== MediaStore 入库 =====
-
-    /**
-     * 把 cache 中的图片 copy 到系统媒体库，让下次 picker 查询时可见。
-     * 此方法在工作线程调用；失败静默。
-     */
     private fun registerToMediaStore(ctx: Context, file: File) {
         if (!file.exists() || file.length() <= 0) return
         try {
@@ -142,7 +129,7 @@ internal object CameraHelper {
             } else {
                 copyToPicturesLegacy(ctx, file)
             }
-        } catch (_: Throwable) { /* 注册失败不影响主流程 */ }
+        } catch (_: Throwable) { }
     }
 
     private fun copyToMediaStoreQ(ctx: Context, src: File) {
@@ -174,7 +161,6 @@ internal object CameraHelper {
     }
 
     private fun copyToPicturesLegacy(ctx: Context, src: File) {
-        // API < 29：复制到公共 Pictures 目录 + scanFile
         val picturesDir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
             SUBFOLDER,

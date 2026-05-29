@@ -93,6 +93,5 @@ class MediaPreviewActivity : AppCompatActivity() {
 
     override fun finish() {
         super.finish()
-        // 不清 PreviewBridge：列表页可能复用同一份引用
     }
 }

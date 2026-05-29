@@ -17,14 +17,6 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
-/**
- * 轻量异步图片加载（OOM 友好）：
- * - 缩略图 RGB_565 采样 + LruCache（缩略图专用，约可用内存 1/8）
- * - 视频首帧用 MediaMetadataRetriever，full bitmap 用完立即 recycle
- * - 缩略图二级磁盘缓存（图片 + 视频首帧）：列表反复滑动 / 进退页面时秒开
- * - 大图（预览页）不进缓存，避免单张 8~16MB 占满缓存挤掉缩略图
- * - 所有 decode 路径 catch OOM 并自动二次重试（提高 inSampleSize）
- */
 object ImageLoader {
 
     private val main = Handler(Looper.getMainLooper())

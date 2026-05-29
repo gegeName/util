@@ -43,7 +43,6 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
 
     fun filter(filter: MediaFilter) = apply { cfg.filter = filter }
 
-    /** DSL 写法：避免外层手动 `MediaFilter.Builder(...).xxx().build()` 两步走 */
     fun filter(type: MediaType, block: MediaFilter.Builder.() -> Unit = {}) = apply {
         cfg.filter = MediaFilter.Builder(type).apply(block).build()
     }
@@ -65,7 +64,7 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
     /** 启用系统 Photo Picker（API 33+，零权限）。AUDIO 类型会回退到本框架 */
     fun useSystemPicker(enable: Boolean) = apply { cfg.useSystemPhotoPicker = enable }
 
-    /** 列表首位显示"相机入口"item，点击后调起系统相机拍照、拍完插入到第二位并自动选中 */
+    /** 列表首位显示"相机入口*/
     fun showCameraEntry(enable: Boolean) = apply { cfg.showCameraEntry = enable }
 
     /** 传入已选过的项；打开 picker 时自动复选（按 id+mediaType 匹配） */

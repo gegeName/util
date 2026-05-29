@@ -13,10 +13,6 @@ import com.chat.picker.model.MediaType
 import com.chat.picker.util.PickerLog
 import java.util.concurrent.Executors
 
-/**
- * ContentResolver 查询封装。线程切换由调用方控制；这里只暴露同步 query。
- * 支持分页：offset/limit。
- */
 object MediaRepository {
 
     private val ioExecutor = Executors.newSingleThreadExecutor()
@@ -94,11 +90,6 @@ object MediaRepository {
         return list
     }
 
-    /**
-     * 分页 cursor：
-     * - API 26+：用 Bundle (QUERY_ARG_OFFSET/LIMIT)，官方稳定方案
-     * - API 24-25：sortOrder 后追加 "LIMIT offset, limit"（旧版 SQLite 兼容）
-     */
     private fun openCursor(
         cr: ContentResolver,
         uri: Uri,
