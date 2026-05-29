@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.chat.picker.R
 import com.chat.picker.api.MediaSelector
 import com.chat.picker.model.MediaEntity
+import com.chat.picker.util.ZoomGestureHelper
 
 internal class MediaPreviewAdapter
     : ListAdapter<MediaEntity, RecyclerView.ViewHolder>(DIFF) {
@@ -61,6 +62,10 @@ internal class MediaPreviewAdapter
         val image: ImageView = v.findViewById(R.id.page_image)
         private val loading: ProgressBar = v.findViewById(R.id.page_loading)
 
+        init {
+            ZoomGestureHelper.attach(image)
+        }
+
         fun bind(item: MediaEntity) {
             loading.visibility = View.GONE
             MediaSelector.imageEngine().loadOriginal(image, item.uri, item.isVideo)
@@ -72,27 +77,77 @@ internal class MediaPreviewAdapter
     }
 
     private inner class VideoVH(v: View) : RecyclerView.ViewHolder(v) {
+        private val thumb: ImageView = v.findViewById(R.id.page_video_thumb)
         private val video: VideoView = v.findViewById(R.id.page_video)
         private val play: ImageView = v.findViewById(R.id.page_play)
+        private val loading: ProgressBar = v.findViewById(R.id.page_video_loading)
         private var controller: MediaController? = null
+        private var prepared: Boolean = false
 
         fun bind(item: MediaEntity) {
             val ctx = itemView.context
+            prepared = false
+            thumb.visibility = View.VISIBLE
+            play.visibility = View.VISIBLE
+            loading.visibility = View.GONE
+            MediaSelector.imageEngine().loadThumbnail(thumb, item.uri, true)
+
             val mc = MediaController(ctx).also { controller = it }
             mc.setAnchorView(video)
             video.setMediaController(mc)
-            video.setVideoURI(item.uri)
-            video.setOnPreparedListener { /* prepared */ }
-            video.setOnCompletionListener { play.visibility = View.VISIBLE }
-            play.setOnClickListener {
-                play.visibility = View.GONE
+
+            video.setOnPreparedListener { mp ->
+                prepared = true
+                mp.setOnVideoSizeChangedListener { _, _, _ -> video.requestLayout() }
+                mp.setOnInfoListener { _, what, _ ->
+                    when (what) {
+                        android.media.MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START -> {
+                            loading.visibility = View.GONE
+                            thumb.visibility = View.GONE
+                        }
+
+                        android.media.MediaPlayer.MEDIA_INFO_BUFFERING_START -> {
+                            loading.visibility = View.VISIBLE
+                        }
+
+                        android.media.MediaPlayer.MEDIA_INFO_BUFFERING_END -> {
+                            loading.visibility = View.GONE
+                        }
+                    }
+                    false
+                }
                 video.start()
             }
-            play.visibility = View.VISIBLE
+            video.setOnErrorListener { _, _, _ ->
+                prepared = false
+                loading.visibility = View.GONE
+                thumb.visibility = View.VISIBLE
+                play.visibility = View.VISIBLE
+                runCatching { video.stopPlayback() }
+                true
+            }
+            video.setOnCompletionListener {
+                thumb.visibility = View.VISIBLE
+                play.visibility = View.VISIBLE
+            }
+            play.setOnClickListener {
+                play.visibility = View.GONE
+                if (prepared) {
+                    video.start()
+                } else {
+                    loading.visibility = View.VISIBLE
+                    runCatching { video.setVideoURI(item.uri) }
+                }
+            }
         }
 
         fun release() {
+            prepared = false
             runCatching { video.stopPlayback() }
+            video.setOnPreparedListener(null)
+            video.setOnErrorListener(null)
+            video.setOnCompletionListener(null)
+            thumb.setImageDrawable(null)
             controller = null
         }
     }

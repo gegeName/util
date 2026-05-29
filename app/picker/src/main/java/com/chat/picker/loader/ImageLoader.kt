@@ -35,6 +35,10 @@ object ImageLoader {
     private val tagKey = "imageloader_token".hashCode()
     private val seq = AtomicInteger()
 
+    /** 仅查内存缩略图缓存（不发起解码、不进 IO 池），命中即返回；用于预览页首帧占位 */
+    fun peekThumb(uri: Uri, targetWidth: Int = 360, targetHeight: Int = 360): Bitmap? =
+        cache.get("$uri@${targetWidth}x$targetHeight")
+
     fun load(
         view: ImageView,
         uri: Uri,

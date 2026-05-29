@@ -1,4 +1,4 @@
-package com.chat.mylibrary.utils
+package com.chat.picker.util
 
 import android.animation.Animator
 import android.animation.ValueAnimator

@@ -27,7 +27,8 @@ internal object DefaultImageEngine : IImageEngine {
     override fun loadOriginal(view: ImageView, uri: Uri, isVideo: Boolean) {
         val current = (view.getTag(originalToken) as? Int ?: 0) + 1
         view.setTag(originalToken, current)
-        view.setImageDrawable(null)
+        ImageLoader.peekThumb(uri, 360, 360)?.let { view.setImageBitmap(it) }
+            ?: view.setImageDrawable(null)
         val ctx = view.context.applicationContext
         val target = maxOriginalSize
         pool.execute {

@@ -7,7 +7,7 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.bumptech.glide.Glide
-import com.chat.mylibrary.utils.ZoomGestureHelper
+import com.chat.picker.util.ZoomGestureHelper
 
 class ZoomGestureActivity : AppCompatActivity() {
     val url="https://pics1.baidu.com/feed/4034970a304e251f9df1360c3e7ae6077d3e53c8.jpeg@f_auto?token=98ecf6f116fd8bb2e102458b8b11a00e"
