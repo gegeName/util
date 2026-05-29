@@ -4,23 +4,23 @@ plugins {
 
 android {
     namespace = "com.chat.picker"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 35
 
     defaultConfig {
         minSdk = 21
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
 
+kotlin {
+    compilerOptions {
+        languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+        apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+    }
 }
 
 dependencies {
@@ -34,5 +34,6 @@ dependencies {
 
     // OkHttp 用于 MediaUploader
     api("com.squareup.okhttp3:okhttp:5.3.2")
-
 }
+
+apply(from = "jitpack.gradle")
