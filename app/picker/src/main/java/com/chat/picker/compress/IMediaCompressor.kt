@@ -1,7 +1,6 @@
 package com.chat.picker.compress
 
 import android.content.Context
-import android.util.Log
 import com.chat.picker.model.MediaEntity
 import com.chat.picker.util.PickerLog
 import java.util.concurrent.atomic.AtomicBoolean
@@ -37,24 +36,18 @@ class CompressCallback internal constructor(
         if (consumed.compareAndSet(false, true)) {
             if (PickerLog.enable) {
                 if (error != null) {
-                    Log.w(
-                        TAG,
+                    PickerLog.e(
                         "compress failed (${originalItem.displayName}), fallback to original",
                         error
                     )
                 } else {
-                    Log.w(
-                        TAG,
+                    PickerLog.e(
                         "compress failed (${originalItem.displayName}), fallback to original"
                     )
                 }
             }
             delivery(originalItem)
         }
-    }
-
-    companion object {
-        private const val TAG = "MediaPickerCompress"
     }
 }
 

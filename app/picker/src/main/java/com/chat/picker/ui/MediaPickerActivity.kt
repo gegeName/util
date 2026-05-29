@@ -62,10 +62,8 @@ class MediaPickerActivity : AppCompatActivity() {
 
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { result ->
-        // 兼容 Android 14"部分授权"：只要有一项 granted 即视为可用
-        if (result.values.any { it }) {
-            // 部分授权场景查询 MediaStore 仅返回用户选中的那些项
+    ) { _ ->
+        if (PermissionHelper.anyUsable(this, config.filter.type)) {
             MediaSelector.invalidateCache()
             loadData()
             updatePartialBarVisibility()
@@ -282,7 +280,7 @@ class MediaPickerActivity : AppCompatActivity() {
 
     private fun requestPermissionsAndLoad() {
         val perms = PermissionHelper.requiredPermissions(config.filter.type)
-        if (PermissionHelper.anyUsable(this, perms)) {
+        if (PermissionHelper.anyUsable(this, config.filter.type)) {
             loadData()
             updatePartialBarVisibility()
         } else {

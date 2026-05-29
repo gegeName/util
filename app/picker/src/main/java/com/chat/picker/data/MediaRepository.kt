@@ -10,6 +10,7 @@ import android.provider.MediaStore
 import com.chat.picker.model.MediaEntity
 import com.chat.picker.model.MediaFilter
 import com.chat.picker.model.MediaType
+import com.chat.picker.util.PickerLog
 import java.util.concurrent.Executors
 
 /**
@@ -46,7 +47,11 @@ object MediaRepository {
         val cr = context.contentResolver
 
         val cursor = openCursor(cr, uri, projection, selection, args, offset, limit)
-            ?: return emptyList()
+        PickerLog.d(
+            "query type=${filter.type} uri=$uri sel=$selection " +
+                "args=${args?.toList()} offset=$offset limit=$limit count=${cursor?.count}"
+        )
+        cursor ?: return emptyList()
 
         val list = mutableListOf<MediaEntity>()
         cursor.use { c ->
@@ -62,7 +67,13 @@ object MediaRepository {
 
             while (c.moveToNext()) {
                 val id = c.getLong(idIdx)
-                val mime = c.getString(mimeIdx) ?: continue
+                val rawMime = c.getString(mimeIdx)
+                val mime = rawMime ?: when (filter.type) {
+                    MediaType.IMAGE -> "image/*"
+                    MediaType.VIDEO -> "video/*"
+                    MediaType.AUDIO -> "audio/*"
+                    MediaType.IMAGE_VIDEO, MediaType.ALL -> continue
+                }
                 val resolvedType = resolveType(filter.type, mime)
                 val itemUri = MediaType.itemUri(resolvedType, id)
                 list += MediaEntity(
@@ -130,10 +141,14 @@ object MediaRepository {
             MediaStore.MediaColumns.SIZE,
             MediaStore.MediaColumns.DATE_ADDED,
         )
-        if (type == MediaType.VIDEO || type == MediaType.AUDIO || type == MediaType.ALL) {
+        if (type == MediaType.VIDEO || type == MediaType.AUDIO ||
+            type == MediaType.IMAGE_VIDEO || type == MediaType.ALL
+        ) {
             base += MediaStore.MediaColumns.DURATION
         }
-        if (type == MediaType.IMAGE || type == MediaType.VIDEO || type == MediaType.ALL) {
+        if (type == MediaType.IMAGE || type == MediaType.VIDEO ||
+            type == MediaType.IMAGE_VIDEO || type == MediaType.ALL
+        ) {
             base += MediaStore.MediaColumns.WIDTH
             base += MediaStore.MediaColumns.HEIGHT
         }
@@ -150,6 +165,11 @@ object MediaRepository {
             args += MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString()
             args += MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
             args += MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO.toString()
+        } else if (filter.type == MediaType.IMAGE_VIDEO) {
+            val col = MediaStore.Files.FileColumns.MEDIA_TYPE
+            parts += "($col=? OR $col=?)"
+            args += MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString()
+            args += MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
         }
 
         if (filter.mimeTypes.isNotEmpty()) {
@@ -178,12 +198,12 @@ object MediaRepository {
     }
 
     private fun resolveType(declared: MediaType, mime: String): MediaType {
-        if (declared != MediaType.ALL) return declared
+        if (declared != MediaType.ALL && declared != MediaType.IMAGE_VIDEO) return declared
         return when {
             mime.startsWith("image/") -> MediaType.IMAGE
             mime.startsWith("video/") -> MediaType.VIDEO
             mime.startsWith("audio/") -> MediaType.AUDIO
-            else -> MediaType.ALL
+            else -> declared
         }
     }
 

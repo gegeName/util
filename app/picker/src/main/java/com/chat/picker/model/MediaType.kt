@@ -8,13 +8,14 @@ enum class MediaType {
     IMAGE,
     VIDEO,
     AUDIO,
+    IMAGE_VIDEO,
     ALL;
 
     fun contentUri(): Uri = when (this) {
         IMAGE -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         AUDIO -> MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        ALL -> MediaStore.Files.getContentUri("external")
+        IMAGE_VIDEO, ALL -> MediaStore.Files.getContentUri("external")
     }
 
     companion object {

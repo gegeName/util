@@ -18,6 +18,7 @@ import com.chat.picker.model.MediaEntity
 import com.chat.picker.model.MediaFilter
 import com.chat.picker.model.MediaType
 import com.chat.picker.ui.MediaPickerActivity
+import com.chat.picker.ui.PermissionHelper
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
@@ -41,6 +42,11 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
     }
 
     fun filter(filter: MediaFilter) = apply { cfg.filter = filter }
+
+    /** DSL 写法：避免外层手动 `MediaFilter.Builder(...).xxx().build()` 两步走 */
+    fun filter(type: MediaType, block: MediaFilter.Builder.() -> Unit = {}) = apply {
+        cfg.filter = MediaFilter.Builder(type).apply(block).build()
+    }
 
     fun maxCount(n: Int) = apply { cfg.maxCount = n.coerceAtLeast(1) }
     fun grid(enable: Boolean) = apply { cfg.startInGrid = enable }
@@ -100,25 +106,26 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
     private fun startWithSystemPicker(listener: OnPickResultListener) {
         val maxItems = cfg.maxCount.coerceAtMost(MAX_SYSTEM_PICKER_ITEMS)
         val contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems)
+        val mediaType = when (cfg.filter.type) {
+            MediaType.IMAGE -> ActivityResultContracts.PickVisualMedia.ImageOnly
+            MediaType.VIDEO -> ActivityResultContracts.PickVisualMedia.VideoOnly
+            else -> ActivityResultContracts.PickVisualMedia.ImageAndVideo
+        }
+        val fallbackType = cfg.filter.type
         val launcher = activity.activityResultRegistry.register(
             "media_picker_sys_${System.currentTimeMillis()}",
             contract,
         ) { uris: List<Uri> ->
             val app = activity.applicationContext
             sysPickerPool.execute {
-                val list = uris.mapNotNull { systemUriToEntity(app, it) }
+                val list = uris.mapNotNull { systemUriToEntity(app, it, fallbackType) }
                 activity.runOnUiThread { listener.onResult(list) }
             }
-        }
-        val mediaType = when (cfg.filter.type) {
-            MediaType.IMAGE -> ActivityResultContracts.PickVisualMedia.ImageOnly
-            MediaType.VIDEO -> ActivityResultContracts.PickVisualMedia.VideoOnly
-            else -> ActivityResultContracts.PickVisualMedia.ImageAndVideo
         }
         launcher.launch(PickVisualMediaRequest(mediaType))
     }
 
-    private fun systemUriToEntity(ctx: Context, uri: Uri): MediaEntity? {
+    private fun systemUriToEntity(ctx: Context, uri: Uri, fallbackType: MediaType): MediaEntity? {
         val projection = arrayOf(
             MediaStore.MediaColumns._ID,
             @Suppress("DEPRECATION") MediaStore.MediaColumns.DATA,
@@ -133,8 +140,13 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
         return runCatching {
             ctx.contentResolver.query(uri, projection, null, null, null)?.use { c ->
                 if (!c.moveToFirst()) return null
-                val mime = c.getString(c.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE))
-                    ?: return null
+                val rawMime = c.getString(c.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE))
+                val mime = rawMime ?: when (fallbackType) {
+                    MediaType.IMAGE -> "image/*"
+                    MediaType.VIDEO -> "video/*"
+                    MediaType.AUDIO -> "audio/*"
+                    MediaType.IMAGE_VIDEO, MediaType.ALL -> return null
+                }
                 val mediaType = when {
                     mime.startsWith("image/") -> MediaType.IMAGE
                     mime.startsWith("video/") -> MediaType.VIDEO
@@ -269,7 +281,7 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
         fun preload(context: Context, vararg types: MediaType) {
             val app = context.applicationContext
             types.forEach { t ->
-                // 只预查首页：与列表页分页节奏一致，避免拉全量内存压力
+                if (!PermissionHelper.anyUsable(app, t)) return@forEach
                 MediaRepository.queryAsync(
                     app, MediaFilter.of(t), offset = 0, limit = PAGE_SIZE
                 ) { list ->

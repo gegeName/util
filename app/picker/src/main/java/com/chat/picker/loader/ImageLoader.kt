@@ -9,14 +9,19 @@ import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
 import android.widget.ImageView
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
+import java.security.MessageDigest
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 轻量异步图片加载（OOM 友好）：
  * - 缩略图 RGB_565 采样 + LruCache（缩略图专用，约可用内存 1/8）
  * - 视频首帧用 MediaMetadataRetriever，full bitmap 用完立即 recycle
+ * - 缩略图二级磁盘缓存（图片 + 视频首帧）：列表反复滑动 / 进退页面时秒开
  * - 大图（预览页）不进缓存，避免单张 8~16MB 占满缓存挤掉缩略图
  * - 所有 decode 路径 catch OOM 并自动二次重试（提高 inSampleSize）
  */
@@ -58,8 +63,8 @@ object ImageLoader {
         val ctx = view.context.applicationContext
         pool.execute {
             val bmp = try {
-                if (isVideo) decodeVideoFrame(ctx, uri, targetWidth, targetHeight)
-                else decodeImage(ctx, uri, targetWidth, targetHeight)
+                if (isVideo) loadVideoThumb(ctx, uri, key, targetWidth, targetHeight)
+                else loadImageThumb(ctx, uri, key, targetWidth, targetHeight)
             } catch (oom: OutOfMemoryError) {
                 trimOnOom()
                 null
@@ -78,7 +83,6 @@ object ImageLoader {
         decodeImage(ctx, uri, maxSize, maxSize)
     } catch (oom: OutOfMemoryError) {
         trimOnOom()
-        // 降级再试一次：直接半采样
         try {
             decodeImage(ctx, uri, maxSize / 2, maxSize / 2)
         } catch (_: Throwable) {
@@ -88,11 +92,26 @@ object ImageLoader {
         null
     }
 
+    /** 视频首帧两级缓存：磁盘命中直接 decode，未命中走 retriever 并异步落盘 */
+    private fun loadVideoThumb(ctx: Context, uri: Uri, key: String, w: Int, h: Int): Bitmap? {
+        ThumbDiskCache.get(ctx, key)?.let { return it }
+        val bmp = decodeVideoFrame(ctx, uri, w, h) ?: return null
+        ThumbDiskCache.putAsync(ctx, key, bmp)
+        return bmp
+    }
+
+    /** 图片缩略图两级缓存：磁盘命中跳过 inJustDecodeBounds + 二次开流的开销 */
+    private fun loadImageThumb(ctx: Context, uri: Uri, key: String, w: Int, h: Int): Bitmap? {
+        ThumbDiskCache.get(ctx, key)?.let { return it }
+        val bmp = decodeImage(ctx, uri, w, h) ?: return null
+        ThumbDiskCache.putAsync(ctx, key, bmp)
+        return bmp
+    }
+
     private fun decodeImage(ctx: Context, uri: Uri, w: Int, h: Int): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         openStream(ctx, uri).use { BitmapFactory.decodeStream(it, null, bounds) }
         var sample = calcSample(bounds.outWidth, bounds.outHeight, w, h)
-        // OOM 二次兜底
         repeat(3) {
             try {
                 val opts = BitmapFactory.Options().apply {
@@ -157,5 +176,81 @@ object ImageLoader {
         return sample
     }
 
-    fun clear() = cache.evictAll()
+    fun clear() {
+        cache.evictAll()
+    }
+
+    /**
+     * 缩略图磁盘缓存（图片 + 视频首帧通用）：cacheDir/thumb_cache 下，文件名用 sha1(key)。
+     * 上限 50MB，超额时按访问时间淘汰最旧的 1/4。读写都做 IO 异常兜底，永不向上抛。
+     */
+    private object ThumbDiskCache {
+        private const val DIR = "thumb_cache"
+        private const val MAX_BYTES = 50L * 1024 * 1024
+        private const val JPEG_QUALITY = 80
+        private val ioPool = Executors.newSingleThreadExecutor()
+        private val totalSize = AtomicLong(-1L)
+
+        fun get(ctx: Context, key: String): Bitmap? {
+            val f = fileOf(ctx, key)
+            if (!f.exists() || f.length() == 0L) return null
+            return try {
+                val opts = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                }
+                BitmapFactory.decodeFile(f.absolutePath, opts)?.also {
+                    f.setLastModified(System.currentTimeMillis())
+                }
+            } catch (_: Throwable) {
+                null
+            }
+        }
+
+        fun putAsync(ctx: Context, key: String, bmp: Bitmap) {
+            ioPool.execute {
+                runCatching {
+                    val f = fileOf(ctx, key)
+                    val tmp = File(f.parentFile, f.name + ".tmp")
+                    FileOutputStream(tmp).use { bmp.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it) }
+                    if (!tmp.renameTo(f)) tmp.delete()
+                    if (totalSize.get() < 0) totalSize.set(dirSize(ctx))
+                    totalSize.addAndGet(f.length())
+                    if (totalSize.get() > MAX_BYTES) trim(ctx)
+                }
+            }
+        }
+
+        private fun fileOf(ctx: Context, key: String): File {
+            val dir = File(ctx.cacheDir, DIR).apply { if (!exists()) mkdirs() }
+            return File(dir, hash(key))
+        }
+
+        private fun dirSize(ctx: Context): Long {
+            val dir = File(ctx.cacheDir, DIR)
+            if (!dir.exists()) return 0
+            return dir.listFiles()?.sumOf { it.length() } ?: 0
+        }
+
+        private fun trim(ctx: Context) {
+            runCatching {
+                val dir = File(ctx.cacheDir, DIR)
+                val files = dir.listFiles()?.sortedBy { it.lastModified() } ?: return@runCatching
+                val target = MAX_BYTES * 3 / 4
+                var size = totalSize.get()
+                for (f in files) {
+                    if (size <= target) break
+                    val len = f.length()
+                    if (f.delete()) size -= len
+                }
+                totalSize.set(size)
+            }
+        }
+
+        private fun hash(s: String): String {
+            val bytes = MessageDigest.getInstance("SHA-1").digest(s.toByteArray())
+            val sb = StringBuilder(bytes.size * 2)
+            for (b in bytes) sb.append(String.format("%02x", b))
+            return sb.toString()
+        }
+    }
 }

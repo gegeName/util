@@ -8,7 +8,7 @@ import android.util.Log
  */
 internal object PickerLog {
     private const val TAG = "PickerCamera"
-    var enable = false
+    var enable = true
     fun d(msg: String) {
         if (enable) Log.d(TAG, msg)
     }
