@@ -67,7 +67,7 @@ class MediaPickerActivity : AppCompatActivity() {
             updatePartialBarVisibility()
         } else {
             emptyView.visibility = View.VISIBLE
-            (emptyView as TextView).text = "未授予媒体权限"
+            (emptyView as TextView).text = getString(com.chat.picker.R.string.picker_no_media_permission)
             dismissLoading()
         }
     }
@@ -101,7 +101,7 @@ class MediaPickerActivity : AppCompatActivity() {
     ) { granted ->
         if (granted) doLaunchCamera()
         else android.widget.Toast.makeText(
-            this, "拍照需要相机权限", android.widget.Toast.LENGTH_SHORT
+            this, getString(com.chat.picker.R.string.picker_camera_permission_required), android.widget.Toast.LENGTH_SHORT
         ).show()
     }
 
@@ -132,7 +132,7 @@ class MediaPickerActivity : AppCompatActivity() {
         val result = Selection.toggle(entity)
         if (!result.accepted) {
             android.widget.Toast.makeText(
-                this, "已超出上限 ${config.maxCount} 项，请先取消其它选择",
+                this, getString(com.chat.picker.R.string.picker_over_limit, config.maxCount),
                 android.widget.Toast.LENGTH_SHORT
             ).show()
         }
@@ -216,7 +216,10 @@ class MediaPickerActivity : AppCompatActivity() {
         recycler.adapter = adapter
         recycler.itemAnimator = null
         adapter?.submitList(buildDisplayList(Selection.all))
-        btnToggle.text = if (isGrid) "列表" else "网格"
+        btnToggle.text = getString(
+            if (isGrid) com.chat.picker.R.string.picker_toggle_list
+            else com.chat.picker.R.string.picker_toggle_grid
+        )
         attachPrefetchListener()
     }
 
@@ -255,7 +258,7 @@ class MediaPickerActivity : AppCompatActivity() {
         val result = Selection.toggle(item)
         if (!result.accepted) {
             android.widget.Toast.makeText(
-                this, "最多选择 ${config.maxCount} 项", android.widget.Toast.LENGTH_SHORT
+                this, getString(com.chat.picker.R.string.picker_max_select, config.maxCount), android.widget.Toast.LENGTH_SHORT
             ).show()
             return
         }
@@ -265,7 +268,7 @@ class MediaPickerActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun updateConfirmButton() {
-        btnConfirm.text = "完成(${Selection.selected.size}/${config.maxCount})"
+        btnConfirm.text = getString(com.chat.picker.R.string.picker_done_count, Selection.selected.size, config.maxCount)
     }
 
     private fun requestPermissionsAndLoad() {
@@ -301,7 +304,7 @@ class MediaPickerActivity : AppCompatActivity() {
             return
         }
 
-        showLoading("正在加载文件...")
+        showLoading(getString(com.chat.picker.R.string.picker_loading_files))
         loadPageInternal(isCanonical, isFirstPage = true)
     }
 
@@ -460,12 +463,12 @@ class MediaPickerActivity : AppCompatActivity() {
 
     private fun buildProgressText(done: Int, total: Int, img: Int, vid: Int): String =
         buildString {
-            append("正在压缩 $done/$total")
+            append(getString(com.chat.picker.R.string.picker_compress_progress, done, total))
             if (img > 0 || vid > 0) {
                 append("\n")
-                if (img > 0) append("图片×$img")
+                if (img > 0) append(getString(com.chat.picker.R.string.picker_compress_image_count, img))
                 if (img > 0 && vid > 0) append("  ")
-                if (vid > 0) append("视频×$vid")
+                if (vid > 0) append(getString(com.chat.picker.R.string.picker_compress_video_count, vid))
             }
         }
 

@@ -18,7 +18,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="8dp"
-        android:text="拍照"
+        android:text="@string/picker_take_photo"
         android:textColor="#FFFFFF"
         android:textSize="11sp" />
 </com.chat.picker.ui.SquareFrameLayout>

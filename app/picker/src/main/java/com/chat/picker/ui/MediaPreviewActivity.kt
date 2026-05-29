@@ -62,7 +62,7 @@ class MediaPreviewActivity : AppCompatActivity() {
             val r = Selection.toggle(cur)
             if (!r.accepted) {
                 android.widget.Toast.makeText(
-                    this, "最多选择 $maxCount 项", android.widget.Toast.LENGTH_SHORT
+                    this, getString(R.string.picker_max_select, maxCount), android.widget.Toast.LENGTH_SHORT
                 ).show()
                 return@setOnClickListener
             }
@@ -88,7 +88,7 @@ class MediaPreviewActivity : AppCompatActivity() {
             check.text = ""
             check.setBackgroundResource(R.drawable.picker_check_unselected)
         }
-        confirm.text = "完成(${Selection.selected.size}/$maxCount)"
+        confirm.text = getString(R.string.picker_done_count, Selection.selected.size, maxCount)
     }
 
     override fun finish() {

@@ -21,7 +21,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:padding="6dp"
-            android:text="取消"
+            android:text="@string/picker_cancel"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -31,7 +31,7 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="选择文件"
+            android:text="@string/picker_title"
             android:textColor="#FFFFFF"
             android:textSize="16sp"
             android:textStyle="bold" />
@@ -41,7 +41,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:padding="6dp"
-            android:text="列表"
+            android:text="@string/picker_toggle_list"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
 
@@ -62,7 +62,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="您已允许应用访问部分照片，点击右侧可更换"
+            android:text="@string/picker_partial_access_hint"
             android:textColor="#5D4037"
             android:textSize="12sp" />
 
@@ -73,7 +73,7 @@
             android:background="#FFB300"
             android:paddingHorizontal="10dp"
             android:paddingVertical="4dp"
-            android:text="管理"
+            android:text="@string/picker_manage"
             android:textColor="#FFFFFF"
             android:textSize="12sp" />
     </LinearLayout>
@@ -95,7 +95,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="无内容"
+            android:text="@string/picker_empty"
             android:textColor="#999999"
             android:visibility="gone" />
     </FrameLayout>
@@ -115,7 +115,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:padding="8dp"
-            android:text="预览"
+            android:text="@string/picker_preview"
             android:textColor="#444444"
             android:textSize="14sp" />
 
@@ -132,7 +132,7 @@
             android:gravity="center"
             android:minWidth="80dp"
             android:paddingHorizontal="14dp"
-            android:text="完成(0)"
+            android:text="@string/picker_done_zero"
             android:textColor="#FFFFFF"
             android:textSize="14sp" />
     </LinearLayout>

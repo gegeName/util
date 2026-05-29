@@ -21,7 +21,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:padding="6dp"
-            android:text="返回"
+            android:text="@string/picker_back"
             android:textColor="#FFFFFF" />
 
         <TextView
@@ -72,7 +72,7 @@
             android:gravity="center"
             android:minWidth="80dp"
             android:paddingHorizontal="14dp"
-            android:text="完成(0)"
+            android:text="@string/picker_done_zero"
             android:textColor="#FFFFFF" />
     </LinearLayout>
 </LinearLayout>
