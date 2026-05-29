@@ -80,6 +80,7 @@ class ZoomGestureHelper private constructor(
     private var isDetached = false
     private var isScaling = false
     private var hardwareLayerOn = false
+    private var pinchedSinceReset = false
     private val touchSlop =
         ViewConfiguration.get(targetView.context).scaledTouchSlop
 
@@ -144,13 +145,7 @@ class ZoomGestureHelper private constructor(
         }
     }
 
-    /**
-     * 用 FIT_CENTER 规则计算 baseMatrix：
-     *
-     * scale = min(viewW / dW, viewH / dH)，并将图片居中。
-     *
-     * 当 drawable 或 view 尺寸尚未就绪时返回 false，外部可继续重试。
-     */
+
     private fun ensureBaseMatrix(): Boolean {
 
         if (baseMatrixComputed) return true
@@ -234,10 +229,6 @@ class ZoomGestureHelper private constructor(
         if (on) targetView.buildLayer()
     }
 
-    // =========================
-    // 双指缩放
-    // =========================
-
     private var scaleFocusX = 0.0f
     private var scaleFocusY = 0.0f
     private val scaleDetector =
@@ -261,6 +252,7 @@ class ZoomGestureHelper private constructor(
                 ) {
 
                     isScaling = false
+                    pinchedSinceReset = true
 
                     if (config.enableBounce) {
 
@@ -310,16 +302,17 @@ class ZoomGestureHelper private constructor(
                 }
             })
 
-    // =========================
-    // 双击
-    // =========================
-
     private val gestureDetector =
         GestureDetector(
             targetView.context,
             object : GestureDetector.SimpleOnGestureListener() {
 
                 override fun onDoubleTap(e: MotionEvent): Boolean {
+
+                    if (pinchedSinceReset) {
+                        reset()
+                        return true
+                    }
 
                     val nextScale = currentScale * config.doubleTapScaleFactor
 
@@ -466,10 +459,6 @@ class ZoomGestureHelper private constructor(
         return true
     }
 
-    // =========================
-    // 缩放
-    // =========================
-
     private fun scale(
         factor: Float,
         px: Float,
@@ -518,10 +507,6 @@ class ZoomGestureHelper private constructor(
             targetView.translationY += dy
         }
     }
-
-    // =========================
-    // 双击动画
-    // =========================
 
     private fun animateScale(
         from: Float,
@@ -579,10 +564,6 @@ class ZoomGestureHelper private constructor(
         animator.start()
     }
 
-    // =========================
-    // 惯性滑动
-    // =========================
-
     private fun startFling(
         velocityX: Float,
         velocityY: Float
@@ -632,10 +613,6 @@ class ZoomGestureHelper private constructor(
         currentAnimator = animator
         animator.start()
     }
-
-    // =========================
-    // 边界检测
-    // =========================
 
     private fun checkBorder() {
 
@@ -694,10 +671,6 @@ class ZoomGestureHelper private constructor(
         }
     }
 
-    /**
-     * 非 ImageView 边界：scale > 1 时 translation 最大允许偏移 = (scale-1) * size / 2，
-     * 等价于 ImageView checkBorder 的"贴边不留白"语义。
-     */
     private fun checkBorderGeneralView() {
 
         val viewW = targetView.width.toFloat()
@@ -722,9 +695,6 @@ class ZoomGestureHelper private constructor(
         }
     }
 
-    // =========================
-    // 获取真实图片边界
-    // =========================
 
     private fun getMatrixRectF(): RectF? {
 
@@ -754,9 +724,6 @@ class ZoomGestureHelper private constructor(
         return rect
     }
 
-    // =========================
-    // 恢复
-    // =========================
     fun reset() {
 
         currentAnimator?.cancel()
@@ -770,6 +737,7 @@ class ZoomGestureHelper private constructor(
                 targetView.imageMatrix = matrix
             }
 
+            pinchedSinceReset = false
             return
         }
 
@@ -850,6 +818,7 @@ class ZoomGestureHelper private constructor(
             }
 
             currentScale = 1f
+            pinchedSinceReset = false
 
             if (currentAnimator === animator) {
                 currentAnimator = null
@@ -863,11 +832,6 @@ class ZoomGestureHelper private constructor(
         currentAnimator = animator
         animator.start()
     }
-
-    // =========================
-    // RecyclerView / ViewPager2
-    // 手势冲突处理
-    // =========================
 
     private fun handleParentIntercept() {
 
