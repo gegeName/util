@@ -22,6 +22,7 @@ import com.chat.picker.model.MediaType
 import com.chat.picker.preview.IOtherPreviewProvider
 import com.chat.picker.ui.MediaPickerActivity
 import com.chat.picker.ui.PermissionHelper
+import com.chat.picker.util.StorageAccess
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
@@ -61,7 +62,12 @@ internal object MediaSelectorInternal {
     @Volatile
     var globalOtherPreviewProvider: IOtherPreviewProvider? = null
 
-    val preloadCache = ConcurrentHashMap<MediaType, List<MediaEntity>>()
+    private data class CacheKey(
+        val type: MediaType,
+        val allFilesAccess: Boolean,
+    )
+
+    private val preloadCache = ConcurrentHashMap<CacheKey, List<MediaEntity>>()
 
     fun preload(context: Context, types: Array<out MediaType>, pageSize: Int) {
         val app = context.applicationContext
@@ -70,19 +76,22 @@ internal object MediaSelectorInternal {
             MediaRepository.queryAsync(
                 app, MediaFilter.of(t), offset = 0, limit = pageSize
             ) { list ->
-                if (list.isNotEmpty()) preloadCache[t] = list
+                if (list.isNotEmpty()) preloadCache[cacheKey(t)] = list
             }
         }
     }
 
     fun cached(type: MediaType): List<MediaEntity>? =
-        preloadCache[type]?.takeIf { it.isNotEmpty() }
+        preloadCache[cacheKey(type)]?.takeIf { it.isNotEmpty() }
 
     fun putCache(type: MediaType, list: List<MediaEntity>) {
-        if (list.isNotEmpty()) preloadCache[type] = list
+        if (list.isNotEmpty()) preloadCache[cacheKey(type)] = list
     }
 
     fun invalidateCache() = preloadCache.clear()
+
+    private fun cacheKey(type: MediaType): CacheKey =
+        CacheKey(type, StorageAccess.hasAllFilesAccess())
 
     fun launchSystemPicker(
         activity: ComponentActivity,

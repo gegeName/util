@@ -26,7 +26,6 @@ import com.chat.picker.model.MediaEntity
 import com.chat.picker.model.MediaType
 import com.chat.picker.util.EdgeToEdge
 import com.chat.picker.util.PickerLog
-import com.chat.picker.util.StorageAccess
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -315,7 +314,7 @@ class MediaPickerActivity : AppCompatActivity() {
         adapter?.submitList(buildDisplayList(Selection.all))
 
         val isCanonical = config.filter.mimeTypes.isEmpty() && config.filter.extraSelection == null
-        val cached = if (StorageAccess.hasAllFilesAccess()) null else MediaSelector.cached(config.filter.type)
+        val cached = MediaSelector.cached(config.filter.type)
         if (cached != null && isCanonical) {
             appendPage(cached, fromCache = true)
             return
