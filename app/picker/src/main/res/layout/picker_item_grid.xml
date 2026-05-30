@@ -25,6 +25,21 @@
         android:textSize="10sp"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/item_type"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_margin="4dp"
+        android:background="#80000000"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="2dp"
+        android:text="FILE"
+        android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <FrameLayout
         android:id="@+id/item_check_box"
         android:layout_width="36dp"

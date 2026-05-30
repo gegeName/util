@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.chat.picker.R
 import com.chat.picker.api.MediaSelector
 import com.chat.picker.model.MediaEntity
+import java.util.Locale
 
 internal class MediaListAdapter(
     private val isGrid: Boolean,
@@ -72,8 +73,8 @@ internal class MediaListAdapter(
         val item = getItem(position)
         when (holder) {
             is CameraVH -> { }
-            is GridVH -> holder.bindFull(item, position)
-            is ListVH -> holder.bindFull(item, position)
+            is GridVH -> holder.bindFull(item)
+            is ListVH -> holder.bindFull(item)
         }
     }
 
@@ -119,6 +120,7 @@ internal class MediaListAdapter(
     private inner class GridVH(v: View) : RecyclerView.ViewHolder(v) {
         private val thumb: ImageView = v.findViewById(R.id.item_thumb)
         private val duration: TextView = v.findViewById(R.id.item_duration)
+        private val type: TextView = v.findViewById(R.id.item_type)
         private val check: TextView = v.findViewById(R.id.item_check)
         private val checkBox: View = v.findViewById(R.id.item_check_box)
         private val mask: View = v.findViewById(R.id.item_mask)
@@ -134,12 +136,9 @@ internal class MediaListAdapter(
             }
         }
 
-        fun bindFull(item: MediaEntity, position: Int) {
+        fun bindFull(item: MediaEntity) {
             MediaSelector.imageEngine().loadThumbnail(thumb, item)
-            if (item.isVideo && item.durationMs > 0) {
-                duration.visibility = View.VISIBLE
-                duration.text = formatDuration(item.durationMs)
-            } else duration.visibility = View.GONE
+            bindBadge(duration, type, item)
 
             applyCheckState(item)
         }
@@ -163,6 +162,7 @@ internal class MediaListAdapter(
     private inner class ListVH(v: View) : RecyclerView.ViewHolder(v) {
         private val thumb: ImageView = v.findViewById(R.id.item_thumb)
         private val duration: TextView = v.findViewById(R.id.item_duration)
+        private val type: TextView = v.findViewById(R.id.item_type)
         private val name: TextView = v.findViewById(R.id.item_name)
         private val info: TextView = v.findViewById(R.id.item_info)
         private val check: TextView = v.findViewById(R.id.item_check)
@@ -178,17 +178,14 @@ internal class MediaListAdapter(
             }
         }
 
-        fun bindFull(item: MediaEntity, position: Int) {
+        fun bindFull(item: MediaEntity) {
             MediaSelector.imageEngine().loadThumbnail(thumb, item)
             name.text = item.displayName
             info.text = buildString {
                 append(formatSize(item.sizeBytes))
                 if (item.durationMs > 0) append("  ").append(formatDuration(item.durationMs))
             }
-            if (item.isVideo && item.durationMs > 0) {
-                duration.visibility = View.VISIBLE
-                duration.text = formatDuration(item.durationMs)
-            } else duration.visibility = View.GONE
+            bindBadge(duration, type, item)
 
             applyCheckState(item)
         }
@@ -220,6 +217,36 @@ internal class MediaListAdapter(
     private fun formatDuration(ms: Long): String {
         val s = ms / 1000
         return String.format("%02d:%02d", s / 60, s % 60)
+    }
+
+    private fun bindBadge(duration: TextView, type: TextView, item: MediaEntity) {
+        if (item.isVideo) {
+            if (item.durationMs > 0) {
+                duration.visibility = View.VISIBLE
+                duration.text = formatDuration(item.durationMs)
+            } else {
+                duration.visibility = View.GONE
+            }
+            type.visibility = View.GONE
+            return
+        }
+        duration.visibility = View.GONE
+        type.visibility = View.VISIBLE
+        type.text = formatFileType(item)
+    }
+
+    private fun formatFileType(item: MediaEntity): String {
+        val ext = item.displayName.substringAfterLast('.', missingDelimiterValue = "")
+            .takeIf { it.isNotBlank() }
+        val raw = ext ?: item.mimeType.substringAfter('/', missingDelimiterValue = "")
+            .substringBefore(';')
+            .takeIf { it.isNotBlank() && it != "*" }
+        return when (raw?.lowercase(Locale.US)) {
+            "jpeg" -> "JPG"
+            "mpeg" -> if (item.isAudio) "MP3" else "MPEG"
+            "octet-stream", null -> "FILE"
+            else -> raw.uppercase(Locale.US).take(6)
+        }
     }
 
     @SuppressLint("DefaultLocale")
