@@ -64,11 +64,12 @@
 
         <ImageView
             android:id="@+id/page_audio_play"
-            android:layout_width="64dp"
-            android:layout_height="64dp"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
             android:layout_marginTop="20dp"
-            android:background="#80000000"
-            android:padding="14dp"
+            android:background="@drawable/picker_bg_preview_play_button"
+            android:elevation="6dp"
+            android:padding="20dp"
             android:src="@drawable/picker_ic_play" />
     </LinearLayout>
 </FrameLayout>
