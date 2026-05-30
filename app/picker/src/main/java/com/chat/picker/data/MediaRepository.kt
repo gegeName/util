@@ -3,14 +3,23 @@ package com.chat.picker.data
 import android.content.ContentResolver
 import android.content.Context
 import android.database.Cursor
+import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.provider.MediaStore
+import android.webkit.MimeTypeMap
 import com.chat.picker.model.MediaEntity
 import com.chat.picker.model.MediaFilter
 import com.chat.picker.model.MediaType
 import com.chat.picker.util.PickerLog
+import com.chat.picker.util.StorageAccess
+import java.io.File
+import java.net.URLConnection
+import java.util.ArrayDeque
+import java.util.Locale
 import java.util.concurrent.Executors
 
 object MediaRepository {
@@ -37,6 +46,10 @@ object MediaRepository {
         offset: Int = 0,
         limit: Int = Int.MAX_VALUE,
     ): List<MediaEntity> {
+        if (StorageAccess.hasAllFilesAccess() && filter.extraSelection == null) {
+            return scanExternalFiles(context, filter, offset, limit)
+        }
+
         val uri: Uri = filter.type.contentUri()
         val projection = projectionFor(filter.type)
         val (selection, args) = buildSelection(filter)
@@ -96,6 +109,205 @@ object MediaRepository {
             }
         }
         return list
+    }
+
+    private fun scanExternalFiles(
+        context: Context,
+        filter: MediaFilter,
+        offset: Int,
+        limit: Int,
+    ): List<MediaEntity> {
+        val candidates = mutableListOf<FileCandidate>()
+        val visitedDirs = HashSet<String>()
+        val stack = ArrayDeque<File>()
+        scanRoots(context).forEach { root ->
+            if (root.exists() && root.isDirectory && root.canRead()) {
+                stack.add(root)
+            }
+        }
+
+        while (stack.isNotEmpty()) {
+            val file = stack.removeLast()
+            if (file.isDirectory) {
+                val key = runCatching { file.canonicalPath }.getOrDefault(file.absolutePath)
+                if (!visitedDirs.add(key)) continue
+                runCatching { file.listFiles() }.getOrNull()?.forEach { child ->
+                    if (child.isDirectory) {
+                        if (child.canRead()) stack.add(child)
+                    } else if (child.isFile && child.canRead()) {
+                        toCandidate(child, filter)?.let { candidates += it }
+                    }
+                }
+            } else if (file.isFile && file.canRead()) {
+                toCandidate(file, filter)?.let { candidates += it }
+            }
+        }
+
+        val page = candidates
+            .sortedByDescending { it.modifiedSec }
+            .drop(offset.coerceAtLeast(0))
+            .let { if (limit == Int.MAX_VALUE) it else it.take(limit.coerceAtLeast(0)) }
+            .map { it.toEntity() }
+
+        PickerLog.d(
+            "scanExternalFiles type=${filter.type} offset=$offset limit=$limit " +
+                "total=${candidates.size} page=${page.size}"
+        )
+        return page
+    }
+
+    @Suppress("DEPRECATION")
+    private fun scanRoots(context: Context): List<File> {
+        val roots = LinkedHashMap<String, File>()
+        fun addRoot(file: File?) {
+            val root = file ?: return
+            val key = runCatching { root.canonicalPath }.getOrDefault(root.absolutePath)
+            roots[key] = root
+        }
+
+        addRoot(Environment.getExternalStorageDirectory())
+        context.getExternalFilesDirs(null).forEach { appDir ->
+            addRoot(appDir?.externalStorageRoot())
+        }
+        return roots.values.toList()
+    }
+
+    private fun File.externalStorageRoot(): File? {
+        val marker = "${File.separator}Android${File.separator}data${File.separator}"
+        val index = absolutePath.indexOf(marker)
+        return if (index > 0) File(absolutePath.substring(0, index)) else null
+    }
+
+    private fun toCandidate(file: File, filter: MediaFilter): FileCandidate? {
+        val size = file.length()
+        if (filter.minSizeBytes > 0 && size < filter.minSizeBytes) return null
+
+        val mime = guessMime(file)
+        val mediaType = resolveType(MediaType.ALL, mime)
+        if (!matchesRequestedType(filter.type, mediaType)) return null
+        if (filter.mimeTypes.isNotEmpty() && mime !in filter.mimeTypes) return null
+
+        if (filter.maxDurationMs != Long.MAX_VALUE && filter.type != MediaType.IMAGE) {
+            val duration = readDurationMs(file)
+            if (duration > filter.maxDurationMs) return null
+        }
+
+        return FileCandidate(
+            file = file,
+            mime = mime,
+            mediaType = mediaType,
+            sizeBytes = size,
+            modifiedSec = (file.lastModified() / 1000L).coerceAtLeast(0L),
+        )
+    }
+
+    private fun FileCandidate.toEntity(): MediaEntity {
+        val metadata = readMetadata(file, mediaType)
+        return MediaEntity(
+            id = stableId(file.absolutePath),
+            uri = Uri.fromFile(file),
+            filePath = file.absolutePath,
+            displayName = file.name.ifEmpty { file.absolutePath },
+            mimeType = mime,
+            sizeBytes = sizeBytes,
+            durationMs = metadata.durationMs,
+            dateAddedSec = modifiedSec,
+            width = metadata.width,
+            height = metadata.height,
+            mediaType = mediaType,
+            albumId = 0L,
+        )
+    }
+
+    private data class FileCandidate(
+        val file: File,
+        val mime: String,
+        val mediaType: MediaType,
+        val sizeBytes: Long,
+        val modifiedSec: Long,
+    )
+
+    private data class FileMetadata(
+        val width: Int = 0,
+        val height: Int = 0,
+        val durationMs: Long = 0L,
+    )
+
+    private fun guessMime(file: File): String {
+        val ext = file.extension.lowercase(Locale.US)
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+            ?: URLConnection.guessContentTypeFromName(file.name)
+            ?: "application/octet-stream"
+    }
+
+    private fun matchesRequestedType(requested: MediaType, actual: MediaType): Boolean =
+        when (requested) {
+            MediaType.IMAGE -> actual == MediaType.IMAGE
+            MediaType.VIDEO -> actual == MediaType.VIDEO
+            MediaType.AUDIO -> actual == MediaType.AUDIO
+            MediaType.IMAGE_VIDEO -> actual == MediaType.IMAGE || actual == MediaType.VIDEO
+            MediaType.ALL -> true
+        }
+
+    private fun readMetadata(file: File, type: MediaType): FileMetadata =
+        when (type) {
+            MediaType.IMAGE -> readImageMetadata(file)
+            MediaType.VIDEO, MediaType.AUDIO -> readMediaMetadata(file, type)
+            else -> FileMetadata()
+        }
+
+    private fun readImageMetadata(file: File): FileMetadata {
+        val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        runCatching { BitmapFactory.decodeFile(file.absolutePath, opts) }
+        return FileMetadata(width = opts.outWidth.coerceAtLeast(0), height = opts.outHeight.coerceAtLeast(0))
+    }
+
+    private fun readMediaMetadata(file: File, type: MediaType): FileMetadata {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(file.absolutePath)
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                ?.toLongOrNull()
+                ?: 0L
+            val width = if (type == MediaType.VIDEO) {
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)
+                    ?.toIntOrNull()
+                    ?: 0
+            } else {
+                0
+            }
+            val height = if (type == MediaType.VIDEO) {
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)
+                    ?.toIntOrNull()
+                    ?: 0
+            } else {
+                0
+            }
+            FileMetadata(width = width, height = height, durationMs = duration)
+        } catch (_: Throwable) {
+            FileMetadata()
+        } finally {
+            runCatching { retriever.release() }
+        }
+    }
+
+    private fun readDurationMs(file: File): Long =
+        runCatching {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(file.absolutePath)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                    ?.toLongOrNull()
+                    ?: 0L
+            } finally {
+                runCatching { retriever.release() }
+            }
+        }.getOrDefault(0L)
+
+    private fun stableId(path: String): Long {
+        var hash = 1125899906842597L
+        path.forEach { hash = 31L * hash + it.code }
+        return hash
     }
 
     private fun openCursor(

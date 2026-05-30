@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.chat.picker.model.MediaType
+import com.chat.picker.util.StorageAccess
 
 internal object PermissionHelper {
     fun requiredPermissions(type: MediaType): Array<String> {
@@ -42,6 +43,7 @@ internal object PermissionHelper {
         }
 
     fun anyUsable(ctx: Context, type: MediaType): Boolean {
+        if (StorageAccess.hasAllFilesAccess()) return true
         val mainPerms = mainPermissions(type)
         if (mainPerms.any { granted(ctx, it) }) return true
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
@@ -81,6 +83,7 @@ internal object PermissionHelper {
      * API ≤ 33 不存在该概念，直接返回 false。
      */
     fun isPartialAccess(ctx: Context, type: MediaType): Boolean {
+        if (StorageAccess.hasAllFilesAccess()) return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return false
         if (type == MediaType.AUDIO) return false
         val visualSelected = ContextCompat.checkSelfPermission(
