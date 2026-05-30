@@ -37,19 +37,17 @@ internal object DefaultImageEngine : IImageEngine {
                 ImageLoader.load(view, item.uri, isVideo = true, 360, 360)
             }
             item.isAudio -> {
-                view.background = ColorDrawable(audioBgColor)
-                view.scaleType = ImageView.ScaleType.CENTER_INSIDE
-                view.setImageResource(com.chat.picker.R.drawable.picker_ic_audio)
+                showAudioDefault(view)
                 item.albumArtUri?.let {
                     view.background = null
                     view.scaleType = ImageView.ScaleType.CENTER_CROP
-                    ImageLoader.load(view, it, isVideo = false, 360, 360)
+                    ImageLoader.load(view, it, isVideo = false, targetWidth = 360, targetHeight = 360) {
+                        showAudioDefault(view)
+                    }
                 }
             }
             else -> {
-                view.background = ColorDrawable(audioBgColor)
-                view.scaleType = ImageView.ScaleType.CENTER_INSIDE
-                view.setImageResource(com.chat.picker.R.drawable.picker_ic_audio)
+                showAudioDefault(view)
             }
         }
     }
@@ -73,5 +71,11 @@ internal object DefaultImageEngine : IImageEngine {
                 }
             }
         }
+    }
+
+    private fun showAudioDefault(view: ImageView) {
+        view.background = ColorDrawable(audioBgColor)
+        view.scaleType = ImageView.ScaleType.CENTER_INSIDE
+        view.setImageResource(com.chat.picker.R.drawable.picker_ic_audio)
     }
 }

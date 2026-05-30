@@ -45,6 +45,7 @@ object ImageLoader {
         isVideo: Boolean,
         targetWidth: Int = 300,
         targetHeight: Int = 300,
+        onFailure: (() -> Unit)? = null,
     ) {
         val key = "$uri@${targetWidth}x$targetHeight"
         val token = seq.incrementAndGet()
@@ -66,7 +67,13 @@ object ImageLoader {
                 null
             } catch (_: Throwable) {
                 null
-            } ?: return@execute
+            }
+            if (bmp == null) {
+                main.post {
+                    if (view.getTag(tagKey) == token) onFailure?.invoke()
+                }
+                return@execute
+            }
             cache.put(key, bmp)
             main.post {
                 if (view.getTag(tagKey) == token) view.setImageBitmap(bmp)
