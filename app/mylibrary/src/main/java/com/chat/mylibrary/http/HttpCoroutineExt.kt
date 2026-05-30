@@ -42,7 +42,7 @@ private fun apiHandler(
  *
  * 要求：scope 必须使用 SupervisorJob（`lifecycleScope` / `viewModelScope` 均满足）。
  *
- * 配合 [com.chat.mylibrary.http.HttpResult.unwrap] 使用：ApiService 接口直接返回
+ * 配合 [HttpResult.unwrap] 使用：ApiService 接口直接返回
  * `HttpResult<T>`，HttpHelper 调用 `.unwrap()` 在 code 非成功时抛 [ApiException]，
  * 由本函数挂的 handler 路由到 [ApiErrorHandler]。
  *

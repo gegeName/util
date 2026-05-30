@@ -1,9 +1,15 @@
 package com.chat.myapplication
 
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.RectF
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
@@ -119,7 +125,7 @@ private class SpanAdapter(
     private val data: List<SpanItem>,
 ) : RecyclerView.Adapter<SpanAdapter.VH>() {
 
-    class VH(itemView: android.view.View) : RecyclerView.ViewHolder(itemView) {
+    class VH(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val tvIndex: TextView = itemView.findViewById(R.id.tv_index)
         val tvContent: TextView = itemView.findViewById(R.id.tv_span_content)
     }
@@ -298,13 +304,13 @@ private class SpanAdapter(
     /** PorterDuff SRC_IN 圆角裁剪，比 clipPath 反锯齿更可靠 */
     private fun roundCorner(drawable: Drawable, w: Int, h: Int, radius: Float): Drawable {
         val bmp = createBitmap(w, h)
-        val canvas = android.graphics.Canvas(bmp)
-        val rect = android.graphics.RectF(0f, 0f, w.toFloat(), h.toFloat())
+        val canvas = Canvas(bmp)
+        val rect = RectF(0f, 0f, w.toFloat(), h.toFloat())
         canvas.saveLayer(rect, null)
         drawable.setBounds(0, 0, w, h)
         drawable.draw(canvas)
-        val maskPaint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.DST_IN)
+        val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
         }
         canvas.drawRoundRect(rect, radius, radius, maskPaint)
         canvas.restore()

@@ -1,6 +1,7 @@
 package com.chat.effect.svga
 
 
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import com.chat.effect.EffectIO
@@ -34,7 +35,7 @@ class SvgaEffectPlayer : IEffectPlayer {
 
     override fun attach(stage: ViewGroup) {
         if (this.stage === stage && view != null) {
-            view?.visibility = android.view.View.VISIBLE
+            view?.visibility = View.VISIBLE
             return
         }
         view?.let { (it.parent as? ViewGroup)?.removeView(it) }
@@ -99,7 +100,7 @@ class SvgaEffectPlayer : IEffectPlayer {
             v.stopAnimation(true)
             v.callback = null
             v.setImageDrawable(null)
-            v.visibility = android.view.View.GONE
+            v.visibility = View.GONE
         }
     }
 }

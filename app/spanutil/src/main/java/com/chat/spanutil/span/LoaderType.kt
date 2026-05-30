@@ -1,8 +1,10 @@
 package com.chat.spanutil.span
 
+import com.chat.spanutil.SpanBuilder
+
 /**
  * 标识 [SpanImageLoader] 在 SpanBuilder 中的用途分类，配合
- * [com.chat.spanutil.SpanBuilder.setLoader] / [com.chat.spanutil.SpanBuilder.requireLoader] 使用。
+ * [SpanBuilder.setLoader] / [SpanBuilder.requireLoader] 使用。
  *
  * @param suggestedModule 该类型推荐的扩展库名，仅用于错误提示
  */

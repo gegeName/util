@@ -1,5 +1,6 @@
 package com.chat.myapplication
 
+import android.graphics.Paint
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -145,7 +146,7 @@ class GoodsDetailActivity : AppCompatActivity() {
                         b.tvPrice.text = h.priceText
                         b.tvOriginalPrice.text = h.originalPriceText
                         b.tvOriginalPrice.paintFlags =
-                            b.tvOriginalPrice.paintFlags or android.graphics.Paint.STRIKE_THRU_TEXT_FLAG
+                            b.tvOriginalPrice.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
                         b.tvSales.text = "已售 ${h.sales}"
                     }
                 }

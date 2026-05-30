@@ -1,8 +1,12 @@
 package com.chat.mylibrary
 
+import android.os.Build
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.LinearLayout
+import android.widget.RelativeLayout
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -21,8 +25,8 @@ import androidx.recyclerview.widget.RecyclerView
  * ## 布局结构要求
  *
  * 1. [headerView]与[scrollableView]必须是同一个父布局的兄弟节点。父布局必须支持视图叠加，
- *    推荐[androidx.constraintlayout.widget.ConstraintLayout] / [android.widget.FrameLayout] /
- *    [android.widget.RelativeLayout]，**不要用[android.widget.LinearLayout]**（无法叠加）。
+ *    推荐`ConstraintLayout` / [FrameLayout] /
+ *    [RelativeLayout]，**不要用[LinearLayout]**（无法叠加）。
  *
  * 2. **绘制顺序**：[headerView]在XML中必须**声明在[scrollableView]之后**——ViewGroup按声明顺序绘制，
  *    后声明的画在上层；否则Header会被列表内容盖住。
@@ -163,10 +167,12 @@ class HeaderScrollSync private constructor(
             }
 
             is HorizontalScrollView -> {
-                scrollableView.setOnScrollChangeListener { _, x, y, oldX, oldY ->
-                    syncHeaderTranslation()
-                    if (externalScrollListeners.isNotEmpty()) {
-                        dispatchScroll(x, y, oldX, oldY)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    scrollableView.setOnScrollChangeListener { _, x, y, oldX, oldY ->
+                        syncHeaderTranslation()
+                        if (externalScrollListeners.isNotEmpty()) {
+                            dispatchScroll(x, y, oldX, oldY)
+                        }
                     }
                 }
             }
@@ -341,5 +347,4 @@ class HeaderScrollSync private constructor(
         }
     }
 }
-
 

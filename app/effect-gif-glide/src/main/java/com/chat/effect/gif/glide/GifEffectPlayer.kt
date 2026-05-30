@@ -2,6 +2,7 @@ package com.chat.effect.gif.glide
 
 
 import android.graphics.drawable.Drawable
+import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.vectordrawable.graphics.drawable.Animatable2Compat
@@ -33,7 +34,7 @@ class GifEffectPlayer : IEffectPlayer {
 
     override fun attach(stage: ViewGroup) {
         if (this.stage === stage && view != null) {
-            view?.visibility = android.view.View.VISIBLE
+            view?.visibility = View.VISIBLE
             return
         }
         view?.let { (it.parent as? ViewGroup)?.removeView(it) }
@@ -102,7 +103,7 @@ class GifEffectPlayer : IEffectPlayer {
         view?.let { v ->
             Glide.with(v.context).clear(v)
             v.setImageDrawable(null)
-            v.visibility = android.view.View.GONE
+            v.visibility = View.GONE
         }
         endCallback = null
         gifDrawable = null

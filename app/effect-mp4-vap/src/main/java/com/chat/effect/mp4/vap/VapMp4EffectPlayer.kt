@@ -1,6 +1,7 @@
 package com.chat.effect.mp4.vap
 
 
+import android.view.View
 import android.view.ViewGroup
 import com.chat.effect.EffectLog
 import com.chat.effect.EffectResource
@@ -32,7 +33,7 @@ class VapMp4EffectPlayer : IEffectPlayer {
 
     override fun attach(stage: ViewGroup) {
         if (this.stage === stage && view != null) {
-            view?.visibility = android.view.View.VISIBLE
+            view?.visibility = View.VISIBLE
             return
         }
         view?.let { (it.parent as? ViewGroup)?.removeView(it) }
@@ -82,7 +83,7 @@ class VapMp4EffectPlayer : IEffectPlayer {
     override fun release() {
         view?.let { v ->
             v.stopPlay()
-            v.visibility = android.view.View.GONE
+            v.visibility = View.GONE
         }
     }
 }
