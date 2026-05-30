@@ -69,10 +69,16 @@ object MediaRepository {
                     MediaType.IMAGE -> "image/*"
                     MediaType.VIDEO -> "video/*"
                     MediaType.AUDIO -> "audio/*"
-                    MediaType.IMAGE_VIDEO, MediaType.ALL -> continue
+                    MediaType.IMAGE_VIDEO -> continue
+                    MediaType.ALL -> "application/octet-stream"
                 }
                 val resolvedType = resolveType(filter.type, mime)
                 val itemUri = MediaType.itemUri(resolvedType, id)
+                val albumId = if (resolvedType == MediaType.AUDIO) {
+                    if (albumIdx >= 0) c.getLong(albumIdx) else queryAudioAlbumId(cr, id)
+                } else {
+                    0L
+                }
                 list += MediaEntity(
                     id = id,
                     uri = itemUri,
@@ -85,7 +91,7 @@ object MediaRepository {
                     width = if (wIdx >= 0) c.getInt(wIdx) else 0,
                     height = if (hIdx >= 0) c.getInt(hIdx) else 0,
                     mediaType = resolvedType,
-                    albumId = if (albumIdx >= 0 && resolvedType == MediaType.AUDIO) c.getLong(albumIdx) else 0L,
+                    albumId = albumId,
                 )
             }
         }
@@ -156,13 +162,7 @@ object MediaRepository {
         val parts = mutableListOf<String>()
         val args = mutableListOf<String>()
 
-        if (filter.type == MediaType.ALL) {
-            val col = MediaStore.Files.FileColumns.MEDIA_TYPE
-            parts += "($col=? OR $col=? OR $col=?)"
-            args += MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString()
-            args += MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO.toString()
-            args += MediaStore.Files.FileColumns.MEDIA_TYPE_AUDIO.toString()
-        } else if (filter.type == MediaType.IMAGE_VIDEO) {
+        if (filter.type == MediaType.IMAGE_VIDEO) {
             val col = MediaStore.Files.FileColumns.MEDIA_TYPE
             parts += "($col=? OR $col=?)"
             args += MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE.toString()
@@ -202,6 +202,20 @@ object MediaRepository {
             mime.startsWith("audio/") -> MediaType.AUDIO
             else -> declared
         }
+    }
+
+    private fun queryAudioAlbumId(cr: ContentResolver, id: Long): Long {
+        val uri = MediaType.itemUri(MediaType.AUDIO, id)
+        val projection = arrayOf(MediaStore.Audio.AudioColumns.ALBUM_ID)
+        return runCatching {
+            cr.query(uri, projection, null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    c.getLong(c.getColumnIndexOrThrow(MediaStore.Audio.AudioColumns.ALBUM_ID))
+                } else {
+                    0L
+                }
+            } ?: 0L
+        }.getOrDefault(0L)
     }
 
     private fun Cursor.optionalIndex(name: String): Int = try {

@@ -47,7 +47,7 @@ internal object DefaultImageEngine : IImageEngine {
                 }
             }
             else -> {
-                showAudioDefault(view)
+                showUnknownDefault(view)
             }
         }
     }
@@ -77,5 +77,11 @@ internal object DefaultImageEngine : IImageEngine {
         view.background = ColorDrawable(audioBgColor)
         view.scaleType = ImageView.ScaleType.CENTER_INSIDE
         view.setImageResource(com.chat.picker.R.drawable.picker_ic_audio)
+    }
+
+    private fun showUnknownDefault(view: ImageView) {
+        view.background = ColorDrawable(audioBgColor)
+        view.scaleType = ImageView.ScaleType.CENTER_INSIDE
+        view.setImageResource(com.chat.picker.R.drawable.picker_ic_unknown)
     }
 }
