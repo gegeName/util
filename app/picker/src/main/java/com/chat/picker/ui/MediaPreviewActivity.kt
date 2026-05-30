@@ -23,6 +23,7 @@ class MediaPreviewActivity : AppCompatActivity() {
     private lateinit var check: TextView
     private lateinit var confirm: TextView
     private lateinit var data: List<MediaEntity>
+    private var previewId: String? = null
     private var maxCount: Int = 9
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,7 +36,8 @@ class MediaPreviewActivity : AppCompatActivity() {
             bottomBar = findViewById(R.id.preview_bottom_bar),
         )
 
-        data = PreviewBridge.previewList
+        previewId = intent.getStringExtra(PreviewBridge.EXTRA_PREVIEW_ID)
+        data = PreviewBridge.get(this, previewId)
         if (data.isEmpty()) { finish(); return }
         maxCount = intent.getIntExtra(EXTRA_MAX_COUNT, 9)
         val startIndex = intent.getIntExtra(EXTRA_INDEX, 0).coerceIn(0, data.size - 1)
@@ -62,7 +64,7 @@ class MediaPreviewActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.preview_back).setOnClickListener { finish() }
         check.setOnClickListener {
             val cur = data[pager.currentItem]
-            val r = Selection.toggle(cur)
+            val r = if (maxCount == 1) Selection.selectSingle(cur) else Selection.toggle(cur)
             if (!r.accepted) {
                 android.widget.Toast.makeText(
                     this, getString(R.string.picker_max_select, maxCount), android.widget.Toast.LENGTH_SHORT
@@ -108,7 +110,10 @@ class MediaPreviewActivity : AppCompatActivity() {
         }
     }
 
-    override fun finish() {
-        super.finish()
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing) {
+            PreviewBridge.clear(this, previewId)
+        }
     }
 }

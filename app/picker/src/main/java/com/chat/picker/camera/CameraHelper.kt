@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.activity.ComponentActivity
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
@@ -84,10 +85,12 @@ internal object CameraHelper {
         if (hasCameraPermission(activity)) {
             doLaunchCamera(activity, onResult); return
         }
-        val permLauncher = activity.activityResultRegistry.register(
+        lateinit var permLauncher: ActivityResultLauncher<String>
+        permLauncher = activity.activityResultRegistry.register(
             "picker_camera_perm_${System.currentTimeMillis()}",
             ActivityResultContracts.RequestPermission(),
         ) { granted ->
+            permLauncher.unregister()
             if (granted) doLaunchCamera(activity, onResult)
             else onResult(false, null, null)
         }
@@ -99,10 +102,12 @@ internal object CameraHelper {
         onResult: (success: Boolean, filePath: String?, uri: Uri?) -> Unit,
     ) {
         val pending = prepare(activity)
-        val launcher = activity.activityResultRegistry.register(
+        lateinit var launcher: ActivityResultLauncher<Uri>
+        launcher = activity.activityResultRegistry.register(
             "picker_camera_${System.currentTimeMillis()}",
             ActivityResultContracts.TakePicture(),
         ) { success ->
+            launcher.unregister()
             val file = File(pending.filePath)
             val exists = file.exists()
             val len = if (exists) file.length() else 0L

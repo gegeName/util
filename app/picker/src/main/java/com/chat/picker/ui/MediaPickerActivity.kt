@@ -2,6 +2,7 @@ package com.chat.picker.ui
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -16,6 +17,7 @@ import com.chat.picker.api.MediaSelector
 import com.chat.picker.api.SelectionConfig
 import com.chat.picker.data.MediaRepository
 import com.chat.picker.model.MediaEntity
+import com.chat.picker.util.PickerLog
 
 class MediaPickerActivity : AppCompatActivity() {
 
@@ -39,6 +41,9 @@ class MediaPickerActivity : AppCompatActivity() {
     private val triggerCooldownMs = 200L
     private val loadedKeys = HashSet<Long>()
     private val prefetchThreshold = 10
+
+    private val effectiveMaxCount: Int
+        get() = if (config.enableMultiSelect) config.maxCount else 1
 
     private fun keyOf(e: MediaEntity): Long =
         (e.id shl 4) or (e.mediaType.ordinal.toLong() and 0xF)
@@ -118,19 +123,19 @@ class MediaPickerActivity : AppCompatActivity() {
     }
 
     private fun insertCapturedPhoto(entity: MediaEntity) {
-        com.chat.picker.util.PickerLog.d(
+        PickerLog.d(
             "insertCapturedPhoto id=${entity.id} uri=${entity.uri} path=${entity.filePath} " +
                 "all.size(before)=${Selection.all.size} adapter.itemCount=${adapter?.itemCount}"
         )
         if (!loadedKeys.add(keyOf(entity))) {
-            com.chat.picker.util.PickerLog.w("key already loaded, skip")
+            PickerLog.w("key already loaded, skip")
             return
         }
         Selection.all.add(0, entity)
         val result = Selection.toggle(entity)
         if (!result.accepted) {
             android.widget.Toast.makeText(
-                this, getString(com.chat.picker.R.string.picker_over_limit, config.maxCount),
+                this, getString(R.string.picker_over_limit, effectiveMaxCount),
                 android.widget.Toast.LENGTH_SHORT
             ).show()
         }
@@ -173,7 +178,7 @@ class MediaPickerActivity : AppCompatActivity() {
         btnPreview = findViewById(R.id.picker_preview)
 
         Selection.clear()
-        Selection.max = config.maxCount
+        Selection.max = effectiveMaxCount
         if (config.preSelected.isNotEmpty()) {
             Selection.preSelect(config.preSelected)
         }
@@ -253,10 +258,10 @@ class MediaPickerActivity : AppCompatActivity() {
     }
 
     private fun onCheckToggle(item: MediaEntity) {
-        val result = Selection.toggle(item)
+        val result = if (effectiveMaxCount == 1) Selection.selectSingle(item) else Selection.toggle(item)
         if (!result.accepted) {
             android.widget.Toast.makeText(
-                this, getString(com.chat.picker.R.string.picker_max_select, config.maxCount), android.widget.Toast.LENGTH_SHORT
+                this, getString(com.chat.picker.R.string.picker_max_select, effectiveMaxCount), android.widget.Toast.LENGTH_SHORT
             ).show()
             return
         }
@@ -266,7 +271,7 @@ class MediaPickerActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun updateConfirmButton() {
-        btnConfirm.text = getString(com.chat.picker.R.string.picker_done_count, Selection.selected.size, config.maxCount)
+        btnConfirm.text = getString(com.chat.picker.R.string.picker_done_count, Selection.selected.size, effectiveMaxCount)
     }
 
     private fun requestPermissionsAndLoad() {
@@ -348,7 +353,6 @@ class MediaPickerActivity : AppCompatActivity() {
         currentOffset += page.size
         hasMore = when {
             page.size < pageSize -> false
-            page.isNotEmpty() && newOnes.isEmpty() -> false
             fromCache && page.size < pageSize -> false
             else -> true
         }
@@ -384,19 +388,21 @@ class MediaPickerActivity : AppCompatActivity() {
         loadingDialog = null
     }
 
+    @Suppress("DEPRECATION")
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_MODERATE) {
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
             com.chat.picker.loader.ImageLoader.clear()
         }
     }
 
     private fun openPreview(source: List<MediaEntity>, index: Int, fromList: Boolean) {
-        PreviewBridge.previewList = source
+        val previewId = PreviewBridge.put(this, source)
         val intent = Intent(this, MediaPreviewActivity::class.java).apply {
+            putExtra(PreviewBridge.EXTRA_PREVIEW_ID, previewId)
             putExtra(MediaPreviewActivity.EXTRA_INDEX, index)
             putExtra(MediaPreviewActivity.EXTRA_FROM_LIST, fromList)
-            putExtra(MediaPreviewActivity.EXTRA_MAX_COUNT, config.maxCount)
+            putExtra(MediaPreviewActivity.EXTRA_MAX_COUNT, effectiveMaxCount)
         }
         previewLauncher.launch(intent)
     }

@@ -36,6 +36,19 @@ internal object Selection {
         }
     }
 
+    fun selectSingle(item: MediaEntity): ToggleResult {
+        val k = key(item)
+        val ordered = selected.toList()
+        val alreadySelected = ordered.any { key(it) == k }
+        selected.clear()
+        return if (alreadySelected) {
+            ToggleResult(true, ordered)
+        } else {
+            selected.add(item)
+            ToggleResult(true, ordered + item)
+        }
+    }
+
     fun indexOf(item: MediaEntity): Int {
         val k = key(item)
         var i = 0
@@ -52,6 +65,7 @@ internal object Selection {
             selected.forEach { add(key(it)) }
         }
         items.forEach { e ->
+            if (selected.size >= max) return
             if (existed.add(key(e))) selected.add(e)
         }
     }

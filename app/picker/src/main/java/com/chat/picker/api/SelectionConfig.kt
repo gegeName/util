@@ -15,6 +15,7 @@ class SelectionConfig {
      * Play 上架强烈推荐：不申请存储权限可规避 Play 政策审查。
      */
     var useSystemPhotoPicker: Boolean = false
+    var useSystemFilePicker: Boolean = false
 
     /** 是否在列表首位显示"相机入口"item（仅 grid 模式生效；AUDIO 类型强制忽略） */
     var showCameraEntry: Boolean = false

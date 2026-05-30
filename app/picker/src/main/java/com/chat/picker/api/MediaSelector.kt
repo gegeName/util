@@ -52,7 +52,11 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
     fun videoCompressor(c: IVideoCompressor) = apply { MediaSelectorInternal.activeVideoCompressor = c }
 
     /** 启用系统 Photo Picker（API 33+，零权限）。AUDIO 类型会回退到本框架 */
-    fun useSystemPicker(enable: Boolean) = apply { cfg.useSystemPhotoPicker = enable }
+    /** 使用系统 Photo Picker（图片/视频，API 33+ 零权限）；AUDIO 会回退到内部 picker。 */
+    fun useSystemPhotoPicker(enable: Boolean) = apply { cfg.useSystemPhotoPicker = enable }
+
+    /** 使用系统 SAF 文件选择器（任意文件，Google Play 合规，不申请 MANAGE_EXTERNAL_STORAGE）。 */
+    fun useSystemFilePicker(enable: Boolean) = apply { cfg.useSystemFilePicker = enable }
 
     /** 列表首位显示"相机入口" */
     fun showCameraEntry(enable: Boolean) = apply { cfg.showCameraEntry = enable }
@@ -67,17 +71,36 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
     fun showFirstLoading(enable: Boolean) = apply { cfg.showFirstLoading = enable }
 
     fun start(listener: OnPickResultListener) {
-        if (shouldUseSystemPicker()) {
+        if (cfg.useSystemFilePicker) {
+            MediaSelectorInternal.launchDocumentPicker(
+                activity = activity,
+                mimeTypes = systemFilePickerMimeTypes(),
+                allowMultiple = cfg.enableMultiSelect && cfg.maxCount > 1,
+                maxCount = if (cfg.enableMultiSelect) cfg.maxCount else 1,
+                listener = listener,
+            )
+        } else if (shouldUseSystemPhotoPicker()) {
             MediaSelectorInternal.launchSystemPicker(activity, cfg, listener)
         } else {
             MediaSelectorInternal.launchInternalPicker(activity, cfg, listener)
         }
     }
 
-    private fun shouldUseSystemPicker(): Boolean =
+    private fun shouldUseSystemPhotoPicker(): Boolean =
         cfg.useSystemPhotoPicker &&
             cfg.filter.type != MediaType.AUDIO &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+
+    private fun systemFilePickerMimeTypes(): Array<String> {
+        if (cfg.filter.mimeTypes.isNotEmpty()) return cfg.filter.mimeTypes.toTypedArray()
+        return when (cfg.filter.type) {
+            MediaType.IMAGE -> arrayOf("image/*")
+            MediaType.VIDEO -> arrayOf("video/*")
+            MediaType.AUDIO -> arrayOf("audio/*")
+            MediaType.IMAGE_VIDEO -> arrayOf("image/*", "video/*")
+            MediaType.ALL -> arrayOf("*/*")
+        }
+    }
 
     companion object {
         const val EXTRA_RESULT = "picker_result"
@@ -98,6 +121,26 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
         }
 
         /** 全局设置图片加载引擎；传 null 恢复内置默认 */
+        /**
+         * Google Play 友好的任意文件选择入口，基于系统 SAF，不申请 MANAGE_EXTERNAL_STORAGE。
+         * 适合 PDF/ZIP/DOC 等非媒体文件；需要自定义媒体网格时继续使用 [with].
+         */
+        @JvmStatic
+        @JvmOverloads
+        fun pickFiles(
+            activity: ComponentActivity,
+            mimeTypes: Array<String> = arrayOf("*/*"),
+            allowMultiple: Boolean = true,
+            listener: OnPickResultListener,
+        ) {
+            MediaSelectorInternal.launchDocumentPicker(
+                activity = activity,
+                mimeTypes = mimeTypes,
+                allowMultiple = allowMultiple,
+                listener = listener,
+            )
+        }
+
         fun setImageEngine(engine: IImageEngine?) {
             MediaSelectorInternal.globalEngine = engine
         }
