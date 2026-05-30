@@ -293,7 +293,8 @@ class MediaPickerActivity : AppCompatActivity() {
         lastTriggerAt = 0L
         loadedKeys.clear()
         Selection.all.clear()
-        adapter?.submitList(buildDisplayList(emptyList()))
+        seedPreSelectedAtTop()
+        adapter?.submitList(buildDisplayList(Selection.all))
 
         val isCanonical = config.filter.mimeTypes.isEmpty() && config.filter.extraSelection == null
         val cached = MediaSelector.cached(config.filter.type)
@@ -304,6 +305,15 @@ class MediaPickerActivity : AppCompatActivity() {
 
         showLoading(getString(com.chat.picker.R.string.picker_loading_files), firstLoad = true)
         loadPageInternal(isCanonical, isFirstPage = true)
+    }
+
+    private fun seedPreSelectedAtTop() {
+        if (config.preSelected.isEmpty()) return
+        config.preSelected.forEach { item ->
+            if (loadedKeys.add(keyOf(item))) {
+                Selection.all.add(item)
+            }
+        }
     }
 
     private fun loadNextPage() {
