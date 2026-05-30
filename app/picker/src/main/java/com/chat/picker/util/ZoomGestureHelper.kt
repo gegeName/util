@@ -23,21 +23,6 @@ import kotlin.math.min
 
 /**
  * 超级缩放手势工具类
- *
- * 支持：
- *
- * 1. 双指缩放
- * 2. 自动恢复
- * 3. 双击 toggle 放大/复位
- * 4. 惯性滑动
- * 5. 边界回弹（ImageView 与普通 View 都支持）
- * 6. 双击定位动画
- * 7. RecyclerView 手势冲突
- * 8. ViewPager2 手势冲突
- * 9. ImageView真实边界计算
- * 10. 任意View支持
- * 11. drawable 切换自动重算 baseMatrix（适配 ViewPager2 + Glide）
- * 12. detach() 主动释放（适配列表复用）
  */
 class ZoomGestureHelper private constructor(
     private val targetView: View,
