@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import com.chat.picker.model.MediaEntity
@@ -25,6 +26,10 @@ import java.util.concurrent.Executors
 object MediaRepository {
 
     private val ioExecutor = Executors.newSingleThreadExecutor()
+    private const val FILE_SCAN_CACHE_TTL_MS = 30_000L
+
+    @Volatile
+    private var fileScanCache: FileScanCache? = null
 
     fun queryAsync(
         context: Context,
@@ -38,6 +43,10 @@ object MediaRepository {
                 .getOrDefault(emptyList())
             callback(list)
         }
+    }
+
+    fun invalidateFileScanCache() {
+        fileScanCache = null
     }
 
     fun query(
@@ -117,6 +126,36 @@ object MediaRepository {
         offset: Int,
         limit: Int,
     ): List<MediaEntity> {
+        val scanKey = FileScanKey(
+            type = filter.type,
+            mimeTypes = filter.mimeTypes.sorted(),
+            minSizeBytes = filter.minSizeBytes,
+            maxDurationMs = filter.maxDurationMs,
+        )
+        val candidates = cachedCandidates(scanKey) ?: scanCandidates(context, filter).also {
+            fileScanCache = FileScanCache(scanKey, SystemClock.uptimeMillis(), it)
+        }
+
+        val page = candidates
+            .drop(offset.coerceAtLeast(0))
+            .let { if (limit == Int.MAX_VALUE) it else it.take(limit.coerceAtLeast(0)) }
+            .map { it.toEntity() }
+
+        PickerLog.d(
+            "scanExternalFiles type=${filter.type} offset=$offset limit=$limit " +
+                "total=${candidates.size} page=${page.size}"
+        )
+        return page
+    }
+
+    private fun cachedCandidates(key: FileScanKey): List<FileCandidate>? {
+        val cached = fileScanCache ?: return null
+        if (cached.key != key) return null
+        if (SystemClock.uptimeMillis() - cached.createdAtMs > FILE_SCAN_CACHE_TTL_MS) return null
+        return cached.candidates
+    }
+
+    private fun scanCandidates(context: Context, filter: MediaFilter): List<FileCandidate> {
         val candidates = mutableListOf<FileCandidate>()
         val visitedDirs = HashSet<String>()
         val stack = ArrayDeque<File>()
@@ -142,18 +181,7 @@ object MediaRepository {
                 toCandidate(file, filter)?.let { candidates += it }
             }
         }
-
-        val page = candidates
-            .sortedByDescending { it.modifiedSec }
-            .drop(offset.coerceAtLeast(0))
-            .let { if (limit == Int.MAX_VALUE) it else it.take(limit.coerceAtLeast(0)) }
-            .map { it.toEntity() }
-
-        PickerLog.d(
-            "scanExternalFiles type=${filter.type} offset=$offset limit=$limit " +
-                "total=${candidates.size} page=${page.size}"
-        )
-        return page
+        return candidates.sortedByDescending { it.modifiedSec }
     }
 
     @Suppress("DEPRECATION")
@@ -187,7 +215,9 @@ object MediaRepository {
         if (!matchesRequestedType(filter.type, mediaType)) return null
         if (filter.mimeTypes.isNotEmpty() && mime !in filter.mimeTypes) return null
 
-        if (filter.maxDurationMs != Long.MAX_VALUE && filter.type != MediaType.IMAGE) {
+        if (filter.maxDurationMs != Long.MAX_VALUE &&
+            (mediaType == MediaType.VIDEO || mediaType == MediaType.AUDIO)
+        ) {
             val duration = readDurationMs(file)
             if (duration > filter.maxDurationMs) return null
         }
@@ -225,6 +255,19 @@ object MediaRepository {
         val mediaType: MediaType,
         val sizeBytes: Long,
         val modifiedSec: Long,
+    )
+
+    private data class FileScanKey(
+        val type: MediaType,
+        val mimeTypes: List<String>,
+        val minSizeBytes: Long,
+        val maxDurationMs: Long,
+    )
+
+    private data class FileScanCache(
+        val key: FileScanKey,
+        val createdAtMs: Long,
+        val candidates: List<FileCandidate>,
     )
 
     private data class FileMetadata(

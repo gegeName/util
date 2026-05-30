@@ -73,10 +73,11 @@ internal object MediaSelectorInternal {
         val app = context.applicationContext
         types.forEach { t ->
             if (!PermissionHelper.anyUsable(app, t)) return@forEach
+            val key = cacheKey(t)
             MediaRepository.queryAsync(
                 app, MediaFilter.of(t), offset = 0, limit = pageSize
             ) { list ->
-                if (list.isNotEmpty()) preloadCache[cacheKey(t)] = list
+                if (list.isNotEmpty()) preloadCache[key] = list
             }
         }
     }
@@ -88,7 +89,10 @@ internal object MediaSelectorInternal {
         if (list.isNotEmpty()) preloadCache[cacheKey(type)] = list
     }
 
-    fun invalidateCache() = preloadCache.clear()
+    fun invalidateCache() {
+        preloadCache.clear()
+        MediaRepository.invalidateFileScanCache()
+    }
 
     private fun cacheKey(type: MediaType): CacheKey =
         CacheKey(type, StorageAccess.hasAllFilesAccess())
