@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.chat.picker.R
 import com.chat.picker.api.MediaSelector
 import com.chat.picker.model.MediaEntity
+import com.chat.picker.model.MediaType
 import java.util.Locale
 
 internal class MediaListAdapter(
@@ -39,7 +40,7 @@ internal class MediaListAdapter(
             dateAddedSec = 0,
             width = 0,
             height = 0,
-            mediaType = com.chat.picker.model.MediaType.ALL,
+            mediaType = MediaType.ALL,
         )
 
         fun isCameraEntry(item: MediaEntity): Boolean = item.id == -1L && item.mimeType.isEmpty()

@@ -4,10 +4,12 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.Bundle
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.viewpager2.widget.ViewPager2
 import com.chat.picker.R
 import com.chat.picker.model.MediaEntity
+import com.chat.picker.util.EdgeToEdge
 
 class MediaPreviewActivity : AppCompatActivity() {
 
@@ -29,7 +31,7 @@ class MediaPreviewActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.picker_activity_preview)
-        com.chat.picker.util.EdgeToEdge.apply(
+        EdgeToEdge.apply(
             activity = this,
             root = findViewById(R.id.preview_root),
             topBar = findViewById(R.id.preview_top_bar),
@@ -66,8 +68,8 @@ class MediaPreviewActivity : AppCompatActivity() {
             val cur = data[pager.currentItem]
             val r = if (maxCount == 1) Selection.selectSingle(cur) else Selection.toggle(cur)
             if (!r.accepted) {
-                android.widget.Toast.makeText(
-                    this, getString(R.string.picker_max_select, maxCount), android.widget.Toast.LENGTH_SHORT
+                Toast.makeText(
+                    this, getString(R.string.picker_max_select, maxCount), Toast.LENGTH_SHORT
                 ).show()
                 return@setOnClickListener
             }

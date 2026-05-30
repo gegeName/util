@@ -1,9 +1,11 @@
 package com.chat.picker.api
 
 import com.chat.picker.model.MediaFilter
+import com.chat.picker.model.MediaEntity
+import com.chat.picker.model.MediaType
 
 class SelectionConfig {
-    var filter: MediaFilter = MediaFilter.Builder(com.chat.picker.model.MediaType.IMAGE).build()
+    var filter: MediaFilter = MediaFilter.Builder(MediaType.IMAGE).build()
     var maxCount: Int = 9
     var gridSpanCount: Int = 4
     var startInGrid: Boolean = true
@@ -25,7 +27,7 @@ class SelectionConfig {
      * 只需 entity.id + mediaType 一致即可识别（其它字段不必精确匹配）。
      * 数量应不超过 [maxCount]。
      */
-    var preSelected: List<com.chat.picker.model.MediaEntity> = emptyList()
+    var preSelected: List<MediaEntity> = emptyList()
 
     /**
      * 首次加载是否显示 loading 弹窗。
@@ -36,7 +38,7 @@ class SelectionConfig {
 }
 
 fun interface OnPickResultListener {
-    fun onResult(result: List<com.chat.picker.model.MediaEntity>)
+    fun onResult(result: List<MediaEntity>)
 }
 
 /** 拍照结果回调；失败 / 用户取消时 success=false, filePath/uri 为 null */

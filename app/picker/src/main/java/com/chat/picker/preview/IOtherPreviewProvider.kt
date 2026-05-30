@@ -2,10 +2,11 @@ package com.chat.picker.preview
 
 import android.view.View
 import android.view.ViewGroup
+import com.chat.picker.api.MediaSelector
 import com.chat.picker.model.MediaEntity
 
 /**
- * 非图片/视频/音频项的预览扩展点：业务方实现后通过 [com.chat.picker.api.MediaSelector.setOtherPreviewProvider]
+ * 非图片/视频/音频项的预览扩展点：业务方实现后通过 [MediaSelector.setOtherPreviewProvider]
  * 注册，预览页遇到 doc/xls/ppt/pdf/zip 等"其他文件"会调到这里渲染自定义 View。
  *
  * 生命周期：

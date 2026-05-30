@@ -7,6 +7,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -15,9 +16,20 @@ import androidx.recyclerview.widget.RecyclerView
 import com.chat.picker.R
 import com.chat.picker.api.MediaSelector
 import com.chat.picker.api.SelectionConfig
+import com.chat.picker.camera.CameraHelper
+import com.chat.picker.compress.CompressCallback
+import com.chat.picker.compress.IImageCompressor
+import com.chat.picker.compress.IVideoCompressor
 import com.chat.picker.data.MediaRepository
+import com.chat.picker.loader.ImageLoader
 import com.chat.picker.model.MediaEntity
+import com.chat.picker.model.MediaType
+import com.chat.picker.util.EdgeToEdge
 import com.chat.picker.util.PickerLog
+import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 
 class MediaPickerActivity : AppCompatActivity() {
 
@@ -50,7 +62,7 @@ class MediaPickerActivity : AppCompatActivity() {
 
     private fun shouldShowCamera(): Boolean =
         config.showCameraEntry && isGrid &&
-            config.filter.type != com.chat.picker.model.MediaType.AUDIO
+            config.filter.type != MediaType.AUDIO
 
     private fun cameraOffset(): Int = if (shouldShowCamera()) 1 else 0
 
@@ -71,27 +83,27 @@ class MediaPickerActivity : AppCompatActivity() {
             updatePartialBarVisibility()
         } else {
             emptyView.visibility = View.VISIBLE
-            (emptyView as TextView).text = getString(com.chat.picker.R.string.picker_no_media_permission)
+            (emptyView as TextView).text = getString(R.string.picker_no_media_permission)
             dismissLoading()
         }
     }
 
-    private var pendingCamera: com.chat.picker.camera.CameraHelper.Pending? = null
+    private var pendingCamera: CameraHelper.Pending? = null
     private val cameraLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
     ) { success ->
         val p = pendingCamera ?: return@registerForActivityResult
         pendingCamera = null
-        val file = java.io.File(p.filePath)
+        val file = File(p.filePath)
         val exists = file.exists()
         val len = if (exists) file.length() else 0L
-        com.chat.picker.util.PickerLog.d(
+        PickerLog.d(
             "in-picker TakePicture success=$success exists=$exists size=$len path=${p.filePath}"
         )
         val ok = success && exists && len > 0
         if (ok) {
             p.onSuccess()
-            val entity = com.chat.picker.camera.CameraHelper.makeEntity(p.filePath, p.uri)
+            val entity = CameraHelper.makeEntity(p.filePath, p.uri)
             insertCapturedPhoto(entity)
             MediaSelector.invalidateCache()
         } else {
@@ -103,13 +115,13 @@ class MediaPickerActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) doLaunchCamera()
-        else android.widget.Toast.makeText(
-            this, getString(com.chat.picker.R.string.picker_camera_permission_required), android.widget.Toast.LENGTH_SHORT
+        else Toast.makeText(
+            this, getString(R.string.picker_camera_permission_required), Toast.LENGTH_SHORT
         ).show()
     }
 
     private fun launchCamera() {
-        if (com.chat.picker.camera.CameraHelper.hasCameraPermission(this)) {
+        if (CameraHelper.hasCameraPermission(this)) {
             doLaunchCamera()
         } else {
             cameraPermLauncher.launch(android.Manifest.permission.CAMERA)
@@ -117,7 +129,7 @@ class MediaPickerActivity : AppCompatActivity() {
     }
 
     private fun doLaunchCamera() {
-        val p = com.chat.picker.camera.CameraHelper.prepare(this)
+        val p = CameraHelper.prepare(this)
         pendingCamera = p
         cameraLauncher.launch(p.uri)
     }
@@ -134,9 +146,9 @@ class MediaPickerActivity : AppCompatActivity() {
         Selection.all.add(0, entity)
         val result = Selection.toggle(entity)
         if (!result.accepted) {
-            android.widget.Toast.makeText(
+            Toast.makeText(
                 this, getString(R.string.picker_over_limit, effectiveMaxCount),
-                android.widget.Toast.LENGTH_SHORT
+                Toast.LENGTH_SHORT
             ).show()
         }
         adapter?.submitList(buildDisplayList(Selection.all))
@@ -164,7 +176,7 @@ class MediaPickerActivity : AppCompatActivity() {
         isGrid = config.startInGrid
 
         setContentView(R.layout.picker_activity_list)
-        com.chat.picker.util.EdgeToEdge.apply(
+        EdgeToEdge.apply(
             activity = this,
             root = findViewById(R.id.picker_root),
             topBar = findViewById(R.id.picker_top_bar),
@@ -220,8 +232,8 @@ class MediaPickerActivity : AppCompatActivity() {
         recycler.itemAnimator = null
         adapter?.submitList(buildDisplayList(Selection.all))
         btnToggle.text = getString(
-            if (isGrid) com.chat.picker.R.string.picker_toggle_list
-            else com.chat.picker.R.string.picker_toggle_grid
+            if (isGrid) R.string.picker_toggle_list
+            else R.string.picker_toggle_grid
         )
         attachPrefetchListener()
     }
@@ -260,8 +272,8 @@ class MediaPickerActivity : AppCompatActivity() {
     private fun onCheckToggle(item: MediaEntity) {
         val result = if (effectiveMaxCount == 1) Selection.selectSingle(item) else Selection.toggle(item)
         if (!result.accepted) {
-            android.widget.Toast.makeText(
-                this, getString(com.chat.picker.R.string.picker_max_select, effectiveMaxCount), android.widget.Toast.LENGTH_SHORT
+            Toast.makeText(
+                this, getString(R.string.picker_max_select, effectiveMaxCount), Toast.LENGTH_SHORT
             ).show()
             return
         }
@@ -271,7 +283,7 @@ class MediaPickerActivity : AppCompatActivity() {
 
     @SuppressLint("SetTextI18n")
     private fun updateConfirmButton() {
-        btnConfirm.text = getString(com.chat.picker.R.string.picker_done_count, Selection.selected.size, effectiveMaxCount)
+        btnConfirm.text = getString(R.string.picker_done_count, Selection.selected.size, effectiveMaxCount)
     }
 
     private fun requestPermissionsAndLoad() {
@@ -308,7 +320,7 @@ class MediaPickerActivity : AppCompatActivity() {
             return
         }
 
-        showLoading(getString(com.chat.picker.R.string.picker_loading_files), firstLoad = true)
+        showLoading(getString(R.string.picker_loading_files), firstLoad = true)
         loadPageInternal(isCanonical, isFirstPage = true)
     }
 
@@ -380,7 +392,7 @@ class MediaPickerActivity : AppCompatActivity() {
             Selection.clear()
             MediaSelector.clearActiveEngine()
             MediaSelector.clearActiveCompressors()
-            com.chat.picker.loader.ImageLoader.clear()
+            ImageLoader.clear()
         }
         compressPool?.shutdownNow()
         compressPool = null
@@ -392,7 +404,7 @@ class MediaPickerActivity : AppCompatActivity() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) {
-            com.chat.picker.loader.ImageLoader.clear()
+            ImageLoader.clear()
         }
     }
 
@@ -407,7 +419,7 @@ class MediaPickerActivity : AppCompatActivity() {
         previewLauncher.launch(intent)
     }
 
-    private var compressPool: java.util.concurrent.ExecutorService? = null
+    private var compressPool: ExecutorService? = null
 
     private fun finishWithResult() {
         val list = Selection.selected.toList()
@@ -427,15 +439,15 @@ class MediaPickerActivity : AppCompatActivity() {
 
     private fun runCompress(
         list: List<MediaEntity>,
-        imageC: com.chat.picker.compress.IImageCompressor?,
-        videoC: com.chat.picker.compress.IVideoCompressor?,
+        imageC: IImageCompressor?,
+        videoC: IVideoCompressor?,
     ) {
         val total = list.size
         val results = arrayOfNulls<MediaEntity>(total)
-        val done = java.util.concurrent.atomic.AtomicInteger()
+        val done = AtomicInteger()
         val parallel = (Runtime.getRuntime().availableProcessors() / 2)
             .coerceIn(1, 4).coerceAtMost(total)
-        val pool = java.util.concurrent.Executors.newFixedThreadPool(parallel)
+        val pool = Executors.newFixedThreadPool(parallel)
             .also { compressPool = it }
 
         val imgCount = list.count { it.isImage && imageC != null && imageC.needsCompress(it) }
@@ -457,7 +469,7 @@ class MediaPickerActivity : AppCompatActivity() {
         }
 
         list.forEachIndexed { i, item ->
-            val callback = com.chat.picker.compress.CompressCallback(item) { result ->
+            val callback = CompressCallback(item) { result ->
                 onItemDone(i, result)
             }
             pool.execute {
@@ -478,12 +490,12 @@ class MediaPickerActivity : AppCompatActivity() {
 
     private fun buildProgressText(done: Int, total: Int, img: Int, vid: Int): String =
         buildString {
-            append(getString(com.chat.picker.R.string.picker_compress_progress, done, total))
+            append(getString(R.string.picker_compress_progress, done, total))
             if (img > 0 || vid > 0) {
                 append("\n")
-                if (img > 0) append(getString(com.chat.picker.R.string.picker_compress_image_count, img))
+                if (img > 0) append(getString(R.string.picker_compress_image_count, img))
                 if (img > 0 && vid > 0) append("  ")
-                if (vid > 0) append(getString(com.chat.picker.R.string.picker_compress_video_count, vid))
+                if (vid > 0) append(getString(R.string.picker_compress_video_count, vid))
             }
         }
 

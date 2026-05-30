@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.widget.ImageView
+import com.chat.picker.R
 import com.chat.picker.model.MediaEntity
 import java.util.concurrent.Executors
 
@@ -76,12 +77,12 @@ internal object DefaultImageEngine : IImageEngine {
     private fun showAudioDefault(view: ImageView) {
         view.background = ColorDrawable(audioBgColor)
         view.scaleType = ImageView.ScaleType.CENTER_INSIDE
-        view.setImageResource(com.chat.picker.R.drawable.picker_ic_audio)
+        view.setImageResource(R.drawable.picker_ic_audio)
     }
 
     private fun showUnknownDefault(view: ImageView) {
         view.background = ColorDrawable(audioBgColor)
         view.scaleType = ImageView.ScaleType.CENTER_INSIDE
-        view.setImageResource(com.chat.picker.R.drawable.picker_ic_unknown)
+        view.setImageResource(R.drawable.picker_ic_unknown)
     }
 }

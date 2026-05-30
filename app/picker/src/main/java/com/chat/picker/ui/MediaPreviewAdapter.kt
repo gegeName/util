@@ -1,11 +1,14 @@
 package com.chat.picker.ui
 
 import android.media.MediaPlayer
+import android.graphics.Color
 import android.os.Handler
 import android.os.Looper
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.MediaController
 import android.widget.ProgressBar
@@ -18,6 +21,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.chat.picker.R
 import com.chat.picker.api.MediaSelector
 import com.chat.picker.model.MediaEntity
+import com.chat.picker.preview.IOtherPreviewProvider
 import com.chat.picker.util.ZoomGestureHelper
 
 internal class MediaPreviewAdapter
@@ -293,16 +297,16 @@ internal class MediaPreviewAdapter
     }
 
     /**
-     * 其他文件类型的容器：把 [com.chat.picker.preview.IOtherPreviewProvider] 注入的 View 放进 FrameLayout
+     * 其他文件类型的容器：把 [IOtherPreviewProvider] 注入的 View 放进 FrameLayout
      * 当作 holder 根。未注册 provider 时显示一个最小信息态（文件名 + mime + 大小），不至于黑屏。
      */
-    private inner class OtherVH(parent: ViewGroup) : RecyclerView.ViewHolder(android.widget.FrameLayout(parent.context).apply {
+    private inner class OtherVH(parent: ViewGroup) : RecyclerView.ViewHolder(FrameLayout(parent.context).apply {
         layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
         )
-        setBackgroundColor(android.graphics.Color.parseColor("#1A1A1A"))
+        setBackgroundColor(Color.parseColor("#1A1A1A"))
     }) {
-        private val container: android.widget.FrameLayout = itemView as android.widget.FrameLayout
+        private val container: FrameLayout = itemView as FrameLayout
         private var providerView: View? = null
 
         fun bind(item: MediaEntity) {
@@ -313,7 +317,7 @@ internal class MediaPreviewAdapter
                 providerView = v
                 container.addView(
                     v,
-                    android.widget.FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT,
                     ),
@@ -321,8 +325,8 @@ internal class MediaPreviewAdapter
                 provider.bindView(v, item)
             } else {
                 val tv = TextView(container.context).apply {
-                    gravity = android.view.Gravity.CENTER
-                    setTextColor(android.graphics.Color.WHITE)
+                    gravity = Gravity.CENTER
+                    setTextColor(Color.WHITE)
                     textSize = 14f
                     setPadding(48, 48, 48, 48)
                     text = buildString {
@@ -334,7 +338,7 @@ internal class MediaPreviewAdapter
                 providerView = tv
                 container.addView(
                     tv,
-                    android.widget.FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT,
                     ),

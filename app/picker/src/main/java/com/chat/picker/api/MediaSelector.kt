@@ -3,6 +3,7 @@ package com.chat.picker.api
 import android.content.Context
 import android.os.Build
 import androidx.activity.ComponentActivity
+import com.chat.picker.camera.CameraHelper
 import com.chat.picker.compress.IImageCompressor
 import com.chat.picker.compress.IVideoCompressor
 import com.chat.picker.loader.DefaultImageEngine
@@ -114,7 +115,7 @@ class MediaSelector private constructor(private val activity: ComponentActivity)
          */
         @JvmStatic
         fun takePhoto(activity: ComponentActivity, listener: OnPhotoTakenListener) {
-            com.chat.picker.camera.CameraHelper.take(activity) { ok, path, uri ->
+            CameraHelper.take(activity) { ok, path, uri ->
                 if (ok) invalidateCache()
                 listener.onResult(ok, path, uri)
             }

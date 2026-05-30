@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.chat.picker.model.MediaEntity
 import com.chat.picker.model.MediaType
+import com.chat.picker.util.PickerLog
 import java.io.File
 
 /**
@@ -111,7 +112,7 @@ internal object CameraHelper {
             val file = File(pending.filePath)
             val exists = file.exists()
             val len = if (exists) file.length() else 0L
-            com.chat.picker.util.PickerLog.d(
+            PickerLog.d(
                 "TakePicture result success=$success exists=$exists size=$len path=${pending.filePath}"
             )
             val ok = success && exists && len > 0
