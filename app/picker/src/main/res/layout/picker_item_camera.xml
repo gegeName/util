@@ -2,8 +2,8 @@
 <com.chat.picker.ui.SquareFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="2dp"
-    android:background="#222222"
+    android:layout_margin="3dp"
+    android:background="@drawable/picker_bg_camera_entry"
     android:foreground="?android:selectableItemBackground">
 
     <androidx.appcompat.widget.AppCompatImageView

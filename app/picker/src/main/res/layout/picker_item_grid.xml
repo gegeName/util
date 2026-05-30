@@ -2,14 +2,24 @@
 <com.chat.picker.ui.SquareFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="2dp">
+    android:layout_margin="3dp"
+    android:background="@drawable/picker_bg_grid_item"
+    android:foreground="?android:attr/selectableItemBackground"
+    android:padding="1dp">
 
-    <ImageView
+    <com.chat.picker.ui.RoundedImageView
         android:id="@+id/item_thumb"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#EEEEEE"
+        android:background="@drawable/picker_bg_thumb_frame"
         android:scaleType="centerCrop" />
+
+    <View
+        android:id="@+id/item_mask"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@drawable/picker_bg_grid_mask"
+        android:visibility="gone" />
 
     <TextView
         android:id="@+id/item_duration"
@@ -17,7 +27,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="4dp"
-        android:background="#80000000"
+        android:background="@drawable/picker_bg_media_badge"
         android:paddingHorizontal="4dp"
         android:paddingVertical="2dp"
         android:text="00:00"
@@ -31,7 +41,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
         android:layout_margin="4dp"
-        android:background="#80000000"
+        android:background="@drawable/picker_bg_media_badge"
         android:paddingHorizontal="4dp"
         android:paddingVertical="2dp"
         android:text="FILE"
@@ -57,11 +67,4 @@
             android:textSize="13sp"
             android:textStyle="bold" />
     </FrameLayout>
-
-    <View
-        android:id="@+id/item_mask"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#66000000"
-        android:visibility="gone" />
 </com.chat.picker.ui.SquareFrameLayout>

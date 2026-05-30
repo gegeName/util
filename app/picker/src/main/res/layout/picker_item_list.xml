@@ -2,21 +2,27 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="?android:selectableItemBackground"
+    android:layout_marginStart="8dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginBottom="4dp"
+    android:background="@drawable/picker_bg_list_item"
     android:gravity="center_vertical"
+    android:minHeight="88dp"
     android:orientation="horizontal"
     android:padding="8dp">
 
     <FrameLayout
-        android:background="#666666"
         android:layout_width="72dp"
-        android:layout_height="72dp">
+        android:layout_height="72dp"
+        android:background="@drawable/picker_bg_thumb_frame"
+        android:clipToOutline="true">
 
-        <ImageView
+        <com.chat.picker.ui.RoundedImageView
             android:id="@+id/item_thumb"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#EEEEEE"
+            android:background="@drawable/picker_bg_thumb_frame"
             android:scaleType="centerCrop" />
 
         <TextView
@@ -24,7 +30,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|end"
-            android:background="#80000000"
+            android:background="@drawable/picker_bg_media_badge"
             android:paddingHorizontal="3dp"
             android:text="00:00"
             android:textColor="#FFFFFF"
@@ -36,7 +42,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="bottom|start"
-            android:background="#80000000"
+            android:background="@drawable/picker_bg_media_badge"
             android:paddingHorizontal="3dp"
             android:text="FILE"
             android:textColor="#FFFFFF"
@@ -48,7 +54,7 @@
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
+        android:layout_marginStart="12dp"
         android:layout_weight="1"
         android:orientation="vertical">
 
@@ -58,15 +64,16 @@
             android:layout_height="wrap_content"
             android:ellipsize="middle"
             android:singleLine="true"
-            android:textColor="#222222"
-            android:textSize="14sp" />
+            android:textColor="#1F2933"
+            android:textSize="15sp"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/item_info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:textColor="#888888"
+            android:layout_marginTop="6dp"
+            android:textColor="#7B8794"
             android:textSize="12sp" />
     </LinearLayout>
 
