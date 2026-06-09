@@ -40,6 +40,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     // ApiErrorHandler 用到 retrofit2.HttpException;HttpResult / 网络层 public API
     api("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.github.bumptech.glide:glide:5.0.5")
 }
 
 apply(from = "jitpack.gradle")

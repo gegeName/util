@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="ViewPager2Banner">
+        <!-- 是否开启自动轮播；true 时 attach 到窗口并且数据数量大于 1 后自动开始 -->
+        <attr name="vpb_autoPlay" format="boolean" />
+        <!-- 自动轮播间隔，单位毫秒；最小值由 ViewPager2Banner 内部限制为 1000ms -->
+        <attr name="vpb_autoPlayInterval" format="integer" />
+        <!-- 自动切换到下一页的滚动动画时长，单位毫秒；数值越大切换越慢 -->
+        <attr name="vpb_scrollDuration" format="integer" />
+        <!-- 是否显示底部指示器 -->
+        <attr name="vpb_indicatorVisible" format="boolean" />
+        <!-- 指示器未选中颜色；未设置 drawable 时生效 -->
+        <attr name="vpb_indicatorNormalColor" format="color" />
+        <!-- 指示器选中颜色；未设置 drawable 时生效 -->
+        <attr name="vpb_indicatorSelectedColor" format="color" />
+        <!-- 指示器未选中 drawable；优先级高于 vpb_indicatorNormalColor -->
+        <attr name="vpb_indicatorNormalDrawable" format="reference" />
+        <!-- 指示器选中 drawable；优先级高于 vpb_indicatorSelectedColor -->
+        <attr name="vpb_indicatorSelectedDrawable" format="reference" />
+        <!-- 默认圆点指示器大小 -->
+        <attr name="vpb_indicatorSize" format="dimension" />
+        <!-- 指示器 item 左右间距 -->
+        <attr name="vpb_indicatorSpace" format="dimension" />
+        <!-- 指示器距离 Banner 底部的间距 -->
+        <attr name="vpb_indicatorBottomMargin" format="dimension" />
+        <!-- 一屏显示的 item 数量；建议使用奇数，偶数会在代码中自动转成下一个奇数 -->
+        <attr name="vpb_visibleItemCount" format="integer" />
+        <!-- item 左右间距，用于多 item 露出场景 -->
+        <attr name="vpb_itemMargin" format="dimension" />
+        <!-- 四个角统一圆角；可被下面单独角圆角覆盖 -->
+        <attr name="vpb_cornerRadius" format="dimension" />
+        <!-- 左上角圆角 -->
+        <attr name="vpb_leftTopRadius" format="dimension" />
+        <!-- 右上角圆角 -->
+        <attr name="vpb_rightTopRadius" format="dimension" />
+        <!-- 右下角圆角 -->
+        <attr name="vpb_rightBottomRadius" format="dimension" />
+        <!-- 左下角圆角 -->
+        <attr name="vpb_leftBottomRadius" format="dimension" />
+        <!-- 横向滑动时是否请求父布局不要拦截事件，用于解决和外层 RecyclerView/ViewPager2/刷新布局的滑动冲突 -->
+        <attr name="vpb_disallowParentIntercept" format="boolean" />
+        <!-- 默认图片 Banner 的 ImageView 缩放模式；不设置 setCreateItemView 时生效 -->
+        <attr name="vpb_imageScaleType" format="enum">
+            <!-- 拉伸填充整个 ImageView，可能改变图片比例 -->
+            <enum name="fitXY" value="0" />
+            <!-- 保持比例裁剪填满 ImageView -->
+            <enum name="centerCrop" value="1" />
+            <!-- 保持比例完整显示在 ImageView 内，图片可能不铺满 -->
+            <enum name="centerInside" value="2" />
+            <!-- 保持比例居中完整显示 -->
+            <enum name="fitCenter" value="3" />
+        </attr>
+    </declare-styleable>
+</resources>
