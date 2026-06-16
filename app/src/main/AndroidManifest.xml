@@ -46,6 +46,8 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".GuideDemoActivity" />
+
         <activity
             android:name=".GoodsDetailActivity"
             android:exported="true" />
