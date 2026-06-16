@@ -1,4 +1,4 @@
-package com.chat.mylibrary.utils
+package com.chat.mylibrary.widget
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter

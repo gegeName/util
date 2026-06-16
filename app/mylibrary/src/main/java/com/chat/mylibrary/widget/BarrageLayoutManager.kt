@@ -1,4 +1,4 @@
-package com.chat.mylibrary.utils
+package com.chat.mylibrary.widget
 
 import android.graphics.Rect
 import android.view.ViewGroup

@@ -1,12 +1,9 @@
-package com.chat.mylibrary
+package com.chat.mylibrary.widget
 
 import android.os.Build
 import android.view.View
 import android.view.ViewGroup
-import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
-import android.widget.LinearLayout
-import android.widget.RelativeLayout
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -270,4 +267,3 @@ class HeaderScrollSync private constructor(
         }
     }
 }
-

@@ -1,4 +1,4 @@
-package com.chat.mylibrary.utils
+package com.chat.mylibrary.flowbus
 
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -6,6 +6,7 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.lifecycleScope
 import com.chat.mylibrary.base.BaseViewModel
+import com.chat.mylibrary.utils.SLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
