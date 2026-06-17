@@ -19,6 +19,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.chat.mylibrary.R
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import androidx.core.view.isGone
+import androidx.core.content.withStyledAttributes
 
 /**
  * A 阶段实现：自定义 CoordinatorLayout + AppBarLayout 的最小替代。
@@ -97,13 +99,13 @@ class NestedHeaderLayout @JvmOverloads constructor(
         set(value) { field = value.coerceIn(0f, 1f) }
 
     init {
-        val ta = context.obtainStyledAttributes(attrs, R.styleable.NestedHeaderLayout)
-        snapEnabled = ta.getBoolean(R.styleable.NestedHeaderLayout_nh_snapEnabled, false)
-        snapThresholdRatio = ta.getFloat(
-            R.styleable.NestedHeaderLayout_nh_snapThresholdRatio,
-            DEFAULT_SNAP_THRESHOLD_RATIO
-        )
-        ta.recycle()
+        context.withStyledAttributes(attrs, R.styleable.NestedHeaderLayout) {
+            snapEnabled = getBoolean(R.styleable.NestedHeaderLayout_nh_snapEnabled, false)
+            snapThresholdRatio = getFloat(
+                R.styleable.NestedHeaderLayout_nh_snapThresholdRatio,
+                DEFAULT_SNAP_THRESHOLD_RATIO
+            )
+        }
     }
 
     fun addOnOffsetChangedListener(l: OnHeaderOffsetChangedListener) {
@@ -188,7 +190,7 @@ class NestedHeaderLayout @JvmOverloads constructor(
 
         for (i in 0 until childCount) {
             val child = getChildAt(i)
-            if (child.visibility == GONE) continue
+            if (child.isGone) continue
             val lp = child.layoutParams as LayoutParams
 
             if (lp.behavior == BEHAVIOR_BODY) {
@@ -246,7 +248,7 @@ class NestedHeaderLayout @JvmOverloads constructor(
 
         for (i in 0 until childCount) {
             val child = getChildAt(i)
-            if (child.visibility == GONE) continue
+            if (child.isGone) continue
             val lp = child.layoutParams as LayoutParams
             val cw = child.measuredWidth
             val ch = child.measuredHeight
@@ -276,7 +278,7 @@ class NestedHeaderLayout @JvmOverloads constructor(
         val ratio = if (maxOffset > 0) offsetF / maxOffset else 0f
         for (i in 0 until childCount) {
             val c = getChildAt(i)
-            if (c.visibility == GONE) continue
+            if (c.isGone) continue
             val lp = c.layoutParams as LayoutParams
             when (lp.behavior) {
                 BEHAVIOR_SCROLL, BEHAVIOR_STICKY, BEHAVIOR_BODY -> {
@@ -481,7 +483,7 @@ class NestedHeaderLayout @JvmOverloads constructor(
         // 反序遍历：先匹配 Z 序最上层（pin/scrim 已被 bringChildToFront）
         for (i in childCount - 1 downTo 0) {
             val c = getChildAt(i)
-            if (c.visibility == GONE) continue
+            if (c.isGone) continue
             // 用 visual Y（含 translationY），因为新模型用 translationY 而非 offsetTopAndBottom
             val visualTop = c.top + c.translationY.toInt()
             val visualBottom = c.bottom + c.translationY.toInt()
@@ -619,7 +621,7 @@ class NestedHeaderLayout @JvmOverloads constructor(
     private fun findBodyChild(): View? {
         for (i in 0 until childCount) {
             val c = getChildAt(i)
-            if (c.visibility == GONE) continue
+            if (c.isGone) continue
             if ((c.layoutParams as LayoutParams).behavior == BEHAVIOR_BODY) return c
         }
         return null
@@ -670,20 +672,20 @@ class NestedHeaderLayout @JvmOverloads constructor(
         constructor(width: Int, height: Int) : super(width, height)
         constructor(source: ViewGroup.LayoutParams?) : super(source)
         constructor(c: Context, attrs: AttributeSet?) : super(c, attrs) {
-            val a = c.obtainStyledAttributes(attrs, R.styleable.NestedHeaderLayout_Layout)
-            behavior = a.getInt(
-                R.styleable.NestedHeaderLayout_Layout_layout_nh_behavior,
-                BEHAVIOR_BODY
-            )
-            parallaxMultiplier = a.getFloat(
-                R.styleable.NestedHeaderLayout_Layout_layout_nh_parallaxMultiplier,
-                DEFAULT_PARALLAX_MULTIPLIER
-            ).coerceIn(0f, 1f)
-            scrimTriggerRatio = a.getFloat(
-                R.styleable.NestedHeaderLayout_Layout_layout_nh_scrimTriggerRatio,
-                DEFAULT_SCRIM_TRIGGER_RATIO
-            ).coerceIn(0f, 1f)
-            a.recycle()
+            c.withStyledAttributes(attrs, R.styleable.NestedHeaderLayout_Layout) {
+                behavior = getInt(
+                    R.styleable.NestedHeaderLayout_Layout_layout_nh_behavior,
+                    BEHAVIOR_BODY
+                )
+                parallaxMultiplier = getFloat(
+                    R.styleable.NestedHeaderLayout_Layout_layout_nh_parallaxMultiplier,
+                    DEFAULT_PARALLAX_MULTIPLIER
+                ).coerceIn(0f, 1f)
+                scrimTriggerRatio = getFloat(
+                    R.styleable.NestedHeaderLayout_Layout_layout_nh_scrimTriggerRatio,
+                    DEFAULT_SCRIM_TRIGGER_RATIO
+                ).coerceIn(0f, 1f)
+            }
         }
     }
 
