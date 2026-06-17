@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NestedHeaderLayout 系列控件的自定义属性。
+    包含三组:
+      1) NestedHeaderLayout         — 容器自身属性（吸附行为）
+      2) NestedHeaderLayout_Layout  — 子 View 在该容器内的布局参数（角色 + 视差/scrim 参数）
+      3) CollapsingTitleView        — 收/展两种状态下标题的样式 + 位置插值参数
+-->
+<resources>
+
+    <!-- ============================================================
+         容器自身属性。用在 <NestedHeaderLayout> 标签上。
+         ============================================================ -->
+    <declare-styleable name="NestedHeaderLayout">
+
+        <!--
+            是否启用"松手自动吸附"。
+              false（默认）：滚动结束停在哪里就在哪里，不会自动归位。
+              true         ：拖动/fling 结束、body fling 结束时，若 header 还停在中段，
+                             按 nh_snapThresholdRatio 自动吸附到 0（完全展开）或 maxOffset（完全折叠）。
+
+            一般 IM/资讯类的"头图想停哪停哪"业务用 false；
+            个人主页那种"折半就难看"的场景开 true。
+        -->
+        <attr name="nh_snapEnabled" format="boolean" />
+
+        <!--
+            自动吸附阈值。取值 [0, 1]，默认 0.5。仅 nh_snapEnabled=true 时生效。
+
+            语义：当前折叠比例 (headerOffset / maxOffset) 与此值比较 ——
+              比例 >= 阈值 → snap 到 maxOffset（折到底）
+              比例 <  阈值 → snap 到 0      （回到顶）
+
+            示例：
+              0.3 → 拖到 30% 折叠以上就一路折到底（吸附偏向"折叠"）
+              0.7 → 拖到 70% 才会被认定为"想折"（吸附偏向"展开"）
+        -->
+        <attr name="nh_snapThresholdRatio" format="float" />
+
+    </declare-styleable>
+
+
+    <!-- ============================================================
+         子 View 在 NestedHeaderLayout 里的布局参数。
+         所有 layout_nh_* 写在 NestedHeaderLayout 的 *直接* 子 View 上。
+         ============================================================ -->
+    <declare-styleable name="NestedHeaderLayout_Layout">
+
+        <!--
+            子 View 的角色。决定它在折叠中如何运动、是否参与堆叠、是否被 Z 序提到最上。
+            未指定时默认 body。一个容器里最多一个 body；scroll/parallax 可以多个并按 XML 顺序堆叠。
+        -->
+        <attr name="layout_nh_behavior" format="enum">
+
+            <!--
+                scroll：经典折叠区。
+                  - 参与线性堆叠（占用 layout 高度）
+                  - 折叠时整体上移 -headerOffset
+                  - 完全折叠时整个移出可视范围
+                典型用途：广告位、轮播头条这类"折叠掉就完全消失"的元素。
+            -->
+            <enum name="scroll" value="0" />
+
+            <!--
+                sticky：折叠到位后吸顶。
+                  - 排在所有 scroll/parallax 之后，与它们一起线性堆叠
+                  - 折叠时也跟随上移
+                  - 折到底时正好停在 pin 之下（无 pin 时停在 Y=0）
+                典型用途：Tab 栏，希望折叠后仍保留在顶部供切换。
+            -->
+            <enum name="sticky" value="1" />
+
+            <!--
+                body：主体内容（一般是 RecyclerView / ViewPager2）。
+                  - 高度自动 = parentHeight - stickyHeight - pinReservedHeight
+                  - 折叠时整体上移，跟 sticky 同步
+                每个容器只能有一个 body 子。
+            -->
+            <enum name="body" value="2" />
+
+            <!--
+                parallax：视差头图。
+                  - 和 scroll 一样参与线性堆叠（占用 layout 高度，计入 maxOffset）
+                  - 但折叠速度由 layout_nh_parallaxMultiplier 控制，小于 1 → 慢于其他子滚动
+                  - 视觉上产生"前景快、背景慢"的深度感
+                典型用途：CollapsingToolbarLayout 风格的头图。
+            -->
+            <enum name="parallax" value="3" />
+
+            <!--
+                pin：固定在顶部。
+                  - 不参与线性堆叠，自己锚点 Y=0
+                  - 整个折叠过程中 translationY 始终为 0
+                  - Z 序被自动提到所有 scroll/parallax 之上（onFinishInflate 里 bringChildToFront）
+                  - 高度被预留出来，sticky 折叠到位时停在 pin 之下而不是 Y=0
+                典型用途：Toolbar，永远在顶部能看到，里面的返回按钮可点击。
+            -->
+            <enum name="pin" value="4" />
+
+            <!--
+                scrim：浮在顶部的渐变蒙层（一般是 Toolbar 的纯色背景）。
+                  - 布局行为同 pin：独立锚点 Y=0，Z 序在 parallax 之上、pin 之下
+                  - 额外特性：alpha 随折叠比例自动变化，由 layout_nh_scrimTriggerRatio 控制起点
+                典型用途：Toolbar 的背景条，展开时透明，折叠到一定比例后渐变浮现。
+            -->
+            <enum name="scrim" value="5" />
+        </attr>
+
+        <!--
+            视差速度系数。取值 [0, 1]，默认 0.5。**仅对 behavior=parallax 生效。**
+
+            语义：parallax 子的 translationY = -headerOffset × multiplier
+              0.0  → 完全不动（折叠时停在原位，被其他元素压过去）
+              0.5  → 半速（最常用，产生明显深度感）
+              1.0  → 全速（视觉上等同 scroll）
+
+            实测建议 0.3 ~ 0.7。低于 0.3 视差太明显容易出戏，高于 0.7 接近 scroll 没必要。
+        -->
+        <attr name="layout_nh_parallaxMultiplier" format="float" />
+
+        <!--
+            scrim 渐显起始阈值。取值 [0, 1]，默认 0.7。**仅对 behavior=scrim 生效。**
+
+            语义：折叠比例 (headerOffset / maxOffset) 与此值比较 ——
+              比例 <= 阈值       → scrim alpha = 0（完全透明）
+              比例 ∈ (阈值, 1)   → alpha 在 0→1 之间线性插值
+              比例 >= 1          → alpha = 1（完全不透明）
+
+            示例：
+              0.5 → 折叠过半就开始出现蒙层
+              0.8 → 几乎折到底才显
+              1.0 → 仅在完全折叠瞬间显示（极端值，不推荐）
+        -->
+        <attr name="layout_nh_scrimTriggerRatio" format="float" />
+
+    </declare-styleable>
+
+
+    <!-- ============================================================
+         CollapsingTitleView 的样式 + 位置插值。
+         用在 <com.hifylive.myapplication.widget.nestedheader.CollapsingTitleView> 标签上。
+
+         实现说明（影响如何设值）：
+           - 视图基准 textSize = ct_collapsedTextSize（永不改），靠 scaleX/scaleY 表达 expanded 时的放大。
+           - 缩放轴心 (pivotX, pivotY) = (0, 0)，所以放大时往**右下**膨胀，左上角作为锚点。
+           - 中间状态对 size、translationX/Y、textColor 全部线性插值。
+         ============================================================ -->
+    <declare-styleable name="CollapsingTitleView">
+
+        <!--
+            expanded 状态（headerOffset = 0）的文字大小。一般比 collapsed 大 1.5 ~ 2 倍。
+            实际不会 setTextSize 这个值，而是把视图按 (expandedSize / collapsedSize) 比例缩放。
+            缺省 24sp。
+        -->
+        <attr name="ct_expandedTextSize" format="dimension" />
+
+        <!--
+            collapsed 状态（headerOffset = maxOffset）的文字大小。
+            这是 TextView 真实的 textSize 基准，渲染清晰度由这个值决定 ——
+            如果 expanded 状态看不清是因为放大模糊，把这个值调大一点会改善。
+            缺省 16sp。
+        -->
+        <attr name="ct_collapsedTextSize" format="dimension" />
+
+        <!--
+            expanded 状态的文字颜色。缺省继承 TextView 当前 textColor。
+            一般头图上用浅色（白）。
+        -->
+        <attr name="ct_expandedTextColor" format="color" />
+
+        <!--
+            collapsed 状态的文字颜色。一般 Toolbar 上跟随 Toolbar 风格。
+            缺省继承 TextView 当前 textColor。
+        -->
+        <attr name="ct_collapsedTextColor" format="color" />
+
+        <!--
+            expanded 状态下相对"自然布局位置"的 X 偏移。正向 = 向右；负值 = 向左溢出。
+            自然布局位置 = 父容器（FrameLayout/NestedHeaderLayout 等）根据 gravity/padding 给出的位置。
+
+            常见配合：负值 + paddingStart，让标题在 expanded 时"贴左边"对齐到非自然位置。
+        -->
+        <attr name="ct_expandedMarginStart" format="dimension" />
+
+        <!--
+            expanded 状态下相对"自然布局位置"的 Y 偏移。**正向 = 向下**。
+            一般给一个比较大的正值（如 180dp），让大标题"飞"到头图底部附近。
+        -->
+        <attr name="ct_expandedMarginTop" format="dimension" />
+
+        <!--
+            collapsed 状态下相对"自然布局位置"的 X 偏移。缺省 0（= 用 layout 的 gravity/padding 决定的位置）。
+            一般不动。仅在希望 collapsed 标题不在自然位置时调整。
+        -->
+        <attr name="ct_collapsedMarginStart" format="dimension" />
+
+        <!--
+            collapsed 状态下相对"自然布局位置"的 Y 偏移。缺省 0。
+            想让 collapsed 时标题"消失"到 Toolbar 外，给一个负值（如 -200dp）即可。
+        -->
+        <attr name="ct_collapsedMarginTop" format="dimension" />
+
+    </declare-styleable>
+
+</resources>

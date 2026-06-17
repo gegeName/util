@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.chat.mylibrary.nestedheader.NestedHeaderLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nestedHeader"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <!-- 头图：parallax，折叠时移动速度 = 滚动距离 × 0.5（视差效果） -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="260dp"
+        android:background="#80CBC4"
+        android:gravity="center"
+        android:text="🌄 Parallax Header"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        app:layout_nh_behavior="parallax"
+        app:layout_nh_parallaxMultiplier="0.5" />
+
+    <!-- Tab：sticky，折叠到底吸顶（停在 pin 区域下方，自动避让） -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="#FFFFFF"
+        app:layout_nh_behavior="sticky"
+        app:tabIndicatorColor="#FF5722"
+        app:tabSelectedTextColor="#FF5722"
+        app:tabTextColor="#666666" />
+
+    <!-- 内容（body）：高度被自动扣除 pin + sticky -->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/viewPager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_nh_behavior="body" />
+
+    <!-- Toolbar 背景：scrim。折叠比例超过 0.5 后从透明渐入。Z 序会被自动提到 parallax 之上 -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="#1976D2"
+        app:layout_nh_behavior="scrim"
+        app:layout_nh_scrimTriggerRatio="0.5" />
+
+    <!-- 顶部 Toolbar 区域：pin，永远钉在顶部。
+         CollapsingTitleView 嵌在内部最底层；返回箭头/菜单按钮放在它上面，按钮点击不受影响。
+         clipChildren=false 由 NestedHeaderLayout 自动处理，不用手写 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        app:layout_nh_behavior="pin">
+
+        <com.chat.mylibrary.nestedheader.CollapsingTitleView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical|start"
+            android:paddingStart="56dp"
+            android:paddingEnd="56dp"
+            android:text="个人主页"
+            app:ct_collapsedMarginStart="0dp"
+            app:ct_collapsedMarginTop="0dp"
+            app:ct_collapsedTextColor="#FFFFFF"
+            app:ct_collapsedTextSize="16sp"
+            app:ct_expandedMarginStart="-40dp"
+            app:ct_expandedMarginTop="180dp"
+            app:ct_expandedTextColor="#FFFFFF"
+            app:ct_expandedTextSize="28sp" />
+
+        <TextView
+            android:id="@+id/btnBack"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:text="←"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingHorizontal="16dp"
+            android:text="⋮"
+            android:textColor="#FFFFFF"
+            android:textSize="22sp" />
+    </FrameLayout>
+
+</com.chat.mylibrary.nestedheader.NestedHeaderLayout>
