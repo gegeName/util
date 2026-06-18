@@ -104,6 +104,38 @@
                 典型用途：Toolbar 的背景条，展开时透明，折叠到一定比例后渐变浮现。
             -->
             <enum name="scrim" value="5" />
+
+            <!--
+                squeeze：被压缩折叠。
+                  - 顶部固定在 pin 之下（不像 scroll 那样整体上移）
+                  - 折叠时底部被上升的 body 顶上来，高度逐渐收缩（clipBounds 裁底）
+                  - 完全折叠时收进 pin 后面消失，body 紧贴 pin
+                  - 折叠几何/maxOffset 与 scroll 完全一致，只是视觉是"原地压扁"而非"上移消失"
+                典型用途：搜索框、活动横幅这类"折叠时原地压扁"的元素。
+                注意：squeeze 与 scroll/parallax 共享同一 headerOffset，不要在同一布局里混用多种可折叠角色，
+                      否则各自都按全量 offset 折叠会互相错位。squeeze 建议作为唯一可折叠头部。
+            -->
+            <enum name="squeeze" value="6" />
+
+            <!--
+                collapse：类 CollapsingToolbarLayout 的 scroll|exitUntilCollapsed（最小高度=0）。
+                  - 顶部锚点固定在 pin 之下，底部被上升的 body 顶起
+                  - 内容跟着向上滚（不像 squeeze 冻在原地）：上滚出顶的部分被裁掉
+                  - 高度从全高收缩到 0，可见区域两端同时被吃
+                典型用途：可折叠头图，折叠时图整体上滚、底部被列表顶起，顶部滑进 Toolbar 后面。
+                注意：与 squeeze 共享手风琴累加，可与 squeeze 互相堆叠；但都不要和 scroll/parallax 混用。
+            -->
+            <enum name="collapse" value="7" />
+
+            <!--
+                curtain：闭幕/开幕效果。
+                  - 折叠（闭幕）：view 上下边缘同时向中间收，内容从上下两边被遮住，最后合成中间一条线
+                  - 展开（开幕）：反之，从中间向上下展开
+                  - 高度收缩量与 scroll 一致，仍与上下区块贴合不露白
+                典型用途：想要"幕布合拢/拉开"过场感的头部横幅。
+                注意：与 squeeze/collapse 共享手风琴累加，可互相堆叠；都不要和 scroll/parallax 混用。
+            -->
+            <enum name="curtain" value="8" />
         </attr>
 
         <!--

@@ -132,6 +132,9 @@ class CollapsingTitleView @JvmOverloads constructor(
      * ratio = 0 → expanded（大字号 + expanded margin）
      * ratio = 1 → collapsed（小字号 + collapsed margin）
      * 中间状态对 scale、translationX/Y、color 都做线性插值。
+     *
+     * 自动 cap：把 translationY 上拉到不让"视觉 bottom"超过 host.firstScrollChildBottom，
+     * 避免 expanded 状态字体本体延伸进下面 innerRv 等子的 Y 段。
      */
     private fun applyState(ratio: Float) {
         val r = ratio.coerceIn(0f, 1f)
@@ -140,10 +143,40 @@ class CollapsingTitleView @JvmOverloads constructor(
         scaleX = scale
         scaleY = scale
 
-        translationX = lerp(expandedMarginStart.toFloat(), collapsedMarginStart.toFloat(), r)
-        translationY = lerp(expandedMarginTop.toFloat(), collapsedMarginTop.toFloat(), r)
+        val rawTransX = lerp(expandedMarginStart.toFloat(), collapsedMarginStart.toFloat(), r)
+        var rawTransY = lerp(expandedMarginTop.toFloat(), collapsedMarginTop.toFloat(), r)
+
+        // 自动 cap：保证 view 在 host 中的视觉 bottom <= firstScrollChildBottom
+        val host = hostLayout
+        if (host != null && host.firstScrollChildBottom > 0) {
+            val topInHost = computeTopInHost(host)
+            val visualBottom = topInHost + rawTransY + height * scale
+            val maxBottom = host.firstScrollChildBottom.toFloat()
+            if (visualBottom > maxBottom) {
+                rawTransY -= visualBottom - maxBottom
+            }
+        }
+
+        translationX = rawTransX
+        translationY = rawTransY
 
         setTextColor(ColorUtils.blendARGB(expandedColor, collapsedColor, r))
+    }
+
+    /**
+     * 从 this 一路向上累加 view.top 直到 host，返回 layout 锚点在 host 中的 Y。
+     * 不计入 this 自身和中间祖先的 translationY ——
+     * 那部分是 pin/scrim 等 behavior 用来跟 offset 联动的"运动"，不属于"层级关系"。
+     */
+    private fun computeTopInHost(host: View): Float {
+        var top = 0f
+        var v: View = this
+        while (true) {
+            val p = v.parent as? View ?: return top
+            top += v.top.toFloat()
+            if (p === host) return top
+            v = p
+        }
     }
 
     private fun sp(v: Float): Float =
