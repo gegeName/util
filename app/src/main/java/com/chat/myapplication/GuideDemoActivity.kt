@@ -1,4 +1,4 @@
-package com.chat.myapplication
+﻿package com.chat.myapplication
 
 import android.animation.ObjectAnimator
 import android.animation.ValueAnimator
@@ -18,7 +18,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.chat.mylibrary.guide.*
+import com.chat.uifoundation.guide.*
 
 /**
  * 引导图 Demo —— 覆盖 GuideView 全部 API：

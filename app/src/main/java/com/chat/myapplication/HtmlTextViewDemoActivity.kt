@@ -1,4 +1,4 @@
-package com.chat.myapplication
+﻿package com.chat.myapplication
 
 import android.graphics.Canvas
 import android.graphics.Color
@@ -24,9 +24,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.chat.mylibrary.html.HtmlFormulaRenderer
-import com.chat.mylibrary.html.HtmlMediaLoader
-import com.chat.mylibrary.html.HtmlTextView
+import com.chat.uifoundation.html.HtmlFormulaRenderer
+import com.chat.uifoundation.html.HtmlMediaLoader
+import com.chat.uifoundation.html.HtmlTextView
 
 class HtmlTextViewDemoActivity : AppCompatActivity() {
 

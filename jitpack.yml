@@ -10,7 +10,7 @@ jdk:
 install:
   - ./gradlew
     :app:statelayout:publishToMavenLocal
-    :app:mylibrary:publishToMavenLocal
+    :app:ui-foundation:publishToMavenLocal
     :app:pagingutil:publishToMavenLocal
     :app:shapeview:publishToMavenLocal
     :app:spanutil:publishToMavenLocal
@@ -28,7 +28,7 @@ install:
 
 # 多模块仓库的依赖坐标会变成：
 #   com.github.<USER>.<REPO>:statelayout:<TAG>
-#   com.github.<USER>.<REPO>:mylibrary:<TAG>
+#   com.github.<USER>.<REPO>:ui-foundation:<TAG>
 #   com.github.<USER>.<REPO>:pagingutil:<TAG>
 #   com.github.<USER>.<REPO>:shapeview:<TAG>
 #   com.github.<USER>.<REPO>:spanutil:<TAG>

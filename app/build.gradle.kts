@@ -41,7 +41,7 @@ android {
 }
 
 dependencies {
-    implementation(project(":app:mylibrary"))
+    implementation(project(":app:ui-foundation"))
     implementation(project(":app:spanutil"))
     implementation(project(":app:glidespan"))
     implementation(project(":app:svgspan"))

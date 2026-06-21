@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.chat.mylibrary.nestedheader.NestedHeaderLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.chat.uifoundation.nestedheader.NestedHeaderLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/nestedHeader"
     android:layout_width="match_parent"
@@ -52,7 +52,7 @@
         android:layout_height="56dp"
         app:layout_nh_behavior="pin">
 
-        <com.chat.mylibrary.nestedheader.CollapsingTitleView
+        <com.chat.uifoundation.nestedheader.CollapsingTitleView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:gravity="center_vertical|start"
@@ -95,4 +95,4 @@
             android:textSize="22sp" />
     </FrameLayout>
 
-</com.chat.mylibrary.nestedheader.NestedHeaderLayout>
+</com.chat.uifoundation.nestedheader.NestedHeaderLayout>
