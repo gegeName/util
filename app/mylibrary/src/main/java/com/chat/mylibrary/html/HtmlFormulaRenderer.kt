@@ -1,4 +1,4 @@
-package com.simple.mylibrary.widget.html
+package com.chat.mylibrary.html
 
 import android.graphics.drawable.Drawable
 

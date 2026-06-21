@@ -1,4 +1,4 @@
-package com.simple.mylibrary.widget.html
+package com.chat.mylibrary.html
 
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
@@ -80,7 +80,6 @@ class AsyncDrawable(
         val w = bounds.width()
         val h = bounds.height()
         if (r > 0f && w > 0 && h > 0) {
-            // 用 BitmapShader 画圆角，边缘比 clipPath 更平滑
             obtainRoundedShader(content, w, h)
             shaderRect.set(
                 bounds.left.toFloat(), bounds.top.toFloat(),
@@ -91,7 +90,6 @@ class AsyncDrawable(
             content.draw(canvas)
         }
         if (isVideo) {
-            // 播放按钮画在圆角之上，保持居中
             drawPlayButton(canvas)
         }
     }
@@ -114,7 +112,6 @@ class AsyncDrawable(
 
         val external = playButton
         if (external != null) {
-            // 按内容短边的约 30% 作为按钮尺寸
             val size = (min(b.width(), b.height()) * 0.3f).toInt().coerceAtLeast(1)
             val half = size / 2
             external.setBounds(
@@ -125,14 +122,12 @@ class AsyncDrawable(
             return
         }
 
-        // 默认按钮：半透明圆 + 白色等边三角
         val radius = min(b.width(), b.height()) * 0.14f
         if (radius <= 0f) return
         canvas.drawCircle(cx, cy, radius, circlePaint)
 
         val side = radius * 1.1f
         trianglePath.reset()
-        // 略微右移以让视觉重心居中
         val left = cx - side * 0.35f
         trianglePath.moveTo(left, cy - side * 0.55f)
         trianglePath.lineTo(left, cy + side * 0.55f)

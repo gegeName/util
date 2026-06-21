@@ -1,4 +1,4 @@
-package com.simple.mylibrary.widget.html
+package com.chat.mylibrary.html
 
 import android.content.Context
 import android.graphics.Color
@@ -16,6 +16,7 @@ import android.view.View
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.text.HtmlCompat
 import androidx.core.view.doOnPreDraw
+import androidx.core.text.parseAsHtml
 
 /**
  * 支持富文本展示的 TextView。
@@ -98,15 +99,9 @@ class HtmlTextView @JvmOverloads constructor(
         requestedUrls.clear()
 
         val processed = preprocessFormulas(preprocessVideoTags(html))
-        val spanned = HtmlCompat.fromHtml(
-            processed,
-            HtmlCompat.FROM_HTML_MODE_LEGACY,
-            imageGetter,
-            null
-        )
+        val spanned = processed.parseAsHtml(HtmlCompat.FROM_HTML_MODE_LEGACY, imageGetter)
         originalSpanned = spanned
 
-        // 先渲染（图片为占位），再在拿到宽度后加载媒体
         rebuildAndSetText()
         runWhenWidthReady { loadAllMedia() }
     }
@@ -120,7 +115,6 @@ class HtmlTextView @JvmOverloads constructor(
 
         val spans = spanned.getSpans(0, spanned.length, ImageSpan::class.java)
 
-        // 1) 公式：本地同步渲染，不依赖 mediaLoader
         val renderer = formulaRenderer
         if (renderer != null) {
             var rendered = false
@@ -136,7 +130,6 @@ class HtmlTextView @JvmOverloads constructor(
             if (rendered) rebuildAndSetText()
         }
 
-        // 2) 图片 / 视频：异步走 mediaLoader（按 url 分组，相同 url 只请求一次）
         val loader = mediaLoader ?: return
         val groups = LinkedHashMap<String, MutableList<AsyncDrawable>>()
         for (span in spans) {
@@ -173,15 +166,13 @@ class HtmlTextView @JvmOverloads constructor(
         var iw = drawable.intrinsicWidth
         var ih = drawable.intrinsicHeight
         if (iw <= 0 || ih <= 0) {
-            // 无固有尺寸（部分视频帧）时给一个 16:9 兜底
             iw = avail
             ih = avail * 9 / 16
         }
         val dw: Int
         val dh: Int
         if (async.isFormula) {
-            // 公式：保持渲染原始尺寸，仅当超过可用宽才等比缩小；isBlock 在解析时已定，不改
-            if (avail > 0 && iw > avail) {
+            if (avail in 1 until iw) {
                 dw = avail
                 dh = (ih.toLong() * avail / iw).toInt().coerceAtLeast(1)
             } else {
@@ -190,7 +181,6 @@ class HtmlTextView @JvmOverloads constructor(
             }
             async.cornerRadius = 0f
         } else {
-            // 图片/视频：原始宽达到可用宽度阈值即视为大图，撑满整宽并独占一行；否则按原尺寸 inline
             val isBlock = avail > 0 && iw >= avail * blockImageWidthRatio
             if (isBlock) {
                 dw = avail
@@ -218,7 +208,6 @@ class HtmlTextView @JvmOverloads constructor(
         val builder = SpannableStringBuilder(src)
         val avail = availableWidth()
 
-        // 从后往前处理，插入换行时不影响尚未处理 span 的索引
         val spans = builder.getSpans(0, builder.length, ImageSpan::class.java)
             .sortedByDescending { builder.getSpanStart(it) }
 
@@ -230,7 +219,6 @@ class HtmlTextView @JvmOverloads constructor(
 
             if (async.isFormula) {
                 if (!async.isBlock) {
-                    // 行内公式：替换为基线对齐的 ImageSpan，与文字同行；不可点击
                     builder.removeSpan(span)
                     builder.setSpan(
                         ImageSpan(async, ImageSpan.ALIGN_BASELINE),
@@ -239,9 +227,7 @@ class HtmlTextView @JvmOverloads constructor(
                     )
                     continue
                 }
-                // 块级公式：走下方"居中独占一行"逻辑（不加点击）
             } else {
-                // 图片/视频：可点击
                 builder.setSpan(
                     MediaClickableSpan(async),
                     start, end,
@@ -251,14 +237,11 @@ class HtmlTextView @JvmOverloads constructor(
 
             if (!async.isBlock) continue
 
-            // 大图独占一行：把图片前后紧邻的换行压缩为恰好一个，避免出现空行（紧贴文字）。
-            // 后侧：删掉紧随的所有换行，再补一个
             while (true) {
                 val e = builder.getSpanEnd(span)
                 if (e < builder.length && builder[e] == '\n') builder.delete(e, e + 1) else break
             }
             builder.insert(builder.getSpanEnd(span), "\n")
-            // 前侧：删掉紧邻的所有换行，非文本开头时补一个
             while (true) {
                 val s = builder.getSpanStart(span)
                 if (s > 0 && builder[s - 1] == '\n') builder.delete(s - 1, s) else break
@@ -266,7 +249,6 @@ class HtmlTextView @JvmOverloads constructor(
             if (builder.getSpanStart(span) > 0) {
                 builder.insert(builder.getSpanStart(span), "\n")
             }
-            // 居中对齐该行
             val s2 = builder.getSpanStart(span)
             val e2 = builder.getSpanEnd(span)
             builder.setSpan(
@@ -288,15 +270,10 @@ class HtmlTextView @JvmOverloads constructor(
             }
         }
 
-        // 图片点击不需要链接样式（下划线 / 变色）
         override fun updateDrawState(ds: android.text.TextPaint) {
             // no-op
         }
     }
-
-    // endregion
-
-    // region 工具
 
     private fun availableWidth(): Int = width - compoundPaddingLeft - compoundPaddingRight
 
@@ -362,12 +339,9 @@ class HtmlTextView @JvmOverloads constructor(
         private val VIDEO_SELF_CLOSING_REGEX = Regex("<video([^>]*)/>", REGEX_OPTS)
         private val SRC_REGEX = Regex("src\\s*=\\s*[\"']([^\"']+)[\"']", RegexOption.IGNORE_CASE)
 
-        // LaTeX 公式定界符。块级先于行内处理，$$ 先于单 $。
         private val BLOCK_DOLLAR_REGEX = Regex("\\$\\$(.+?)\\$\\$", RegexOption.DOT_MATCHES_ALL)
         private val BLOCK_BRACKET_REGEX = Regex("\\\\\\[(.+?)\\\\\\]", RegexOption.DOT_MATCHES_ALL)
         private val INLINE_PAREN_REGEX = Regex("\\\\\\((.+?)\\\\\\)", RegexOption.DOT_MATCHES_ALL)
-        // 行内 $...$：开界 $ 不被转义且其后紧跟非空白；闭界 $ 前为非空白/非反斜杠且其后不是数字
-        // （后一条排除 "$5 ... $10" 这类货币写法被误判为公式）
         private val INLINE_DOLLAR_REGEX = Regex("(?<!\\\\)\\\$(?=\\S)(.+?)(?<![\\s\\\\])\\\$(?!\\d)")
     }
 }
