@@ -51,8 +51,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
 
     private val parentHelper = NestedScrollingParentHelper(this)
     private val childHelper = NestedScrollingChildHelper(this).apply {
-        // 必须开启，否则 dispatchNestedScroll 这条转发链不会触发，
-        // 外层 SwipeRefreshLayout 永远收不到下拉信号。
         isNestedScrollingEnabled = true
     }
 
@@ -150,8 +148,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
 
     override fun onFinishInflate() {
         super.onFinishInflate()
-        // 把 pin/scrim 提到 child 列表最后 → 绘制时最后绘制 → 视觉上盖在 parallax/scroll 之上。
-        // scrim 在前提，pin 在最后提，保证 pin（Toolbar）显示在 scrim（背景）之上。
         for (i in 0 until childCount) {
             val c = getChildAt(i)
             if ((c.layoutParams as? LayoutParams)?.behavior == BEHAVIOR_SCRIM) {
@@ -164,8 +160,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                 bringChildToFront(c)
             }
         }
-        // 业务忘了写 clipChildren=false 时，CollapsingTitleView 的 expanded 状态会被父容器裁掉。
-        // 这里递归找一遍子树，给所有包含 CollapsingTitleView 的祖先链都关掉裁剪。
         disableClipChildrenForCollapsingTitles(this)
     }
 
@@ -191,24 +185,18 @@ class NestedHeaderLayout @JvmOverloads constructor(
      * 防止误调误关外层（DecorView 等）的裁剪。
      */
     fun disableClipChildrenAlongAncestorsOf(view: View) {
-        // 第一遍 dry-run：确认 view 是 this 的后代
         var p: ViewParent? = view.parent
         while (p is ViewGroup && p !== this) {
             p = p.parent
         }
         if (p !== this) return
-        // 确认是后代了：标记我们因为 title 关过 clipChildren。
-        // 这是 applyPinScrimClipBounds 决定要不要给其他子补 clipBounds 的依据 ——
-        // 没 title 时 clipChildren 仍是默认 true，不应该乱裁子（破坏业务的故意溢出，如阴影/角标）。
         clipChildrenManagedForTitle = true
-        // 第二遍才真正关 clip
         p = view.parent
         while (p is ViewGroup) {
             if (p.clipChildren) p.clipChildren = false
             if (p === this) break
             p = p.parent
         }
-        // 关掉 clip 后子的裁剪策略变了，重新布一次让 clipBounds 生效
         requestLayout()
     }
 
@@ -216,9 +204,9 @@ class NestedHeaderLayout @JvmOverloads constructor(
         val parentW = MeasureSpec.getSize(widthMeasureSpec)
         val parentH = MeasureSpec.getSize(heightMeasureSpec)
 
-        var scrollSum = 0     // scroll + parallax 都算可折叠区域
+        var scrollSum = 0
         var stickySum = 0
-        var pinMax = 0        // pin/scrim 取最大值（它们在 Y=0..H 重叠）
+        var pinMax = 0
         var bodyChild: View? = null
 
         for (i in 0 until childCount) {
@@ -231,13 +219,10 @@ class NestedHeaderLayout @JvmOverloads constructor(
                 continue
             }
 
-            // measureChildWithMargins 会把 padding + margin 都从可用空间里扣掉
             measureChildWithMargins(child, widthMeasureSpec, 0, heightMeasureSpec, 0)
 
-            // 垂直占位 = 自身高度 + 上下 margin
             val occupied = child.measuredHeight + lp.topMargin + lp.bottomMargin
             when (lp.behavior) {
-                // squeeze/collapse/curtain 与 scroll/parallax 一样计入折叠范围：移除的空间都是 offset，只是视觉差异
                 BEHAVIOR_SCROLL, BEHAVIOR_PARALLAX, BEHAVIOR_SQUEEZE,
                 BEHAVIOR_COLLAPSE, BEHAVIOR_CURTAIN ->
                     scrollSum += occupied
@@ -248,11 +233,8 @@ class NestedHeaderLayout @JvmOverloads constructor(
 
         stickyHeight = stickySum
         pinReservedHeight = pinMax
-        // pin 永远占顶部那段，所以最多能折叠走的距离 = scroll+parallax 总高 - pin 预留
         maxOffset = (scrollSum - pinMax).coerceAtLeast(0)
 
-        // 算"第一个 scroll/parallax 子的 layout 底 Y"，给 pin/scrim 的 clipBounds 用
-        // ——title 通过 translation 可以飞下来，但飞不进 innerRv 等下面的子的 Y 段
         firstScrollChildBottom = -1
         var stackTopForClip = paddingTop
         for (i in 0 until childCount) {
@@ -271,7 +253,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
             }
         }
 
-        // body 高度扣除 sticky 和 pin 预留区域 + 自身 margin；折叠过程中 body 自身不会再 measure
         bodyChild?.let { body ->
             val lp = body.layoutParams as LayoutParams
             val cwSpec = getChildMeasureSpec(
@@ -296,7 +277,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
     }
 
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
-        // scroll/parallax/sticky/body 走线性堆叠的 stackTop
         var stackTop = paddingTop
 
         for (i in 0 until childCount) {
@@ -308,7 +288,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
             val cl = paddingLeft + lp.leftMargin
             when (lp.behavior) {
                 BEHAVIOR_PIN, BEHAVIOR_SCRIM -> {
-                    // 独立锚点：固定在顶部 + 自身 topMargin，不参与线性堆叠
                     val ct = paddingTop + lp.topMargin
                     child.layout(cl, ct, cl + cw, ct + ch)
                 }
@@ -320,19 +299,12 @@ class NestedHeaderLayout @JvmOverloads constructor(
             }
         }
 
-        // 旧实现用 offsetTopAndBottom 累加 delta；新模型对每个子按 behavior 算绝对 translationY。
         applyOffsetsToAllChildren()
-        // 给 pin/scrim 子设 clipBounds，把它们的绘制（包括子 View 通过 translation 的延伸，比如
-        // CollapsingTitleView 的 expanded 飞出 Toolbar）限制在"第一个 scroll/parallax 子的底部"之内。
-        // 这样 title 还能往下飞但飞不进 innerRv 等下面的子的 Y 段，RV 的 item 滚动不会被 title 压住。
         applyPinScrimClipBounds()
         dispatchOffsetChanged()
     }
 
     private fun applyPinScrimClipBounds() {
-        // 没为 title 关过 clipChildren → 原生裁剪仍在工作，不要乱补 clipBounds。
-        // 清掉可能残留的（理论上不会有，防御）后直接返回，避免破坏业务故意的子溢出（阴影/角标等）。
-        // 但 squeeze 的 clipBounds 由 applyOffsetsToAllChildren 管理，这里始终不能碰。
         if (!clipChildrenManagedForTitle) {
             for (i in 0 until childCount) {
                 val c = getChildAt(i)
@@ -346,7 +318,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
             val c = getChildAt(i)
             if (c.isGone) continue
             val lp = c.layoutParams as LayoutParams
-            // squeeze/collapse/curtain 的 clipBounds 是动态压缩量，归 applyOffsetsToAllChildren 管，跳过
             if (lp.behavior == BEHAVIOR_SQUEEZE ||
                 lp.behavior == BEHAVIOR_COLLAPSE ||
                 lp.behavior == BEHAVIOR_CURTAIN
@@ -354,20 +325,13 @@ class NestedHeaderLayout @JvmOverloads constructor(
             when (lp.behavior) {
                 BEHAVIOR_PIN, BEHAVIOR_SCRIM -> {
                     if (firstScrollChildBottom < 0) {
-                        // 没有 scroll/parallax 子可参考：pin/scrim 不设上下界，让 title 自由飞出
                         c.clipBounds = null
                     } else {
-                        // clipBounds 是 view 本地坐标。c.top 是 c 在 NHL 里的 Y。
-                        // 至少保证 c 自身的高度不被裁掉（用户的 Toolbar 高 56dp 就别只给 56dp）。
                         val effectiveBottom = (firstScrollChildBottom - c.top).coerceAtLeast(c.height)
                         c.clipBounds = Rect(0, 0, c.width, effectiveBottom)
                     }
                 }
                 else -> {
-                    // 非 pin/scrim 子（scroll/parallax/sticky/body）：因为我们为了 CollapsingTitleView
-                    // 把 NHL.clipChildren 关了，这些子不再被 NHL 裁到自身 layout box，
-                    // 会导致 RecyclerView 滚动时正在回收的 item（item.top<0）跑到上面的 head image 区域。
-                    // 显式给个 clipBounds = 自身 layout box，恢复"绘制限制在自己的范围内"。
                     c.clipBounds = Rect(0, 0, c.width, c.height)
                 }
             }
@@ -381,10 +345,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
     private fun applyOffsetsToAllChildren() {
         val offsetF = headerOffset.toFloat()
         val ratio = if (maxOffset > 0) offsetF / maxOffset else 0f
-        // squeeze / collapse 自上而下手风琴式压缩，共享同一累加器：
-        // 累计上方已折叠像素，让下一个整体上移这个量（贴住上一个收缩后的底边，不露白），再处理自己的份额。
-        //   squeeze ：顶固定 + 裁底 + 内容不动（原地压扁）
-        //   collapse：顶锚固定 + 裁顶 + 内容上滚（类 exitUntilCollapsed）
         var collapsedAbove = 0
         for (i in 0 until childCount) {
             val c = getChildAt(i)
@@ -398,9 +358,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                     c.translationY = -offsetF * lp.parallaxMultiplier
                 }
                 BEHAVIOR_SQUEEZE -> {
-                    // 本段份额按"占位高度"(height + 上下 margin) 分配，与 onMeasure 计入 scrollSum 的口径一致，
-                    // 否则带 margin 时累加器少算 → 总折叠 < offset → 和 body(-offset) 对不上露白。
-                    // clip 只能裁 view 自身高度，所以 clip 量以 height 封顶；多出的 margin 份额仅参与累加（让下方贴合）。
                     val occupied = c.height + lp.topMargin + lp.bottomMargin
                     val local = (headerOffset - collapsedAbove).coerceIn(0, occupied)
                     c.translationY = -collapsedAbove.toFloat()
@@ -408,8 +365,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                     collapsedAbove += local
                 }
                 BEHAVIOR_COLLAPSE -> {
-                    // 顶锚固定在 (laidTop - collapsedAbove)：内容全速上滚 (translationY=-(above+local))，
-                    // 把上滚出顶的 local 像素裁掉 → 可见区从顶锚开始、高度收缩 (height-local)，底被 body 顶起。
                     val occupied = c.height + lp.topMargin + lp.bottomMargin
                     val local = (headerOffset - collapsedAbove).coerceIn(0, occupied)
                     c.translationY = -(collapsedAbove + local).toFloat()
@@ -418,8 +373,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                     collapsedAbove += local
                 }
                 BEHAVIOR_CURTAIN -> {
-                    // 闭幕：上下对称裁 local，内容向中间合拢。
-                    // 整体再上移半个裁量 (clipTopPx)，让可见区顶部对齐顶锚 → 与上下区块贴合不露白。
                     val occupied = c.height + lp.topMargin + lp.bottomMargin
                     val local = (headerOffset - collapsedAbove).coerceIn(0, occupied)
                     val clipTopPx = (local / 2).coerceIn(0, c.height)
@@ -434,8 +387,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                 }
                 BEHAVIOR_SCRIM -> {
                     c.translationY = 0f
-                    // alpha 在 (triggerRatio, 1) 区间内 0→1 线性渐现。
-                    // trigger=1 极端值单独处理：完全折叠时直接给 1，避免除零退化为 0。
                     val trigger = lp.scrimTriggerRatio
                     c.alpha = when {
                         trigger >= 1f -> if (ratio >= 1f) 1f else 0f
@@ -486,14 +437,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
         else -> false
     }
 
-    // ---- 头部区域拖动：onInterceptTouchEvent / onTouchEvent ----------------
-    //
-    // 设计要点：
-    //   1. DOWN 永不拦截：让 Tab/banner 的点击/按下反馈正常触发；
-    //   2. MOVE 超 touchSlop 且 |dy|>|dx|（避免和 ViewPager2 横向滑动打架）才拦截；
-    //   3. 拦截成立的前提是 DOWN 落点在 scroll/sticky 子上 —— 在 body 上的拖动走嵌套滚动协议；
-    //   4. 拖动中若 header 已到上界仍有剩余 dy，把剩余喂给 body 内第一个可竖向滚的子。
-
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -503,8 +446,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                 initialDownY = ev.y
                 lastTouchY = ev.y
                 initialTouchOnHeader = isPointOnHeader(initialDownX.toInt(), initialDownY.toInt())
-                // DOWN 上一律中断我方的 fling/snap；如果落在 header 上，连带把 body 的 fling 也停掉，
-                // 这样按下 → 拖动间不会出现"边按边滚"的视觉撕裂。
                 abortAnyOurScroll()
                 if (initialTouchOnHeader) stopBodyFling()
             }
@@ -516,7 +457,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                 val dx = ev.getX(pi) - initialDownX
                 if (!isHeaderDragging && abs(dy) > touchSlop && abs(dy) > abs(dx)) {
                     isHeaderDragging = true
-                    // 越过 slop 的部分不算入第一次位移，避免首帧跳一下
                     lastTouchY = if (dy > 0) initialDownY + touchSlop else initialDownY - touchSlop
                     parent?.requestDisallowInterceptTouchEvent(true)
                     return true
@@ -534,8 +474,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
         ensureVelocityTracker().addMovement(ev)
         when (ev.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                // child 没消费 DOWN（如裸 ImageView）时会走到这里。重置一遍状态，
-                // 保证只在 header 落点上参与拖动。
                 activePointerId = ev.getPointerId(0)
                 initialDownX = ev.x
                 initialDownY = ev.y
@@ -543,14 +481,10 @@ class NestedHeaderLayout @JvmOverloads constructor(
                 initialTouchOnHeader = isPointOnHeader(initialDownX.toInt(), initialDownY.toInt())
                 abortAnyOurScroll()
                 if (!initialTouchOnHeader) {
-                    // 不接管这条触摸流：系统不会再派发 MOVE/UP 给我们 ——
-                    // 必须把开头分配的 VT 立刻回收，否则永久泄漏一份。
                     recycleVelocityTracker()
                     return false
                 }
                 stopBodyFling()
-                // 即便落点在 header，DOWN 也不主动消费 —— 等 MOVE 超 slop 再说。
-                // 但必须返回 true 才能继续收到 MOVE 事件。
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -567,10 +501,9 @@ class NestedHeaderLayout @JvmOverloads constructor(
                     }
                 }
                 if (isHeaderDragging) {
-                    val rawDy = lastTouchY - y  // 正：手指向上滑 → 折叠
+                    val rawDy = lastTouchY - y
                     val dyInt = rawDy.toInt()
                     if (dyInt != 0) {
-                        // 保留亚像素余量，避免连续小位移被反复截零
                         lastTouchY -= dyInt
                         val consumed = consumeHeaderScroll(dyInt)
                         val leftover = dyInt - consumed
@@ -582,7 +515,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                 return true
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
-                // 多指按下：把活跃 pointer 换成最新按下的，重新基准 lastTouchY
                 val idx = ev.actionIndex
                 activePointerId = ev.getPointerId(idx)
                 lastTouchY = ev.getY(idx)
@@ -599,7 +531,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                 val wasDragging = isHeaderDragging
                 isHeaderDragging = false
                 if (wasDragging && ev.actionMasked == MotionEvent.ACTION_UP) {
-                    // VT 的速度方向：finger 向下为正。我们的"折叠方向"是 finger 向上 → 取负。
                     val vt = velocityTracker
                     vt?.computeCurrentVelocity(1000, maxFlingVelocity.toFloat())
                     val vyTracker = vt?.getYVelocity(activePointerId) ?: 0f
@@ -610,7 +541,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
                         maybeStartSnap()
                     }
                 } else if (wasDragging) {
-                    // CANCEL：不算速度，但若停在中段仍 snap，避免悬挂
                     maybeStartSnap()
                 }
                 activePointerId = INVALID_POINTER_ID
@@ -622,11 +552,9 @@ class NestedHeaderLayout @JvmOverloads constructor(
     }
 
     private fun isPointOnHeader(x: Int, y: Int): Boolean {
-        // 反序遍历：先匹配 Z 序最上层（pin/scrim 已被 bringChildToFront）
         for (i in childCount - 1 downTo 0) {
             val c = getChildAt(i)
             if (c.isGone) continue
-            // 用 visual Y（含 translationY），因为新模型用 translationY 而非 offsetTopAndBottom
             val visualTop = c.top + c.translationY.toInt()
             val visualBottom = c.bottom + c.translationY.toInt()
             if (x < c.left || x >= c.right || y < visualTop || y >= visualBottom) continue
@@ -642,16 +570,10 @@ class NestedHeaderLayout @JvmOverloads constructor(
                     behavior == BEHAVIOR_CURTAIN
             if (!isHeaderBehavior) return false
 
-            // 触摸点下若有"可竖向滚 + 开了 nested scroll"的 view（包括 c 自身或其后代），
-            // 让它自己处理：触摸事件正常派发给它，它的滚动通过 nested 协议驱动 header 折叠。
-            // 否则（裸 ImageView 等不可滚的子）我们才接管，提供"拖头图就能折叠"的体验。
             val childX = x - c.left - c.translationX.toInt()
             val childY = y - c.top - c.translationY.toInt()
             if (isOrContainsInteractiveNestedScrollingAt(c, childX, childY)) return false
 
-            // 触摸点本身没落在 NSC 上，但 NSC sibling 离它很近（touchSlop 内），也让位 ——
-            // 避免用户在 RV 顶端边缘略偏上 1-2px 落点意外触发 header drag，
-            // 而事实上他们的意图是想滚 RV。
             if (hasNearbyNscSibling(x, y, c)) return false
             return true
         }
@@ -670,11 +592,8 @@ class NestedHeaderLayout @JvmOverloads constructor(
             if (sib.visibility != VISIBLE) continue
             val sTop = sib.top + sib.translationY.toInt()
             val sBottom = sib.bottom + sib.translationY.toInt()
-            // X 严格在 sib 内（横向不扩，避免和左右 sibling 抢）
             if (x < sib.left || x >= sib.right) continue
-            // Y 扩展 margin
             if (y < sTop - margin || y >= sBottom + margin) continue
-            // 把触摸点钳到 sib 本地坐标里再做 NSC 检测，超出 sib 真实边界的就归到最近的边
             val localX = x - sib.left - sib.translationX.toInt()
             val localY = (y - sib.top - sib.translationY.toInt()).coerceIn(0, sib.height - 1)
             if (isOrContainsInteractiveNestedScrollingAt(sib, localX, localY)) return true
@@ -691,17 +610,14 @@ class NestedHeaderLayout @JvmOverloads constructor(
      */
     private fun isOrContainsInteractiveNestedScrollingAt(view: View, x: Int, y: Int): Boolean {
         if (view.visibility != VISIBLE) return false
-        // 1) 先看 view 自己
         if (view.isNestedScrollingEnabled &&
             (view.canScrollVertically(-1) || view.canScrollVertically(1))
         ) {
             return true
         }
-        // 2) 再向子孙递归（反序遍历贴合 Z 序）
         if (view !is ViewGroup) return false
         for (i in view.childCount - 1 downTo 0) {
             val c = view.getChildAt(i)
-            // 触摸坐标换算到 c 的本地：含 view.scrollX/Y 和 c.translationX/Y
             val tx = x + view.scrollX
             val ty = y + view.scrollY
             val left = c.left + c.translationX.toInt()
@@ -729,7 +645,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
     private fun startHeaderFling(vy: Float) {
         val v = vy.roundToInt()
         if (v == 0) return
-        // 方向上已无空间 → 直接交给 body fling，不空跑一段 OverScroller
         if (v > 0 && headerOffset >= maxOffset) {
             forwardFlingToBody(v); return
         }
@@ -760,7 +675,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
         val target = if (headerOffset.toFloat() / maxOffset >= snapThresholdRatio) maxOffset else 0
         val delta = target - headerOffset
         if (delta == 0) return
-        // 持续时间按距离线性，封顶 SNAP_MAX_DURATION_MS，最短 SNAP_MIN_DURATION_MS
         val duration = (abs(delta).toFloat() / maxOffset * SNAP_MAX_DURATION_MS)
             .toInt()
             .coerceIn(SNAP_MIN_DURATION_MS, SNAP_MAX_DURATION_MS)
@@ -774,7 +688,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
         if (!scroller.computeScrollOffset()) {
             val wasAction = scrollerAction
             scrollerAction = ScrollerAction.NONE
-            // fling 自然结束（没撞边）时若停在中段 → snap
             if (wasAction == ScrollerAction.FLING) maybeStartSnap()
             return
         }
@@ -783,7 +696,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
         if (dy != 0) {
             val consumed = consumeHeaderScroll(dy)
             if (consumed != dy && scrollerAction == ScrollerAction.FLING) {
-                // 撞到边界还有剩余 → 把剩余速度交给 body 的 RecyclerView 继续 fling
                 val direction = if (dy > 0) 1 else -1
                 val remain = scroller.currVelocity
                 scroller.abortAnimation()
@@ -906,7 +818,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
         constructor(width: Int, height: Int) : super(width, height)
 
         constructor(source: ViewGroup.LayoutParams?) : super(source) {
-            // super(ViewGroup.LayoutParams) 不复制 margin，这里补上
             if (source is ViewGroup.MarginLayoutParams) {
                 leftMargin = source.leftMargin
                 topMargin = source.topMargin
@@ -923,7 +834,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
         }
 
         constructor(c: Context, attrs: AttributeSet?) : super(c, attrs) {
-            // 父类 MarginLayoutParams(Context, AttributeSet) 已自动读了 android:layout_margin*
             c.withStyledAttributes(attrs, R.styleable.NestedHeaderLayout_Layout) {
                 behavior = getInt(
                     R.styleable.NestedHeaderLayout_Layout_layout_nh_behavior,
@@ -944,10 +854,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
     // ---- NestedScrollingParent3 -------------------------------------------
 
     override fun onStartNestedScroll(child: View, target: View, axes: Int, type: Int): Boolean {
-        // 所有子（包括非 body 的 scroll/parallax/pin/scrim/sticky）发起的 vertical nested scroll 都接管。
-        // 这样放在头图、Toolbar 等位置的 RecyclerView：自己滚 = 上滑时先把 header 折叠（onNestedPreScroll 吃掉 dy>0），
-        // 折完后 leftover 才给自己的内容滚；下滑时先自己滚到顶，剩余的 unconsumed 再给我们展开 header。
-        // TOUCH/NON_TOUCH 都接：fling 阶段也走同一条逻辑，避免双 OverScroller 撕裂。
         return (axes and ViewCompat.SCROLL_AXIS_VERTICAL) != 0
     }
 
@@ -956,8 +862,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
 
     override fun onNestedScrollAccepted(child: View, target: View, axes: Int, type: Int) {
         parentHelper.onNestedScrollAccepted(child, target, axes, type)
-        // 我作为 nested-scrolling-child，也向外层 parent（可能是 SwipeRefreshLayout）开会话，
-        // 这样后续 dispatchNestedScroll 才能被外层认领。
         startNestedScroll(axes, type)
     }
 
@@ -968,8 +872,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
     override fun onStopNestedScroll(target: View, type: Int) {
         parentHelper.onStopNestedScroll(target, type)
         stopNestedScroll(type)
-        // body 的 fling 结束（NON_TOUCH 停）。此时如果 header 卡在中段，触发 snap。
-        // TOUCH 停不在这里 snap：避免和"用户随后启动 fling"的事件抢同一帧。
         if (type == ViewCompat.TYPE_NON_TOUCH) {
             maybeStartSnap()
         }
@@ -980,15 +882,9 @@ class NestedHeaderLayout @JvmOverloads constructor(
     }
 
     override fun onNestedPreScroll(target: View, dx: Int, dy: Int, consumed: IntArray, type: Int) {
-        // dy>0（内容要向上 = header 折叠方向）：
-        //   - 来源 = body：父优先折 header，剩余的才给 body 自己滚（CoordinatorLayout 的经典行为）
-        //   - 来源 = 非 body（如头图内嵌 RV）：父不抢，让 RV 自己先滚自己的内容；
-        //     RV 到底之后通过 onNestedScroll 的 dyUnconsumed>0 才折 header
         if (dy > 0 && findHostingBehavior(target) == BEHAVIOR_BODY) {
             consumed[1] = consumeHeaderScroll(dy)
         }
-        // 没消耗完的 dy 继续上抛给外层 parent。
-        // 用途：外层 SwipeRefreshLayout 的 preScroll 在 dy>0 时取消 mTotalUnconsumed（spinner 收回）。
         val remainDy = dy - consumed[1]
         val remainDx = dx - consumed[0]
         if (remainDx != 0 || remainDy != 0) {
@@ -1012,16 +908,11 @@ class NestedHeaderLayout @JvmOverloads constructor(
         type: Int,
         consumed: IntArray
     ) {
-        // 两段消费（其余转发给外层 parent）：
-        //   1) dyUnconsumed<0：child 到顶仍想下拉 → 父展开 header。两种来源都吃，对称的"列表到顶接力展开"。
-        //   2) dyUnconsumed>0：child 到底仍想上推 → 仅非 body 来源吃；这是"内嵌 RV 滚到底之后才折 header"的关键
-        //                       body 来源此处 dyUnconsumed>0 几乎不会出现（已被 preScroll 折过），即便出现 consume 也是 0
         if (dyUnconsumed < 0) {
             consumed[1] += consumeHeaderScroll(dyUnconsumed)
         } else if (dyUnconsumed > 0 && findHostingBehavior(target) != BEHAVIOR_BODY) {
             consumed[1] += consumeHeaderScroll(dyUnconsumed)
         }
-        // 转发到外层 parent：header 也消化完了仍有剩余 → 让外层 SwipeRefreshLayout 等接管。
         dispatchNestedScroll(
             dxConsumed + consumed[0],
             dyConsumed + consumed[1],
@@ -1065,7 +956,6 @@ class NestedHeaderLayout @JvmOverloads constructor(
 
     override fun getNestedScrollAxes(): Int = parentHelper.nestedScrollAxes
 
-    // ---- NestedScrollingChild3：把没消耗完的 dy 转给外层（如 SwipeRefreshLayout）-------
 
     override fun setNestedScrollingEnabled(enabled: Boolean) {
         childHelper.isNestedScrollingEnabled = enabled

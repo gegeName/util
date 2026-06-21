@@ -120,10 +120,7 @@ class CollapsingTitleView @JvmOverloads constructor(
         hostLayout?.removeOnOffsetChangedListener(listener)
         hostLayout = layout
         layout.addOnOffsetChangedListener(listener)
-        // 程序化添加 / include 异步 inflate 等场景下 NHL 自己 onFinishInflate 早就跑完，
-        // 这里主动通知一下，把祖先链 clipChildren 关掉，避免 expanded 标题被裁。
         layout.disableClipChildrenAlongAncestorsOf(this)
-        // 注册时立刻刷一次当前状态
         val ratio = if (layout.maxOffset > 0) layout.headerOffset.toFloat() / layout.maxOffset else 0f
         applyState(ratio)
     }
@@ -146,7 +143,6 @@ class CollapsingTitleView @JvmOverloads constructor(
         val rawTransX = lerp(expandedMarginStart.toFloat(), collapsedMarginStart.toFloat(), r)
         var rawTransY = lerp(expandedMarginTop.toFloat(), collapsedMarginTop.toFloat(), r)
 
-        // 自动 cap：保证 view 在 host 中的视觉 bottom <= firstScrollChildBottom
         val host = hostLayout
         if (host != null && host.firstScrollChildBottom > 0) {
             val topInHost = computeTopInHost(host)
