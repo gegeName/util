@@ -331,6 +331,22 @@
                     android:padding="10dp"
                     android:text="picker" />
 
+                <Button
+                    android:id="@+id/btnHtmlTextViewActivity"
+                    style="?attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:text="HtmlTextView" />
+
+                <Button
+                    android:id="@+id/btnScrollTextViewActivity"
+                    style="?attr/buttonBarButtonStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:padding="10dp"
+                    android:text="nesScrollView" />
+
             </LinearLayout>
         </HorizontalScrollView>
     </LinearLayout>
