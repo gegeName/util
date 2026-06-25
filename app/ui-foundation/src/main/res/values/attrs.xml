@@ -51,4 +51,158 @@
             <enum name="fitCenter" value="3" />
         </attr>
     </declare-styleable>
+
+    <!--
+        TitleView 自定义属性。命名规则：tv_ 前缀（TitleView）。
+        三段结构：left / center / right，每段含「一级」(Icon/Text) 和「二级」(SubIcon/SubText)，二级显示在一级下方。
+        - tv*Icon：图片资源；tv*IconSize：图片尺寸（正方形）；tv*IconTint：图片着色；tv*IconHitExpand：点击区域向外扩展像素（图片视觉大小不变）。
+        - tv*Text / tv*TextColor / tv*TextSize：文字内容/颜色/字号。
+        - tv*Margin / tv*Padding：每个控件（icon/text）单独的外边距与内边距，四方向统一。
+        - tv*IconHitExpand：图片点击区向四周扩展，基于 TouchDelegate，不撑 ImageView 大小、不占 layout 空间，与 padding/margin 互不干扰。
+    -->
+    <declare-styleable name="TitleView">
+        <!--
+            是否把状态栏高度补到 TitleView 顶部 padding。默认 true：
+            全面屏 / edge-to-edge 模式下自动让出状态栏；普通模式 inset=0 不做事。
+            如果 TitleView 不在屏幕顶部（如位于中间的某个区域），设为 false。
+        -->
+        <attr name="tv_fitStatusBar" format="boolean" />
+
+        <!--
+            自定义 view 布局：传入会替换对应段（left/center/right）的默认 icon+text 结构，
+            该段的默认 icon/text 全部 GONE，由自定义 view 自行渲染内容。运行时也可通过
+            setCustomView(section, view) / setCustomView(section, layoutId) 设置；传 null 恢复默认。
+        -->
+        <attr name="tv_leftCustomLayout" format="reference" />
+        <attr name="tv_centerCustomLayout" format="reference" />
+        <attr name="tv_rightCustomLayout" format="reference" />
+
+        <!--
+            可见性开关：不写 = 自动按内容显隐（有图/有文字才显示）；
+            true = 强制显示；false = 强制隐藏。运行时通过公开 view 改内容后调 refreshVisibility() 时仍生效。
+        -->
+        <attr name="tv_leftIconVisible" format="boolean" />
+        <attr name="tv_leftTextVisible" format="boolean" />
+        <attr name="tv_leftSubIconVisible" format="boolean" />
+        <attr name="tv_leftSubTextVisible" format="boolean" />
+        <attr name="tv_centerIconVisible" format="boolean" />
+        <attr name="tv_centerTextVisible" format="boolean" />
+        <attr name="tv_centerSubIconVisible" format="boolean" />
+        <attr name="tv_centerSubTextVisible" format="boolean" />
+        <attr name="tv_rightIconVisible" format="boolean" />
+        <attr name="tv_rightTextVisible" format="boolean" />
+        <attr name="tv_rightSubIconVisible" format="boolean" />
+        <attr name="tv_rightSubTextVisible" format="boolean" />
+
+        <attr name="tv_leftIcon" format="reference" />
+        <attr name="tv_leftIconSize" format="dimension" />
+        <attr name="tv_leftIconTint" format="color" />
+        <attr name="tv_leftIconHitExpand" format="dimension" />
+        <attr name="tv_leftIconMargin" format="dimension" />
+        <attr name="tv_leftIconPadding" format="dimension" />
+        <attr name="tv_leftText" format="string" />
+        <attr name="tv_leftTextColor" format="color" />
+        <attr name="tv_leftTextSize" format="dimension" />
+        <attr name="tv_leftTextMargin" format="dimension" />
+        <attr name="tv_leftTextPadding" format="dimension" />
+        <!-- icon 相对 text 的位置：start=左 end=右 top=上 bottom=下，默认 start。 -->
+        <attr name="tv_leftIconPosition" format="enum">
+            <enum name="start" value="0" />
+            <enum name="end" value="1" />
+            <enum name="top" value="2" />
+            <enum name="bottom" value="3" />
+        </attr>
+
+        <attr name="tv_leftSubIcon" format="reference" />
+        <attr name="tv_leftSubIconSize" format="dimension" />
+        <attr name="tv_leftSubIconTint" format="color" />
+        <attr name="tv_leftSubIconHitExpand" format="dimension" />
+        <attr name="tv_leftSubIconMargin" format="dimension" />
+        <attr name="tv_leftSubIconPadding" format="dimension" />
+        <attr name="tv_leftSubText" format="string" />
+        <attr name="tv_leftSubTextColor" format="color" />
+        <attr name="tv_leftSubTextSize" format="dimension" />
+        <attr name="tv_leftSubTextMargin" format="dimension" />
+        <attr name="tv_leftSubTextPadding" format="dimension" />
+        <attr name="tv_leftSubIconPosition" format="enum">
+            <enum name="start" value="0" />
+            <enum name="end" value="1" />
+            <enum name="top" value="2" />
+            <enum name="bottom" value="3" />
+        </attr>
+
+        <attr name="tv_centerIcon" format="reference" />
+        <attr name="tv_centerIconSize" format="dimension" />
+        <attr name="tv_centerIconTint" format="color" />
+        <attr name="tv_centerIconHitExpand" format="dimension" />
+        <attr name="tv_centerIconMargin" format="dimension" />
+        <attr name="tv_centerIconPadding" format="dimension" />
+        <attr name="tv_centerText" format="string" />
+        <attr name="tv_centerTextColor" format="color" />
+        <attr name="tv_centerTextSize" format="dimension" />
+        <attr name="tv_centerTextMargin" format="dimension" />
+        <attr name="tv_centerTextPadding" format="dimension" />
+        <attr name="tv_centerIconPosition" format="enum">
+            <enum name="start" value="0" />
+            <enum name="end" value="1" />
+            <enum name="top" value="2" />
+            <enum name="bottom" value="3" />
+        </attr>
+
+        <attr name="tv_centerSubIcon" format="reference" />
+        <attr name="tv_centerSubIconSize" format="dimension" />
+        <attr name="tv_centerSubIconTint" format="color" />
+        <attr name="tv_centerSubIconHitExpand" format="dimension" />
+        <attr name="tv_centerSubIconMargin" format="dimension" />
+        <attr name="tv_centerSubIconPadding" format="dimension" />
+        <attr name="tv_centerSubText" format="string" />
+        <attr name="tv_centerSubTextColor" format="color" />
+        <attr name="tv_centerSubTextSize" format="dimension" />
+        <attr name="tv_centerSubTextMargin" format="dimension" />
+        <attr name="tv_centerSubTextPadding" format="dimension" />
+        <attr name="tv_centerSubIconPosition" format="enum">
+            <enum name="start" value="0" />
+            <enum name="end" value="1" />
+            <enum name="top" value="2" />
+            <enum name="bottom" value="3" />
+        </attr>
+
+        <attr name="tv_rightIcon" format="reference" />
+        <attr name="tv_rightIconSize" format="dimension" />
+        <attr name="tv_rightIconTint" format="color" />
+        <attr name="tv_rightIconHitExpand" format="dimension" />
+        <attr name="tv_rightIconMargin" format="dimension" />
+        <attr name="tv_rightIconPadding" format="dimension" />
+        <attr name="tv_rightText" format="string" />
+        <attr name="tv_rightTextColor" format="color" />
+        <attr name="tv_rightTextSize" format="dimension" />
+        <attr name="tv_rightTextMargin" format="dimension" />
+        <attr name="tv_rightTextPadding" format="dimension" />
+        <attr name="tv_rightIconPosition" format="enum">
+            <enum name="start" value="0" />
+            <enum name="end" value="1" />
+            <enum name="top" value="2" />
+            <enum name="bottom" value="3" />
+        </attr>
+
+        <attr name="tv_rightSubIcon" format="reference" />
+        <attr name="tv_rightSubIconSize" format="dimension" />
+        <attr name="tv_rightSubIconTint" format="color" />
+        <attr name="tv_rightSubIconHitExpand" format="dimension" />
+        <attr name="tv_rightSubIconMargin" format="dimension" />
+        <attr name="tv_rightSubIconPadding" format="dimension" />
+        <attr name="tv_rightSubText" format="string" />
+        <attr name="tv_rightSubTextColor" format="color" />
+        <attr name="tv_rightSubTextSize" format="dimension" />
+        <attr name="tv_rightSubTextMargin" format="dimension" />
+        <attr name="tv_rightSubTextPadding" format="dimension" />
+        <attr name="tv_rightSubIconPosition" format="enum">
+            <enum name="start" value="0" />
+            <enum name="end" value="1" />
+            <enum name="top" value="2" />
+            <enum name="bottom" value="3" />
+        </attr>
+    </declare-styleable>
+
+
 </resources>

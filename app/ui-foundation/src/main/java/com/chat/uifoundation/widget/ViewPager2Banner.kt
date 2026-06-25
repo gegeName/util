@@ -34,7 +34,7 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
-import com.chat.uifoundation.R
+import com.gzxkwl.common.R
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -91,8 +91,7 @@ class ViewPager2Banner<T> @JvmOverloads constructor(
     private var indicatorSize = dpToPx(DEFAULT_INDICATOR_SIZE_DP)
     private var indicatorSpace = dpToPx(DEFAULT_INDICATOR_SPACE_DP)
     private var createIndicatorView: ((parent: LinearLayout) -> View)? = null
-    private var bindIndicatorView: ((view: View, isSelected: Boolean, position: Int) -> Unit)? =
-        null
+    private var bindIndicatorView: ((view: View, isSelected: Boolean, position: Int) -> Unit)? = null
     private var visibleItemCount = DEFAULT_VISIBLE_ITEM_COUNT
     private var pageItemMargin = 0
     private var indicatorBottomMargin = dpToPx(DEFAULT_INDICATOR_BOTTOM_MARGIN_DP)
@@ -136,10 +135,21 @@ class ViewPager2Banner<T> @JvmOverloads constructor(
 
     /** 设置 Banner 数据，数据为空时不显示 item 和指示器。 */
     fun setItems(items: List<T>) {
+        val recyclerView = viewPager.getChildAt(0) as? RecyclerView
+        if (recyclerView != null && recyclerView.isComputingLayout) {
+            recyclerView.post { applyItems(items) }
+        } else {
+            applyItems(items)
+        }
+    }
+
+    private fun applyItems(items: List<T>) {
         bannerAdapter.setItems(items)
         buildIndicators(items.size)
         if (items.isNotEmpty()) {
             val startPosition = getStartPosition(items.size)
+            pageAnimator?.cancel()
+            if (viewPager.isFakeDragging) viewPager.endFakeDrag()
             viewPager.setCurrentItem(startPosition, false)
             updateIndicator(startPosition)
         }
@@ -239,6 +249,8 @@ class ViewPager2Banner<T> @JvmOverloads constructor(
     fun setCurrentItem(position: Int, smoothScroll: Boolean = true) {
         if (!smoothScroll || scrollDurationMillis <= 0) {
             pageAnimator?.cancel()
+            // 见 setItems 注释：fake drag 进行中调 setCurrentItem 会崩，先终止
+            if (viewPager.isFakeDragging) viewPager.endFakeDrag()
             viewPager.setCurrentItem(position, smoothScroll)
             return
         }
@@ -473,16 +485,10 @@ class ViewPager2Banner<T> @JvmOverloads constructor(
                 DEFAULT_INDICATOR_SELECTED_COLOR
             )
             indicatorNormalDrawable = drawableFromAttr(
-                typedArray.getResourceId(
-                    R.styleable.ViewPager2Banner_vpb_indicatorNormalDrawable,
-                    0
-                )
+                typedArray.getResourceId(R.styleable.ViewPager2Banner_vpb_indicatorNormalDrawable, 0)
             )
             indicatorSelectedDrawable = drawableFromAttr(
-                typedArray.getResourceId(
-                    R.styleable.ViewPager2Banner_vpb_indicatorSelectedDrawable,
-                    0
-                )
+                typedArray.getResourceId(R.styleable.ViewPager2Banner_vpb_indicatorSelectedDrawable, 0)
             )
             indicatorSize = typedArray.getDimensionPixelSize(
                 R.styleable.ViewPager2Banner_vpb_indicatorSize,
@@ -584,8 +590,6 @@ class ViewPager2Banner<T> @JvmOverloads constructor(
         indicatorLayout.layoutParams = params
     }
 
-    // 用户触摸暂停自动轮播：与父布局拦截控制解耦，无论是否请求父布局不拦截，
-    // 触摸都应暂停自动播放并取消进行中的动画，避免拖动与自动切换冲突。
     private fun handleUserTouch(event: MotionEvent) {
         if (!viewPager.isUserInputEnabled) return
         when (event.actionMasked) {
@@ -814,9 +818,7 @@ class ViewPager2Banner<T> @JvmOverloads constructor(
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BannerViewHolder {
             val binding = createItemBinding?.invoke(LayoutInflater.from(parent.context), parent)
-            val contentView = bindingRoot(binding) ?: createItemView?.invoke(parent) ?: ImageView(
-                parent.context
-            ).apply {
+            val contentView = bindingRoot(binding) ?: createItemView?.invoke(parent) ?: ImageView(parent.context).apply {
                 scaleType = imageScaleType
             }
             val pageView = FrameLayout(parent.context).apply {
